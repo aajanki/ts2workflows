@@ -1,0 +1,37 @@
+{
+  "name": "ts2workflows",
+  "version": "0.1.0",
+  "description": "Transpile Typescript code to GCP Workflows programs",
+  "main": "dist/index.js",
+  "type": "module",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "build": "tsc",
+    "lint": "eslint .",
+    "format": "prettier . --write",
+    "test": "mocha"
+  },
+  "author": "Antti Ajanki",
+  "license": "MIT",
+  "devDependencies": {
+    "@eslint/js": "^8.57.0",
+    "@types/chai": "^4.3.16",
+    "@types/mocha": "^10.0.6",
+    "@types/node": "^18",
+    "@typescript-eslint/eslint-plugin": "^7.9.0",
+    "@typescript-eslint/parser": "^7.9.0",
+    "chai": "^5.1.1",
+    "eslint": "^8.57.0",
+    "mocha": "^10.4.0",
+    "prettier": "^3.2.5",
+    "tsx": "^4.10.2",
+    "typescript": "^5.4.5",
+    "typescript-eslint": "^7.9.0"
+  },
+  "dependencies": {
+    "@typescript-eslint/typescript-estree": "^7.9.0",
+    "yaml": "^2.4.2"
+  }
+}
