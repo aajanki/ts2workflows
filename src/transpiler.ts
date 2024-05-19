@@ -2,7 +2,7 @@
 import * as parser from '@typescript-eslint/typescript-estree'
 import { AST_NODE_TYPES } from '@typescript-eslint/utils'
 import * as YAML from 'yaml'
-import { AssignStepAST, VariableAssignment } from './ast/steps.js'
+import { AssignStepAST, CallStepAST, VariableAssignment } from './ast/steps.js'
 import {
   Expression,
   ParenthesizedExpression,
@@ -27,6 +27,7 @@ const {
   Identifier,
   LogicalExpression,
   MemberExpression,
+  CallExpression,
 } = AST_NODE_TYPES
 
 export function transpile(code: string): string {
@@ -70,7 +71,14 @@ function convertType(node: any) {
       return convertVariableDeclarations(node.declarations)
 
     case ExpressionStatement:
-      return convertExpression(node.expression)
+      if (node.expression.type === CallExpression) {
+        return convertCallStep(node.expression)
+      } else {
+        return convertExpression(node.expression)
+      }
+
+    default:
+      throw new Error(`Not implemented node type: ${node?.type}`)
   }
 }
 
@@ -96,6 +104,27 @@ function convertVariableDeclarations(declarations: any): AssignStepAST {
   })
 
   return new AssignStepAST(assignments)
+}
+
+function convertCallStep(node: any): CallStepAST {
+  const calleeExpression = convertExpression(node.callee)
+
+  if (calleeExpression instanceof Expression && calleeExpression.isFullyQualifiedName()) {
+    const calleeName = calleeExpression.left.toString()
+   
+    // FIXME
+    const argumentValues = node.arguments.map((arg: any) => {
+      if (arg.type === Literal) {
+        return arg.value
+      } else {
+        throw new WorkflowSyntaxError(`Not implemented argument type: ${arg.type}`, arg.loc)
+      }
+    })
+
+    return new CallStepAST(calleeName)
+  } else {
+    throw new WorkflowSyntaxError('Callee should be a qualified name', node.loc)
+  }
 }
 
 export function convertExpression(instance: any): Primitive | Expression {
@@ -135,7 +164,7 @@ export function convertExpression(instance: any): Primitive | Expression {
 
     default:
       throw new WorkflowSyntaxError(
-        `Failed to parse type as expression: ${instance.type}`,
+        `Not implemented expression type: ${instance.type}`,
         instance.loc,
       )
   }

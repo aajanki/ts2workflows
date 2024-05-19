@@ -1,6 +1,8 @@
 import { expect } from 'chai'
 import { LiteralValueOrLiteralExpression } from '../src/ast/expressions.js'
 import { parseExpression } from './testutils.js'
+import { transpile } from '../src/transpiler.js'
+import * as YAML from 'yaml'
 
 describe('Literals', () => {
   it('parses null', () => {
@@ -183,26 +185,69 @@ describe('Expressions', () => {
   })
 
   it('parses expressions as map values', () => {
-    assertExpression('{"name": name}', { name: '${name}' })
-    assertExpression('{"age": thisYear - birthYear}', {
-      age: '${thisYear - birthYear}',
-    })
-    assertExpression('{"id": "ID-" + identifiers[2]}', {
-      id: '${"ID-" + identifiers[2]}',
-    })
+    // The transpiler fails to parse plain JSON objects with expressions as values. It works
+    // only on assignments.
+    const ast = transpile('const _ = {"name": name}')
+    const expected = `
+    - assign:
+        - _:
+            name: \${name}
+    `
+
+    expect(YAML.parse(ast)).to.deep.equal(YAML.parse(expected))
+  })
+
+  it('parses expressions as map values 2', () => {
+    const ast = transpile('const _ = {"age": thisYear - birthYear}')
+    const expected = `
+    - assign:
+        - _:
+            age: \${thisYear - birthYear}
+    `
+
+    expect(YAML.parse(ast)).to.deep.equal(YAML.parse(expected))
+  })
+
+  it('parses expressions as map values 3', () => {
+    const ast = transpile('const _ = {"id": "ID-" + identifiers[2]}')
+    const expected = `
+    - assign:
+        - _:
+            id: \${"ID-" + identifiers[2]}
+    `
+
+    expect(YAML.parse(ast)).to.deep.equal(YAML.parse(expected))
   })
 
   it('parses nested expression in map values', () => {
-    assertExpression('{"success": code in [200, 201]}', {
-      success: '${code in [200, 201]}',
-    })
-    assertExpression(
-      '{"isKnownLocation": location in {"Dreamland": 1, "Maru": 2}}',
-      { isKnownLocation: '${location in {"Dreamland": 1, "Maru": 2}}' },
-    )
-    assertExpression('{"values": {"next": a + 1}}', {
-      values: { next: '${a + 1}' },
-    })
+    const ast = transpile('const _ = {"success": code in [200, 201]}')
+    const expected = `
+    - assign:
+        - _:
+            success: \${code in [200, 201]}
+    `
+    expect(YAML.parse(ast)).to.deep.equal(YAML.parse(expected))
+  })
+
+  it('parses nested expression in map values 2', () => {
+    const ast = transpile('const _ = {"isKnownLocation": location in {"Dreamland": 1, "Maru": 2}}')
+    const expected = `
+    - assign:
+        - _:
+            isKnownLocation: '\${location in {"Dreamland": 1, "Maru": 2}}'
+    `
+    expect(YAML.parse(ast)).to.deep.equal(YAML.parse(expected))
+  })
+
+  it('parses nested expression in map values 3', () => {
+    const ast = transpile('const _ = {"values": {"next": a + 1}}')
+    const expected = `
+    - assign:
+        - _:
+            values:
+                next: \${a + 1}
+    `
+    expect(YAML.parse(ast)).to.deep.equal(YAML.parse(expected))
   })
 
   it('parses non-alphanumeric keys', () => {
@@ -215,8 +260,10 @@ describe('Expressions', () => {
   })
 
   it('parses function expressions', () => {
+    // "default" is a reserved keyword in Javascript. TODO
     //assertExpression('default(value, "")', '${default(value, "")}')
     //assertExpression('default(null, "")', '${default(null, "")}')
+    assertExpression('encode("Dreamland")', '${encode("Dreamland")}')
     assertExpression('sys.now()', '${sys.now()}')
     assertExpression('time.format(sys.now())', '${time.format(sys.now())}')
     assertExpression(
