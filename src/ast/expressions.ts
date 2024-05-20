@@ -45,6 +45,10 @@ export function primitiveToString(val: Primitive): string {
   }
 }
 
+export function primitiveToExpression(val: Primitive): Expression {
+  return new Expression(new Term(val), [])
+}
+
 export type VariableName = string
 
 // Variable name: a plain identifier (y, year), property access (person.name) or list

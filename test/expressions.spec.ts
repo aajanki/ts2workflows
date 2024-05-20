@@ -230,7 +230,9 @@ describe('Expressions', () => {
   })
 
   it('parses nested expression in map values 2', () => {
-    const ast = transpile('const _ = {"isKnownLocation": location in {"Dreamland": 1, "Maru": 2}}')
+    const ast = transpile(
+      'const _ = {"isKnownLocation": location in {"Dreamland": 1, "Maru": 2}}',
+    )
     const expected = `
     - assign:
         - _:
@@ -263,12 +265,12 @@ describe('Expressions', () => {
     // "default" is a reserved keyword in Javascript. TODO
     //assertExpression('default(value, "")', '${default(value, "")}')
     //assertExpression('default(null, "")', '${default(null, "")}')
-    assertExpression('encode("Dreamland")', '${encode("Dreamland")}')
+    assertExpression('int("5")', '${int("5")}')
     assertExpression('sys.now()', '${sys.now()}')
     assertExpression('time.format(sys.now())', '${time.format(sys.now())}')
     assertExpression(
       'time.format(sys.now()) + " " + text.decode(base64.decode("VGlhYmVhbmll"))',
-      '${time.format(sys.now()) + " " + text.decode(base64.decode("VGlhYmVhbmll"))}',
+      '${(time.format(sys.now()) + " ") + text.decode(base64.decode("VGlhYmVhbmll"))}',
     )
   })
 })

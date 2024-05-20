@@ -5,10 +5,12 @@ import * as YAML from 'yaml'
 import { AssignStepAST, CallStepAST, VariableAssignment } from './ast/steps.js'
 import {
   Expression,
+  FunctionInvocation,
   ParenthesizedExpression,
   Primitive,
   Term,
   VariableReference,
+  primitiveToExpression,
   primitiveToString,
 } from './ast/expressions.js'
 import { isRecord } from './utils.js'
@@ -71,11 +73,7 @@ function convertType(node: any) {
       return convertVariableDeclarations(node.declarations)
 
     case ExpressionStatement:
-      if (node.expression.type === CallExpression) {
-        return convertCallStep(node.expression)
-      } else {
-        return convertExpression(node.expression)
-      }
+      return convertExpression(node.expression)
 
     default:
       throw new Error(`Not implemented node type: ${node?.type}`)
@@ -104,27 +102,6 @@ function convertVariableDeclarations(declarations: any): AssignStepAST {
   })
 
   return new AssignStepAST(assignments)
-}
-
-function convertCallStep(node: any): CallStepAST {
-  const calleeExpression = convertExpression(node.callee)
-
-  if (calleeExpression instanceof Expression && calleeExpression.isFullyQualifiedName()) {
-    const calleeName = calleeExpression.left.toString()
-   
-    // FIXME
-    const argumentValues = node.arguments.map((arg: any) => {
-      if (arg.type === Literal) {
-        return arg.value
-      } else {
-        throw new WorkflowSyntaxError(`Not implemented argument type: ${arg.type}`, arg.loc)
-      }
-    })
-
-    return new CallStepAST(calleeName)
-  } else {
-    throw new WorkflowSyntaxError('Callee should be a qualified name', node.loc)
-  }
 }
 
 export function convertExpression(instance: any): Primitive | Expression {
@@ -161,6 +138,9 @@ export function convertExpression(instance: any): Primitive | Expression {
 
     case MemberExpression:
       return new Expression(new Term(convertMemberExpression(instance)), [])
+
+    case CallExpression:
+      return convertCallExpression(instance)
 
     default:
       throw new WorkflowSyntaxError(
@@ -333,5 +313,28 @@ function convertMemberExpression(memberExpression: any): VariableReference {
     return new VariableReference(
       `${objectName}.${memberExpression.property.name}`,
     )
+  }
+}
+
+function convertCallExpression(node: any): Expression {
+  const calleeExpression = convertExpression(node.callee)
+  if (
+    calleeExpression instanceof Expression &&
+    calleeExpression.isFullyQualifiedName()
+  ) {
+    const calleeName = calleeExpression.left.toString()
+    const argumentExpressions: Expression[] = node.arguments
+      .map(convertExpression)
+      .map((val) => {
+        if (val instanceof Expression) {
+          return val
+        } else {
+          return primitiveToExpression(val)
+        }
+      })
+    const invocation = new FunctionInvocation(calleeName, argumentExpressions)
+    return new Expression(new Term(invocation), [])
+  } else {
+    throw new WorkflowSyntaxError('Callee should be a qualified name', node.loc)
   }
 }
