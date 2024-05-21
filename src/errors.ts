@@ -1,4 +1,4 @@
-interface SourceCodeLocation {
+export interface SourceCodeLocation {
   start: { line: number; column: number }
   end: { line: number; column: number }
 }

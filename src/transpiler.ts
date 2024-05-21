@@ -2,7 +2,7 @@
 import * as parser from '@typescript-eslint/typescript-estree'
 import { AST_NODE_TYPES } from '@typescript-eslint/utils'
 import * as YAML from 'yaml'
-import { AssignStepAST, CallStepAST, VariableAssignment } from './ast/steps.js'
+import { AssignStepAST, VariableAssignment } from './ast/steps.js'
 import {
   Expression,
   FunctionInvocation,
@@ -325,7 +325,7 @@ function convertCallExpression(node: any): Expression {
     const calleeName = calleeExpression.left.toString()
     const argumentExpressions: Expression[] = node.arguments
       .map(convertExpression)
-      .map((val) => {
+      .map((val: any) => {
         if (val instanceof Expression) {
           return val
         } else {

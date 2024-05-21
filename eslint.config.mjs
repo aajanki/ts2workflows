@@ -15,6 +15,6 @@ export default tseslint.config(
   ...tseslint.configs.recommendedTypeChecked,
   ...tseslint.configs.stylisticTypeChecked,
   {
-    ignores: ['dist/', 'eslint.config.mjs'],
+    ignores: ['dist/', 'samples/', 'eslint.config.mjs'],
   },
 )
