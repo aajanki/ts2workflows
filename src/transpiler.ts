@@ -30,6 +30,7 @@ const {
   LogicalExpression,
   MemberExpression,
   CallExpression,
+  AssignmentExpression,
 } = AST_NODE_TYPES
 
 export function transpile(code: string): string {
@@ -73,7 +74,12 @@ function convertType(node: any) {
       return convertVariableDeclarations(node.declarations)
 
     case ExpressionStatement:
-      return convertExpression(node.expression)
+      if (node.expression.type === AssignmentExpression) {
+        return convertAssignmentExpression(node.expression)
+      } else {
+        // TODO: this doesn't belong here???
+        return convertExpression(node.expression)
+      }
 
     default:
       throw new Error(`Not implemented node type: ${node?.type}`)
@@ -337,4 +343,41 @@ function convertCallExpression(node: any): Expression {
   } else {
     throw new WorkflowSyntaxError('Callee should be a qualified name', node.loc)
   }
+}
+
+function convertAssignmentExpression(node: any): AssignStepAST {
+  if (node.operator !== '=') {
+    throw new WorkflowSyntaxError(
+      `Operator ${node.operator} is not supported in assignment expressions`,
+      node.loc,
+    )
+  }
+
+  const targetExpression = convertExpression(node.left)
+
+  if (
+    !(
+      targetExpression instanceof Expression &&
+      targetExpression.isFullyQualifiedName()
+    )
+  ) {
+    throw new WorkflowSyntaxError(
+      'Unexpected left hand side on an assignment expression',
+      node.loc,
+    )
+  }
+
+  const val = convertExpression(node.right)
+  let valExpression: Expression
+  if (val instanceof Expression) {
+    valExpression = val
+  } else {
+    valExpression = new Expression(new Term(val), [])
+  }
+
+  const assignments: VariableAssignment[] = [
+    [targetExpression.toString(), valExpression],
+  ]
+
+  return new AssignStepAST(assignments)
 }
