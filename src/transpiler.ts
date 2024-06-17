@@ -2,7 +2,11 @@
 import * as parser from '@typescript-eslint/typescript-estree'
 import { AST_NODE_TYPES } from '@typescript-eslint/utils'
 import * as YAML from 'yaml'
-import { AssignStepAST, VariableAssignment } from './ast/steps.js'
+import {
+  AssignStepAST,
+  VariableAssignment,
+  WorkflowStepASTWithNamedNested,
+} from './ast/steps.js'
 import {
   Expression,
   FunctionInvocation,
@@ -13,7 +17,6 @@ import {
   primitiveToExpression,
   primitiveToString,
 } from './ast/expressions.js'
-import { isRecord } from './utils.js'
 import { WorkflowSyntaxError } from './errors.js'
 
 const {
@@ -46,39 +49,25 @@ export function transpile(code: string): string {
     throw new Error('Expected type "Program"')
   }
 
-  const transpiled = ast.body.map(convertType).map((x) => {
-    if (typeof x === 'undefined') {
-      return undefined
-    } else if (x instanceof Expression) {
-      return x.toString()
-    } else if (
-      typeof x === 'string' ||
-      typeof x === 'number' ||
-      typeof x === 'boolean' ||
-      Array.isArray(x) ||
-      isRecord(x) ||
-      x === null
-    ) {
-      return primitiveToString(x)
-    } else {
-      return x.render()
-    }
+  const transpiled = ast.body.map(statementToStep).map((x) => {
+    return x.render()
   })
 
   return YAML.stringify(transpiled)
 }
 
-function convertType(node: any) {
+function statementToStep(node: any): WorkflowStepASTWithNamedNested {
   switch (node?.type) {
     case VariableDeclaration:
       return convertVariableDeclarations(node.declarations)
 
     case ExpressionStatement:
       if (node.expression.type === AssignmentExpression) {
-        return convertAssignmentExpression(node.expression)
+        return assignmentExpressionToAssignStep(node.expression)
+      } else if (node.expression.type === CallExpression) {
+        return callExpressionToAssignStep(node.expression)
       } else {
-        // TODO: this doesn't belong here???
-        return convertExpression(node.expression)
+        return generalExpressionToAssignStep(node.expression)
       }
 
     default:
@@ -345,7 +334,7 @@ function convertCallExpression(node: any): Expression {
   }
 }
 
-function convertAssignmentExpression(node: any): AssignStepAST {
+function assignmentExpressionToAssignStep(node: any): AssignStepAST {
   if (node.operator !== '=') {
     throw new WorkflowSyntaxError(
       `Operator ${node.operator} is not supported in assignment expressions`,
@@ -380,4 +369,43 @@ function convertAssignmentExpression(node: any): AssignStepAST {
   ]
 
   return new AssignStepAST(assignments)
+}
+
+function callExpressionToAssignStep(node: any): AssignStepAST {
+  const calleeExpression = convertExpression(node.callee)
+  if (
+    calleeExpression instanceof Expression &&
+    calleeExpression.isFullyQualifiedName()
+  ) {
+    const calleeName = calleeExpression.left.toString()
+    const argumentExpressions: Expression[] = node.arguments
+      .map(convertExpression)
+      .map((val: any) => {
+        if (val instanceof Expression) {
+          return val
+        } else {
+          return primitiveToExpression(val)
+        }
+      })
+    const invocation = new FunctionInvocation(calleeName, argumentExpressions)
+    const assignments: VariableAssignment[] = [
+      ['', new Expression(new Term(invocation), [])],
+    ]
+
+    return new AssignStepAST(assignments)
+  } else {
+    throw new WorkflowSyntaxError('Callee should be a qualified name', node.loc)
+  }
+}
+
+function generalExpressionToAssignStep(node: any): AssignStepAST {
+  const val = convertExpression(node)
+  let valExpression: Expression
+  if (val instanceof Expression) {
+    valExpression = val
+  } else {
+    valExpression = new Expression(new Term(val), [])
+  }
+
+  return new AssignStepAST([['', valExpression]])
 }
