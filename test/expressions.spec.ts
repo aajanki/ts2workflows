@@ -187,67 +187,93 @@ describe('Expressions', () => {
   it('parses expressions as map values', () => {
     // The transpiler fails to parse plain JSON objects with expressions as values. It works
     // only on assignments.
-    const ast = transpile('const _ = {"name": name}')
+    const ast = transpile('function test() { const _ = {"name": name} }')
     const expected = `
-    - assign:
-        - _:
-            name: \${name}
+    test:
+      steps:
+        - assign1:
+            assign:
+              - _:
+                  name: \${name}
     `
 
     expect(YAML.parse(ast)).to.deep.equal(YAML.parse(expected))
   })
 
   it('parses expressions as map values 2', () => {
-    const ast = transpile('const _ = {"age": thisYear - birthYear}')
+    const ast = transpile(
+      'function test() { const _ = {"age": thisYear - birthYear} }',
+    )
     const expected = `
-    - assign:
-        - _:
-            age: \${thisYear - birthYear}
+    test:
+      steps:
+        - assign1:
+            assign:
+              - _:
+                  age: \${thisYear - birthYear}
     `
 
     expect(YAML.parse(ast)).to.deep.equal(YAML.parse(expected))
   })
 
   it('parses expressions as map values 3', () => {
-    const ast = transpile('const _ = {"id": "ID-" + identifiers[2]}')
+    const ast = transpile(
+      'function test() { const _ = {"id": "ID-" + identifiers[2]} }',
+    )
     const expected = `
-    - assign:
-        - _:
-            id: \${"ID-" + identifiers[2]}
+    test:
+      steps:
+        - assign1:
+            assign:
+              - _:
+                  id: \${"ID-" + identifiers[2]}
     `
 
     expect(YAML.parse(ast)).to.deep.equal(YAML.parse(expected))
   })
 
   it('parses nested expression in map values', () => {
-    const ast = transpile('const _ = {"success": code in [200, 201]}')
+    const ast = transpile(
+      'function test() { const _ = {"success": code in [200, 201]} }',
+    )
     const expected = `
-    - assign:
-        - _:
-            success: \${code in [200, 201]}
+    test:
+      steps:
+        - assign1:
+            assign:
+              - _:
+                  success: \${code in [200, 201]}
     `
     expect(YAML.parse(ast)).to.deep.equal(YAML.parse(expected))
   })
 
   it('parses nested expression in map values 2', () => {
     const ast = transpile(
-      'const _ = {"isKnownLocation": location in {"Dreamland": 1, "Maru": 2}}',
+      'function test() { const _ = {"isKnownLocation": location in {"Dreamland": 1, "Maru": 2}} }',
     )
     const expected = `
-    - assign:
-        - _:
-            isKnownLocation: '\${location in {"Dreamland": 1, "Maru": 2}}'
+    test:
+      steps:
+        - assign1:
+            assign:
+              - _:
+                  isKnownLocation: '\${location in {"Dreamland": 1, "Maru": 2}}'
     `
     expect(YAML.parse(ast)).to.deep.equal(YAML.parse(expected))
   })
 
   it('parses nested expression in map values 3', () => {
-    const ast = transpile('const _ = {"values": {"next": a + 1}}')
+    const ast = transpile(
+      'function test() { const _ = {"values": {"next": a + 1}} }',
+    )
     const expected = `
-    - assign:
-        - _:
-            values:
-                next: \${a + 1}
+    test:
+      steps:
+        - assign1:
+            assign:
+              - _:
+                  values:
+                      next: \${a + 1}
     `
     expect(YAML.parse(ast)).to.deep.equal(YAML.parse(expected))
   })

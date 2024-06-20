@@ -4,8 +4,9 @@ import { AST_NODE_TYPES } from '@typescript-eslint/utils'
 import * as YAML from 'yaml'
 import {
   AssignStepAST,
+  SubworkflowAST,
   VariableAssignment,
-  WorkflowStepASTWithNamedNested,
+  WorkflowStepAST,
 } from './ast/steps.js'
 import {
   Expression,
@@ -18,6 +19,8 @@ import {
   primitiveToString,
 } from './ast/expressions.js'
 import { WorkflowSyntaxError } from './errors.js'
+import { WorkflowParameter } from './ast/workflows.js'
+import { generateStepNames } from './ast/stepnames.js'
 
 const {
   Program,
@@ -34,6 +37,7 @@ const {
   MemberExpression,
   CallExpression,
   AssignmentExpression,
+  FunctionDeclaration,
 } = AST_NODE_TYPES
 
 export function transpile(code: string): string {
@@ -49,15 +53,46 @@ export function transpile(code: string): string {
     throw new Error('Expected type "Program"')
   }
 
-  const transpiled = ast.body.map(statementToStep).map((x) => {
-    return x.render()
-  })
-
-  return YAML.stringify(transpiled)
+  const workflowAst = { subworkflows: ast.body.map(parseSubworkflows) }
+  const workflow = generateStepNames(workflowAst)
+  return YAML.stringify(workflow.render())
 }
 
-function statementToStep(node: any): WorkflowStepASTWithNamedNested {
-  switch (node?.type) {
+function parseSubworkflows(node: any): SubworkflowAST {
+  if (node?.type !== FunctionDeclaration) {
+    throw new WorkflowSyntaxError(
+      `Only function declarations allowed on the top level, encountered ${node?.type}`,
+      node?.loc,
+    )
+  }
+
+  // TODO: warn if async
+
+  if (node.id.type !== Identifier) {
+    throw new WorkflowSyntaxError(
+      'Expected Identifier as a function name',
+      node.id.loc,
+    )
+  }
+
+  const workflowParams: WorkflowParameter[] = node.params.map((param: any) => {
+    if (param.type !== Identifier) {
+      throw new WorkflowSyntaxError(
+        'TODO: function parameters besides Identifiers are not yet supported',
+        param.loc,
+      )
+    }
+
+    return { name: param.name }
+  })
+
+  const steps: WorkflowStepAST[] = node.body.body.map(parseStep)
+
+  return new SubworkflowAST(node.id.name, steps, workflowParams)
+}
+
+function parseStep(node: any): WorkflowStepAST {
+  switch (node.type) {
     case VariableDeclaration:
       return convertVariableDeclarations(node.declarations)
 
@@ -71,7 +106,10 @@ function statementToStep(node: any): WorkflowStepASTWithNamedNested {
       }
 
     default:
-      throw new Error(`Not implemented node type: ${node?.type}`)
+      throw new WorkflowSyntaxError(
+        `TODO: encountered unsupported type: ${node.type}`,
+        node.loc,
+      )
   }
 }
 
