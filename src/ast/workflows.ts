@@ -48,12 +48,7 @@ export class Subworkflow {
   }
 
   renderBody(): object {
-    const body = {
-      steps: this.steps.map(({ name, step }) => {
-        return { [name]: step.render() }
-      }),
-    }
-
+    const body = {}
     if (this.params && this.params.length > 0) {
       Object.assign(body, {
         params: this.params.map((x) => {
@@ -65,6 +60,12 @@ export class Subworkflow {
         }),
       })
     }
+
+    Object.assign(body, {
+      steps: this.steps.map(({ name, step }) => {
+        return { [name]: step.render() }
+      }),
+    })
 
     return body
   }
