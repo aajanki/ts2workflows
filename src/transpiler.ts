@@ -4,6 +4,8 @@ import { AST_NODE_TYPES } from '@typescript-eslint/utils'
 import * as YAML from 'yaml'
 import {
   AssignStepAST,
+  RaiseStepAST,
+  ReturnStepAST,
   SubworkflowAST,
   VariableAssignment,
   WorkflowStepAST,
@@ -16,9 +18,8 @@ import {
   Term,
   VariableReference,
   primitiveToExpression,
-  primitiveToString,
 } from './ast/expressions.js'
-import { WorkflowSyntaxError } from './errors.js'
+import { InternalTranspilingError, WorkflowSyntaxError } from './errors.js'
 import { WorkflowParameter } from './ast/workflows.js'
 import { generateStepNames } from './ast/stepnames.js'
 
@@ -38,6 +39,8 @@ const {
   CallExpression,
   AssignmentExpression,
   FunctionDeclaration,
+  ReturnStatement,
+  ThrowStatement,
 } = AST_NODE_TYPES
 
 export function transpile(code: string): string {
@@ -50,7 +53,7 @@ export function transpile(code: string): string {
   const ast = parser.parse(code, parserOptions)
 
   if (ast.type !== Program) {
-    throw new Error('Expected type "Program"')
+    throw new InternalTranspilingError('Expected type "Program"')
   }
 
   const workflowAst = { subworkflows: ast.body.map(parseSubworkflows) }
@@ -105,6 +108,12 @@ function parseStep(node: any): WorkflowStepAST {
         return generalExpressionToAssignStep(node.expression)
       }
 
+    case ReturnStatement:
+      return returnStatementToReturnStep(node)
+
+    case ThrowStatement:
+      return throwStatementToRaiseStep(node)
+
     default:
       throw new WorkflowSyntaxError(
         `TODO: encountered unsupported type: ${node.type}`,
@@ -123,24 +132,16 @@ function convertVariableDeclarations(declarations: any): AssignStepAST {
       throw new WorkflowSyntaxError('Expected Identifier', decl.loc)
     }
 
-    const val = convertExpression(decl.init)
-    let valExpression: Expression
-    if (val instanceof Expression) {
-      valExpression = val
-    } else {
-      valExpression = new Expression(new Term(val), [])
-    }
-
-    return [decl.id.name as string, valExpression]
+    return [decl.id.name as string, convertExpression(decl.init)]
   })
 
   return new AssignStepAST(assignments)
 }
 
-export function convertExpression(instance: any): Primitive | Expression {
+function convertExpressionOrPrimitive(instance: any): Primitive | Expression {
   switch (instance.type) {
     case ArrayExpression:
-      return (instance.elements as any[]).map(convertExpression)
+      return (instance.elements as any[]).map(convertExpressionOrPrimitive)
 
     case ObjectExpression:
       return convertObjectExpression(instance)
@@ -183,7 +184,25 @@ export function convertExpression(instance: any): Primitive | Expression {
   }
 }
 
+export function convertExpression(instance: any): Expression {
+  const expOrPrimitive = convertExpressionOrPrimitive(instance)
+  if (expOrPrimitive instanceof Expression) {
+    return expOrPrimitive
+  } else {
+    return primitiveToExpression(expOrPrimitive)
+  }
+}
+
 function convertBinaryExpression(instance: any): Expression {
+  if (
+    instance.type !== BinaryExpression &&
+    instance.type != LogicalExpression
+  ) {
+    throw new InternalTranspilingError(
+      `Expected BinaryExpression or LogicalExpression, got ${instance.type}`,
+    )
+  }
+
   let op: string
   switch (instance.operator) {
     case '+':
@@ -224,8 +243,8 @@ function convertBinaryExpression(instance: any): Expression {
       )
   }
 
-  const leftEx = convertExpression(instance.left)
-  const rightEx = convertExpression(instance.right)
+  const leftEx = convertExpressionOrPrimitive(instance.left)
+  const rightEx = convertExpressionOrPrimitive(instance.right)
 
   let rightTerm: Term
   if (rightEx instanceof Expression && rightEx.rest.length === 0) {
@@ -256,6 +275,12 @@ function convertBinaryExpression(instance: any): Expression {
 }
 
 function convertUnaryExpression(instance: any): Expression {
+  if (instance.type !== UnaryExpression) {
+    throw new InternalTranspilingError(
+      `Expected UnaryExpression, got ${instance.type}`,
+    )
+  }
+
   if (instance.prefix === false) {
     throw new WorkflowSyntaxError(
       'only prefix unary operators are supported',
@@ -282,7 +307,7 @@ function convertUnaryExpression(instance: any): Expression {
       )
   }
 
-  const ex = convertExpression(instance.argument)
+  const ex = convertExpressionOrPrimitive(instance.argument)
 
   let val
   if (ex instanceof Expression && ex.isSingleValue()) {
@@ -296,30 +321,53 @@ function convertUnaryExpression(instance: any): Expression {
   return new Expression(new Term(val, op), [])
 }
 
-function convertObjectExpression(node: any) {
+function convertObjectExpression(
+  node: any,
+): Record<string, Primitive | Expression> {
+  if (node.type !== ObjectExpression) {
+    throw new InternalTranspilingError(
+      `Expected ObjectExpression, got ${node.type}`,
+    )
+  }
+
   const properties = node.properties as {
-    key: { type: AST_NODE_TYPES; value: string | number }
+    key: any
     value: any
   }[]
 
   return Object.fromEntries(
     properties.map(({ key, value }) => {
-      // TODO: Identifier
-      if (key.type !== Literal) {
+      let keyPrimitive: string
+      if (key.type === Identifier) {
+        keyPrimitive = key.name
+      } else if (key.type === Literal) {
+        if (typeof key.value === 'string') {
+          keyPrimitive = key.value
+        } else {
+          throw new WorkflowSyntaxError(
+            `Map keys must be identifiers or strings, encountered: ${typeof key.value}`,
+            key.loc,
+          )
+        }
+      } else {
         throw new WorkflowSyntaxError(
           `Not implemented object key type: ${key.type}`,
-          node.loc,
+          key.loc,
         )
       }
 
-      const keyPrimitive = key.value
-      const val = convertExpression(value)
-      return [keyPrimitive, val]
+      return [keyPrimitive, convertExpressionOrPrimitive(value)]
     }),
   )
 }
 
 function convertMemberExpression(memberExpression: any): VariableReference {
+  if (memberExpression.type !== MemberExpression) {
+    throw new InternalTranspilingError(
+      `Expected MemberExpression, got ${memberExpression.type}`,
+    )
+  }
+
   let objectName: string
   if (memberExpression.object.type === Identifier) {
     objectName = memberExpression.object.name
@@ -333,13 +381,7 @@ function convertMemberExpression(memberExpression: any): VariableReference {
   }
 
   if (memberExpression.computed) {
-    let member: string
-    const ex = convertExpression(memberExpression.property)
-    if (ex instanceof Expression) {
-      member = ex.toString()
-    } else {
-      member = primitiveToString(ex)
-    }
+    const member = convertExpression(memberExpression.property).toString()
 
     return new VariableReference(`${objectName}[${member}]`)
   } else {
@@ -350,21 +392,17 @@ function convertMemberExpression(memberExpression: any): VariableReference {
 }
 
 function convertCallExpression(node: any): Expression {
+  if (node.type !== CallExpression) {
+    throw new InternalTranspilingError(
+      `Expected CallExpression, got ${node.type}`,
+    )
+  }
+
   const calleeExpression = convertExpression(node.callee)
-  if (
-    calleeExpression instanceof Expression &&
-    calleeExpression.isFullyQualifiedName()
-  ) {
+  if (calleeExpression.isFullyQualifiedName()) {
     const calleeName = calleeExpression.left.toString()
-    const argumentExpressions: Expression[] = node.arguments
-      .map(convertExpression)
-      .map((val: any) => {
-        if (val instanceof Expression) {
-          return val
-        } else {
-          return primitiveToExpression(val)
-        }
-      })
+    const argumentExpressions: Expression[] =
+      node.arguments.map(convertExpression)
     const invocation = new FunctionInvocation(calleeName, argumentExpressions)
     return new Expression(new Term(invocation), [])
   } else {
@@ -373,6 +411,12 @@ function convertCallExpression(node: any): Expression {
 }
 
 function assignmentExpressionToAssignStep(node: any): AssignStepAST {
+  if (node.type !== AssignmentExpression) {
+    throw new InternalTranspilingError(
+      `Expected AssignmentExpression, got ${node.type}`,
+    )
+  }
+
   if (node.operator !== '=') {
     throw new WorkflowSyntaxError(
       `Operator ${node.operator} is not supported in assignment expressions`,
@@ -382,49 +426,32 @@ function assignmentExpressionToAssignStep(node: any): AssignStepAST {
 
   const targetExpression = convertExpression(node.left)
 
-  if (
-    !(
-      targetExpression instanceof Expression &&
-      targetExpression.isFullyQualifiedName()
-    )
-  ) {
+  if (!targetExpression.isFullyQualifiedName()) {
     throw new WorkflowSyntaxError(
       'Unexpected left hand side on an assignment expression',
       node.loc,
     )
   }
 
-  const val = convertExpression(node.right)
-  let valExpression: Expression
-  if (val instanceof Expression) {
-    valExpression = val
-  } else {
-    valExpression = new Expression(new Term(val), [])
-  }
-
   const assignments: VariableAssignment[] = [
-    [targetExpression.toString(), valExpression],
+    [targetExpression.toString(), convertExpression(node.right)],
   ]
 
   return new AssignStepAST(assignments)
 }
 
 function callExpressionToAssignStep(node: any): AssignStepAST {
+  if (node.type !== CallExpression) {
+    throw new InternalTranspilingError(
+      `Expected CallExpression, got ${node.type}`,
+    )
+  }
+
   const calleeExpression = convertExpression(node.callee)
-  if (
-    calleeExpression instanceof Expression &&
-    calleeExpression.isFullyQualifiedName()
-  ) {
+  if (calleeExpression.isFullyQualifiedName()) {
     const calleeName = calleeExpression.left.toString()
-    const argumentExpressions: Expression[] = node.arguments
-      .map(convertExpression)
-      .map((val: any) => {
-        if (val instanceof Expression) {
-          return val
-        } else {
-          return primitiveToExpression(val)
-        }
-      })
+    const argumentExpressions: Expression[] =
+      node.arguments.map(convertExpression)
     const invocation = new FunctionInvocation(calleeName, argumentExpressions)
     const assignments: VariableAssignment[] = [
       ['', new Expression(new Term(invocation), [])],
@@ -432,18 +459,35 @@ function callExpressionToAssignStep(node: any): AssignStepAST {
 
     return new AssignStepAST(assignments)
   } else {
-    throw new WorkflowSyntaxError('Callee should be a qualified name', node.loc)
+    throw new WorkflowSyntaxError(
+      'Callee should be a qualified name',
+      node.callee.loc,
+    )
   }
 }
 
 function generalExpressionToAssignStep(node: any): AssignStepAST {
-  const val = convertExpression(node)
-  let valExpression: Expression
-  if (val instanceof Expression) {
-    valExpression = val
-  } else {
-    valExpression = new Expression(new Term(val), [])
+  return new AssignStepAST([['', convertExpression(node)]])
+}
+
+function returnStatementToReturnStep(node: any): ReturnStepAST {
+  if (node.type !== ReturnStatement) {
+    throw new InternalTranspilingError(
+      `Expected ReturnStatement, got ${node.type}`,
+    )
   }
 
-  return new AssignStepAST([['', valExpression]])
+  const value = node.argument ? convertExpression(node.argument) : undefined
+
+  return new ReturnStepAST(value)
+}
+
+function throwStatementToRaiseStep(node: any): RaiseStepAST {
+  if (node.type !== ThrowStatement) {
+    throw new InternalTranspilingError(
+      `Expected ThrowStatement, got ${node.type}`,
+    )
+  }
+
+  return new RaiseStepAST(convertExpression(node.argument))
 }

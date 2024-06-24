@@ -3,7 +3,10 @@
 import * as fs from 'node:fs'
 import { program } from 'commander'
 import { transpile } from './transpiler.js'
-import { SourceCodeLocation, WorkflowSyntaxError } from './errors.js'
+import {
+  SourceCodeLocation,
+  WorkflowSyntaxError,
+} from './errors.js'
 import { TSError } from '@typescript-eslint/typescript-estree'
 
 function parseArgs() {

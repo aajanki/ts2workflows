@@ -11,3 +11,9 @@ export class WorkflowSyntaxError extends Error {
     this.location = location
   }
 }
+
+export class InternalTranspilingError extends Error {
+  constructor(message: string) {
+    super(`Internal error: ${message}`)
+  }
+}

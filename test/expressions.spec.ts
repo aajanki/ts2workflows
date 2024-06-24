@@ -82,6 +82,23 @@ describe('Literals', () => {
     })
   })
 
+  it('parses maps with identifier as keys', () => {
+    const ast = transpile(
+      'function test() { const x = {name: "Merkimer", race: "pig"} }',
+    )
+    const expected = `
+    test:
+      steps:
+        - assign1:
+            assign:
+              - x:
+                  name: Merkimer
+                  race: pig
+    `
+
+    expect(YAML.parse(ast)).to.deep.equal(YAML.parse(expected))
+  })
+
   it('parses nested maps', () => {
     assertExpression(
       '{"address": {"building": "The Dreamland Castle", "kingdom": "Dreamland"}}',

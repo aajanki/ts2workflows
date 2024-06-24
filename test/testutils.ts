@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access */
-
 import { AST_NODE_TYPES } from '@typescript-eslint/utils'
 import * as parser from '@typescript-eslint/typescript-estree'
 import { Expression, Term } from '../src/ast/expressions.js'
@@ -16,7 +14,7 @@ export function primitiveEx(
     | boolean
     | null
     | (string | number | boolean | null)[]
-    | { [key: string]: string | number | boolean | null },
+    | Record<string, string | number | boolean | null>,
 ): Expression {
   return new Expression(new Term(primitive), [])
 }
@@ -52,20 +50,15 @@ export function parseExpression(expressionString: string): Expression {
     throw new Error()
   }
 
-  let ex: any
+  let ex: unknown
   if (inputIsJsonObject) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
     ex = (ast.body[0].expression as any).right
   } else {
     ex = ast.body[0].expression
   }
 
-  const transpiled = convertExpression(ex)
-
-  if (transpiled instanceof Expression) {
-    return transpiled
-  } else {
-    return new Expression(new Term(transpiled), [])
-  }
+  return convertExpression(ex)
 }
 
 function isJSONObject(val: string): boolean {
