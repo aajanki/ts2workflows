@@ -4,6 +4,7 @@ import { AST_NODE_TYPES } from '@typescript-eslint/utils'
 import * as YAML from 'yaml'
 import {
   AssignStepAST,
+  ForStepAST,
   RaiseStepAST,
   ReturnStepAST,
   SubworkflowAST,
@@ -32,6 +33,7 @@ const {
   BlockStatement,
   CallExpression,
   ExpressionStatement,
+  ForOfStatement,
   FunctionDeclaration,
   Identifier,
   IfStatement,
@@ -120,6 +122,9 @@ function parseStep(node: any): WorkflowStepAST {
 
     case IfStatement:
       return ifStatementToSwitchStep(node)
+
+    case ForOfStatement:
+      return forOfStatementToForStep(node)
 
     default:
       throw new WorkflowSyntaxError(
@@ -543,4 +548,66 @@ function flattenIfBranches(ifStatement: any): SwitchConditionAST[] {
   }
 
   return branches
+}
+
+function forOfStatementToForStep(node: any): ForStepAST {
+  if (node.type !== ForOfStatement) {
+    throw new InternalTranspilingError(
+      `Expected ForOfStatement, got ${node.type}`,
+    )
+  }
+
+  if (node.body.type !== BlockStatement) {
+    throw new InternalTranspilingError(
+      `Expected BlockStatement, got ${node.body.type}`,
+    )
+  }
+
+  const steps = node.body.body.map(parseStep) as WorkflowStepAST[]
+
+  let loopVariableName: string
+  if (node.left.type === Identifier) {
+    loopVariableName = node.left.name
+  } else if (node.left.type === VariableDeclaration) {
+    if (node.left.declarations.length !== 1) {
+      throw new WorkflowSyntaxError(
+        'Only one variable can be declared here',
+        node.left.loc,
+      )
+    }
+
+    const declaration = node.left.declarations[0]
+    if (declaration.init !== null) {
+      throw new WorkflowSyntaxError(
+        'Initial value not allowed',
+        declaration.init.loc,
+      )
+    }
+
+    if (declaration.id.type !== Identifier) {
+      throw new InternalTranspilingError(
+        `Expected Identifier, got ${declaration.id.type}`,
+      )
+    }
+
+    loopVariableName = declaration.id.name
+  } else {
+    throw new InternalTranspilingError(
+      `Expected Identifier or VariableDeclaration, got ${node.left.type}`,
+    )
+  }
+
+  const listExpression = convertExpression(node.right)
+
+  if (
+    listExpression.isLiteral() &&
+    (typeof listExpression.left.value === 'number' ||
+      typeof listExpression.left.value === 'string' ||
+      typeof listExpression.left.value === 'boolean' ||
+      listExpression.left.value === null)
+  ) {
+    throw new WorkflowSyntaxError('Must be list expression', node.right.loc)
+  }
+
+  return new ForStepAST(steps, loopVariableName, listExpression)
 }

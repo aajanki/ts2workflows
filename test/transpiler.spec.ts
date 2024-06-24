@@ -524,6 +524,76 @@ describe('For loops', () => {
     expect(observed).to.deep.equal(expected)
   })
 
+  it('transpiles a for loop with identifier as the for loop variable', () => {
+    const code = `
+    function main() {
+      let total = 0;
+      for (x of [1, 2, 3]) {
+        total = total + x;
+      }
+      return total;
+    }`
+    const observed = YAML.parse(transpile(code)) as unknown
+
+    const expected = YAML.parse(`
+    main:
+      steps:
+        - assign1:
+            assign:
+              - total: 0
+        - for1:
+            for:
+              value: x
+              in:
+                - 1
+                - 2
+                - 3
+              steps:
+                - assign2:
+                    assign:
+                      - total: \${total + x}
+        - return1:
+            return: \${total}
+    `) as unknown
+
+    expect(observed).to.deep.equal(expected)
+  })
+
+  it('transpiles a for loop with a let for loop variable', () => {
+    const code = `
+    function main() {
+      let total = 0;
+      for (let x of [1, 2, 3]) {
+        total = total + x;
+      }
+      return total;
+    }`
+    const observed = YAML.parse(transpile(code)) as unknown
+
+    const expected = YAML.parse(`
+    main:
+      steps:
+        - assign1:
+            assign:
+              - total: 0
+        - for1:
+            for:
+              value: x
+              in:
+                - 1
+                - 2
+                - 3
+              steps:
+                - assign2:
+                    assign:
+                      - total: \${total + x}
+        - return1:
+            return: \${total}
+    `) as unknown
+
+    expect(observed).to.deep.equal(expected)
+  })
+
   it('transpiles a for loop with an empty body', () => {
     const code = `
     function main() {
@@ -665,6 +735,46 @@ describe('For loops', () => {
                           - next11:
                               next: break
                 - assign2:
+                    assign:
+                      - total: \${total + x}
+        - return1:
+            return: \${total}
+    `) as unknown
+
+    expect(observed).to.deep.equal(expected)
+  })
+
+  it('transpiles a for loop of a list expression', () => {
+    const code = `
+    function main() {
+      let total = 0;
+      const values = [1, 2, 3];
+      for (let x of values) {
+        total = total + x;
+      }
+      return total;
+    }`
+    const observed = YAML.parse(transpile(code)) as unknown
+
+    // TODO: fix this when merging of assign steps is implemented
+    const expected = YAML.parse(`
+    main:
+      steps:
+        - assign1:
+            assign:
+              - total: 0
+        - assign2:
+            assign:
+              - values:
+                  - 1
+                  - 2
+                  - 3
+        - for1:
+            for:
+              value: x
+              in: \${values}
+              steps:
+                - assign3:
                     assign:
                       - total: \${total + x}
         - return1:
