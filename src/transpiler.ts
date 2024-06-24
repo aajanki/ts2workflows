@@ -56,15 +56,32 @@ export function transpile(code: string): string {
     loc: true,
     range: true,
   }
-  const ast = parser.parse(code, parserOptions)
 
-  if (ast.type !== Program) {
-    throw new InternalTranspilingError('Expected type "Program"')
-  }
+  const ast = parser.parse(code, parserOptions)
+  assertType(ast, Program)
 
   const workflowAst = { subworkflows: ast.body.map(parseSubworkflows) }
   const workflow = generateStepNames(workflowAst)
   return YAML.stringify(workflow.render())
+}
+
+function assertType(node: { type: string }, expectedType: string): void {
+  if (node?.type !== expectedType) {
+    throw new InternalTranspilingError(
+      `Expected ${expectedType}, got ${node?.type}`,
+    )
+  }
+}
+
+function assertOneOfManyTypes(
+  node: { type: string },
+  expectAnyOfTheseTypes: string[],
+): void {
+  if (!expectAnyOfTheseTypes.includes(node?.type)) {
+    throw new InternalTranspilingError(
+      `Expected ${expectAnyOfTheseTypes.join(' or ')}, got ${node?.type}`,
+    )
+  }
 }
 
 function parseSubworkflows(node: any): SubworkflowAST {
@@ -206,14 +223,7 @@ export function convertExpression(instance: any): Expression {
 }
 
 function convertBinaryExpression(instance: any): Expression {
-  if (
-    instance.type !== BinaryExpression &&
-    instance.type != LogicalExpression
-  ) {
-    throw new InternalTranspilingError(
-      `Expected BinaryExpression or LogicalExpression, got ${instance.type}`,
-    )
-  }
+  assertOneOfManyTypes(instance, [BinaryExpression, LogicalExpression])
 
   let op: string
   switch (instance.operator) {
@@ -287,11 +297,7 @@ function convertBinaryExpression(instance: any): Expression {
 }
 
 function convertUnaryExpression(instance: any): Expression {
-  if (instance.type !== UnaryExpression) {
-    throw new InternalTranspilingError(
-      `Expected UnaryExpression, got ${instance.type}`,
-    )
-  }
+  assertType(instance, UnaryExpression)
 
   if (instance.prefix === false) {
     throw new WorkflowSyntaxError(
@@ -336,11 +342,7 @@ function convertUnaryExpression(instance: any): Expression {
 function convertObjectExpression(
   node: any,
 ): Record<string, Primitive | Expression> {
-  if (node.type !== ObjectExpression) {
-    throw new InternalTranspilingError(
-      `Expected ObjectExpression, got ${node.type}`,
-    )
-  }
+  assertType(node, ObjectExpression)
 
   const properties = node.properties as {
     key: any
@@ -374,11 +376,7 @@ function convertObjectExpression(
 }
 
 function convertMemberExpression(memberExpression: any): VariableReference {
-  if (memberExpression.type !== MemberExpression) {
-    throw new InternalTranspilingError(
-      `Expected MemberExpression, got ${memberExpression.type}`,
-    )
-  }
+  assertType(memberExpression, MemberExpression)
 
   let objectName: string
   if (memberExpression.object.type === Identifier) {
@@ -404,11 +402,7 @@ function convertMemberExpression(memberExpression: any): VariableReference {
 }
 
 function convertCallExpression(node: any): Expression {
-  if (node.type !== CallExpression) {
-    throw new InternalTranspilingError(
-      `Expected CallExpression, got ${node.type}`,
-    )
-  }
+  assertType(node, CallExpression)
 
   const calleeExpression = convertExpression(node.callee)
   if (calleeExpression.isFullyQualifiedName()) {
@@ -423,11 +417,7 @@ function convertCallExpression(node: any): Expression {
 }
 
 function assignmentExpressionToAssignStep(node: any): AssignStepAST {
-  if (node.type !== AssignmentExpression) {
-    throw new InternalTranspilingError(
-      `Expected AssignmentExpression, got ${node.type}`,
-    )
-  }
+  assertType(node, AssignmentExpression)
 
   if (node.operator !== '=') {
     throw new WorkflowSyntaxError(
@@ -453,11 +443,7 @@ function assignmentExpressionToAssignStep(node: any): AssignStepAST {
 }
 
 function callExpressionToAssignStep(node: any): AssignStepAST {
-  if (node.type !== CallExpression) {
-    throw new InternalTranspilingError(
-      `Expected CallExpression, got ${node.type}`,
-    )
-  }
+  assertType(node, CallExpression)
 
   const calleeExpression = convertExpression(node.callee)
   if (calleeExpression.isFullyQualifiedName()) {
@@ -483,47 +469,27 @@ function generalExpressionToAssignStep(node: any): AssignStepAST {
 }
 
 function returnStatementToReturnStep(node: any): ReturnStepAST {
-  if (node.type !== ReturnStatement) {
-    throw new InternalTranspilingError(
-      `Expected ReturnStatement, got ${node.type}`,
-    )
-  }
+  assertType(node, ReturnStatement)
 
   const value = node.argument ? convertExpression(node.argument) : undefined
-
   return new ReturnStepAST(value)
 }
 
 function throwStatementToRaiseStep(node: any): RaiseStepAST {
-  if (node.type !== ThrowStatement) {
-    throw new InternalTranspilingError(
-      `Expected ThrowStatement, got ${node.type}`,
-    )
-  }
+  assertType(node, ThrowStatement)
 
   return new RaiseStepAST(convertExpression(node.argument))
 }
 
 function ifStatementToSwitchStep(node: any): SwitchStepAST {
-  if (node.type !== IfStatement) {
-    throw new InternalTranspilingError(`Expected IfStatement, got ${node.type}`)
-  }
+  assertType(node, IfStatement)
 
   return new SwitchStepAST(flattenIfBranches(node))
 }
 
 function flattenIfBranches(ifStatement: any): SwitchConditionAST[] {
-  if (ifStatement.type !== IfStatement) {
-    throw new InternalTranspilingError(
-      `Expected IfStatement, got ${ifStatement.type}`,
-    )
-  }
-
-  if (ifStatement.consequent?.type !== BlockStatement) {
-    throw new InternalTranspilingError(
-      `Expected BlockStatement, got ${ifStatement.consequent.type}`,
-    )
-  }
+  assertType(ifStatement, IfStatement)
+  assertType(ifStatement.consequent, BlockStatement)
 
   const branches = [
     {
@@ -551,17 +517,8 @@ function flattenIfBranches(ifStatement: any): SwitchConditionAST[] {
 }
 
 function forOfStatementToForStep(node: any): ForStepAST {
-  if (node.type !== ForOfStatement) {
-    throw new InternalTranspilingError(
-      `Expected ForOfStatement, got ${node.type}`,
-    )
-  }
-
-  if (node.body.type !== BlockStatement) {
-    throw new InternalTranspilingError(
-      `Expected BlockStatement, got ${node.body.type}`,
-    )
-  }
+  assertType(node, ForOfStatement)
+  assertType(node.body, BlockStatement)
 
   const steps = node.body.body.map(parseStep) as WorkflowStepAST[]
 
@@ -584,11 +541,7 @@ function forOfStatementToForStep(node: any): ForStepAST {
       )
     }
 
-    if (declaration.id.type !== Identifier) {
-      throw new InternalTranspilingError(
-        `Expected Identifier, got ${declaration.id.type}`,
-      )
-    }
+    assertType(declaration.id, Identifier)
 
     loopVariableName = declaration.id.name
   } else {
