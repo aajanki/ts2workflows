@@ -33,6 +33,7 @@ const {
   BlockStatement,
   CallExpression,
   ExpressionStatement,
+  ForInStatement,
   ForOfStatement,
   FunctionDeclaration,
   Identifier,
@@ -139,6 +140,9 @@ function parseStep(node: any): WorkflowStepAST {
 
     case IfStatement:
       return ifStatementToSwitchStep(node)
+
+    case ForInStatement:
+      throw new WorkflowSyntaxError('for...in is not a supported construct. Use for...of.', node.loc)
 
     case ForOfStatement:
       return forOfStatementToForStep(node)

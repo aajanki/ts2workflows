@@ -784,7 +784,7 @@ describe('For loops', () => {
     expect(observed).to.deep.equal(expected)
   })
 
-  it('fails to parse for of a number', () => {
+  it('fails to parse for...of a number', () => {
     const code = `
     function main() {
       for (const x of 5) {
@@ -794,7 +794,7 @@ describe('For loops', () => {
     expect(() => transpile(code)).to.throw()
   })
 
-  it('fails to parse for of a string', () => {
+  it('fails to parse for...of a string', () => {
     const code = `
     function main() {
       for (const x of "fails") {
@@ -804,10 +804,20 @@ describe('For loops', () => {
     expect(() => transpile(code)).to.throw()
   })
 
-  it('fails to parse for of a map', () => {
+  it('fails to parse for...of a map', () => {
     const code = `
     function main() {
       for (const x of {key: 1}) {
+      }
+    }`
+
+    expect(() => transpile(code)).to.throw()
+  })
+
+  it('does not support for...in', () => {
+    const code = `
+    function main() {
+      for (const x in [1, 2, 3]) {
       }
     }`
 
