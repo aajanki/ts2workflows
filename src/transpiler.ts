@@ -7,6 +7,8 @@ import {
   RaiseStepAST,
   ReturnStepAST,
   SubworkflowAST,
+  SwitchConditionAST,
+  SwitchStepAST,
   VariableAssignment,
   WorkflowStepAST,
 } from './ast/steps.js'
@@ -24,23 +26,25 @@ import { WorkflowParameter } from './ast/workflows.js'
 import { generateStepNames } from './ast/stepnames.js'
 
 const {
-  Program,
   ArrayExpression,
-  UnaryExpression,
+  AssignmentExpression,
   BinaryExpression,
-  ObjectExpression,
-  VariableDeclaration,
-  VariableDeclarator,
+  BlockStatement,
+  CallExpression,
   ExpressionStatement,
-  Literal,
+  FunctionDeclaration,
   Identifier,
+  IfStatement,
+  Literal,
   LogicalExpression,
   MemberExpression,
-  CallExpression,
-  AssignmentExpression,
-  FunctionDeclaration,
+  ObjectExpression,
+  Program,
   ReturnStatement,
   ThrowStatement,
+  UnaryExpression,
+  VariableDeclaration,
+  VariableDeclarator,
 } = AST_NODE_TYPES
 
 export function transpile(code: string): string {
@@ -113,6 +117,9 @@ function parseStep(node: any): WorkflowStepAST {
 
     case ThrowStatement:
       return throwStatementToRaiseStep(node)
+
+    case IfStatement:
+      return ifStatementToSwitchStep(node)
 
     default:
       throw new WorkflowSyntaxError(
@@ -490,4 +497,50 @@ function throwStatementToRaiseStep(node: any): RaiseStepAST {
   }
 
   return new RaiseStepAST(convertExpression(node.argument))
+}
+
+function ifStatementToSwitchStep(node: any): SwitchStepAST {
+  if (node.type !== IfStatement) {
+    throw new InternalTranspilingError(`Expected IfStatement, got ${node.type}`)
+  }
+
+  return new SwitchStepAST(flattenIfBranches(node))
+}
+
+function flattenIfBranches(ifStatement: any): SwitchConditionAST[] {
+  if (ifStatement.type !== IfStatement) {
+    throw new InternalTranspilingError(
+      `Expected IfStatement, got ${ifStatement.type}`,
+    )
+  }
+
+  if (ifStatement.consequent?.type !== BlockStatement) {
+    throw new InternalTranspilingError(
+      `Expected BlockStatement, got ${ifStatement.consequent.type}`,
+    )
+  }
+
+  const branches = [
+    {
+      condition: convertExpression(ifStatement.test),
+      steps: ifStatement.consequent.body.map(parseStep) as WorkflowStepAST[],
+    },
+  ]
+
+  if (ifStatement.alternate) {
+    if (ifStatement.alternate.type === BlockStatement) {
+      branches.push({
+        condition: primitiveToExpression(true),
+        steps: ifStatement.alternate.body.map(parseStep) as WorkflowStepAST[],
+      })
+    } else if (ifStatement.alternate.type === IfStatement) {
+      branches.push(...flattenIfBranches(ifStatement.alternate))
+    } else {
+      throw new InternalTranspilingError(
+        `Expected BlockStatement or IfStatement, got ${ifStatement.alternate.type}`,
+      )
+    }
+  }
+
+  return branches
 }
