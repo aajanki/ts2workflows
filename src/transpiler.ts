@@ -5,6 +5,7 @@ import * as YAML from 'yaml'
 import {
   AssignStepAST,
   ForStepAST,
+  NextStepAST,
   RaiseStepAST,
   ReturnStepAST,
   SubworkflowAST,
@@ -31,7 +32,9 @@ const {
   AssignmentExpression,
   BinaryExpression,
   BlockStatement,
+  BreakStatement,
   CallExpression,
+  ContinueStatement,
   ExpressionStatement,
   ForInStatement,
   ForOfStatement,
@@ -142,10 +145,19 @@ function parseStep(node: any): WorkflowStepAST {
       return ifStatementToSwitchStep(node)
 
     case ForInStatement:
-      throw new WorkflowSyntaxError('for...in is not a supported construct. Use for...of.', node.loc)
+      throw new WorkflowSyntaxError(
+        'for...in is not a supported construct. Use for...of.',
+        node.loc,
+      )
 
     case ForOfStatement:
       return forOfStatementToForStep(node)
+
+    case BreakStatement:
+      return breakStatementToNextStep(node)
+
+    case ContinueStatement:
+      return continueStatementToNextStep(node)
 
     default:
       throw new WorkflowSyntaxError(
@@ -567,4 +579,14 @@ function forOfStatementToForStep(node: any): ForStepAST {
   }
 
   return new ForStepAST(steps, loopVariableName, listExpression)
+}
+
+function breakStatementToNextStep(node: any): NextStepAST {
+  assertType(node, BreakStatement)
+  return new NextStepAST('break')
+}
+
+function continueStatementToNextStep(node: any): NextStepAST {
+  assertType(node, ContinueStatement)
+  return new NextStepAST('continue')
 }

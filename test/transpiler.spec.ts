@@ -675,7 +675,7 @@ describe('For loops', () => {
               - total: 0
         - for1:
             for:
-              value: key
+              value: x
               in:
                 - 1
                 - 2
@@ -684,9 +684,9 @@ describe('For loops', () => {
               steps:
                 - switch1:
                     switch:
-                      - condition: \${x % 2 == 0}
+                      - condition: \${(x % 2) == 0}
                         steps:
-                          - next11:
+                          - next1:
                               next: continue
                 - assign2:
                     assign:
@@ -721,7 +721,7 @@ describe('For loops', () => {
               - total: 0
         - for1:
             for:
-              value: key
+              value: x
               in:
                 - 1
                 - 2
@@ -732,7 +732,7 @@ describe('For loops', () => {
                     switch:
                       - condition: \${total > 5}
                         steps:
-                          - next11:
+                          - next1:
                               next: break
                 - assign2:
                     assign:
