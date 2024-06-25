@@ -48,6 +48,7 @@ const {
   Program,
   ReturnStatement,
   ThrowStatement,
+  TSAsExpression,
   UnaryExpression,
   VariableDeclaration,
   VariableDeclarator,
@@ -220,6 +221,9 @@ function convertExpressionOrPrimitive(instance: any): Primitive | Expression {
 
     case CallExpression:
       return convertCallExpression(instance)
+
+    case TSAsExpression:
+      return convertExpressionOrPrimitive(instance.expression)
 
     default:
       throw new WorkflowSyntaxError(
