@@ -439,25 +439,74 @@ function convertCallExpression(node: any): Expression {
 function assignmentExpressionToAssignStep(node: any): AssignStepAST {
   assertType(node, AssignmentExpression)
 
-  if (node.operator !== '=') {
-    throw new WorkflowSyntaxError(
-      `Operator ${node.operator} is not supported in assignment expressions`,
-      node.loc,
-    )
+  let compoundOperator: string | undefined = undefined
+  switch (node.operator) {
+    case '=':
+      compoundOperator = undefined
+      break
+
+    case '+=':
+      compoundOperator = '+'
+      break
+
+    case '-=':
+      compoundOperator = '-'
+      break
+
+    case '*=':
+      compoundOperator = '*'
+      break
+
+    case '/=':
+      compoundOperator = '/'
+      break
+
+    case '%=':
+      compoundOperator = '%'
+      break
+
+    case '&&=':
+      compoundOperator = 'and'
+      break
+
+    case '||=':
+      compoundOperator = 'or'
+      break
+
+    default:
+      throw new WorkflowSyntaxError(
+        `Operator ${node.operator} is not supported in assignment expressions`,
+        node.loc,
+      )
   }
 
   const targetExpression = convertExpression(node.left)
 
   if (!targetExpression.isFullyQualifiedName()) {
     throw new WorkflowSyntaxError(
-      'Unexpected left hand side on an assignment expression',
+      'The left-hand side of an assignment must be an identifier or a property access',
       node.loc,
     )
   }
 
-  const assignments: VariableAssignment[] = [
-    [targetExpression.toString(), convertExpression(node.right)],
-  ]
+  const targetName = targetExpression.toString()
+
+  let valueExpression: Expression = convertExpression(node.right)
+  if (compoundOperator) {
+    let right: Term
+    if (valueExpression.isSingleValue()) {
+      right = valueExpression.left
+    } else {
+      right = new Term(new ParenthesizedExpression(valueExpression))
+    }
+
+    valueExpression = new Expression(
+      new Term(new VariableReference(targetName)),
+      [{ binaryOperator: compoundOperator, right }],
+    )
+  }
+
+  const assignments: VariableAssignment[] = [[targetName, valueExpression]]
 
   return new AssignStepAST(assignments)
 }

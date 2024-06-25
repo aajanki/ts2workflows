@@ -207,6 +207,150 @@ describe('Assignment statement', () => {
 
     expect(observed).to.deep.equal(expected)
   })
+
+  it('addition assignment', () => {
+    const code = `
+    function main() {
+      let x = 0;
+      x += 5;
+    }`
+    const observed = YAML.parse(transpile(code)) as unknown
+
+    const expected = YAML.parse(`
+    main:
+      steps:
+        - assign1:
+            assign:
+              - x: 0
+        - assign2:
+            assign:
+              - x: \${x + 5}
+    `) as unknown
+
+    expect(observed).to.deep.equal(expected)
+  })
+
+  it('addition assignment to a member expression', () => {
+    const code = `
+    function main() {
+      people[4].age += 1;
+    }`
+    const observed = YAML.parse(transpile(code)) as unknown
+
+    const expected = YAML.parse(`
+    main:
+      steps:
+        - assign1:
+            assign:
+              - people[4].age: \${people[4].age + 1}
+    `) as unknown
+
+    expect(observed).to.deep.equal(expected)
+  })
+
+  it('addition assignment with a complex expression', () => {
+    const code = `
+    function main() {
+      x += 2 * y + 10;
+    }`
+    const observed = YAML.parse(transpile(code)) as unknown
+
+    const expected = YAML.parse(`
+    main:
+      steps:
+        - assign1:
+            assign:
+              - x: \${x + ((2 * y) + 10)}
+    `) as unknown
+
+    expect(observed).to.deep.equal(expected)
+  })
+
+  it('substraction assignment', () => {
+    const code = `
+    function main() {
+      let x = 0;
+      x -= 5;
+    }`
+    const observed = YAML.parse(transpile(code)) as unknown
+
+    const expected = YAML.parse(`
+    main:
+      steps:
+        - assign1:
+            assign:
+              - x: 0
+        - assign2:
+            assign:
+              - x: \${x - 5}
+    `) as unknown
+
+    expect(observed).to.deep.equal(expected)
+  })
+
+  it('multiplication assignment', () => {
+    const code = `
+    function main() {
+      let x = 1;
+      x *= 2;
+    }`
+    const observed = YAML.parse(transpile(code)) as unknown
+
+    const expected = YAML.parse(`
+    main:
+      steps:
+        - assign1:
+            assign:
+              - x: 1
+        - assign2:
+            assign:
+              - x: \${x * 2}
+    `) as unknown
+
+    expect(observed).to.deep.equal(expected)
+  })
+
+  it('division assignment', () => {
+    const code = `
+    function main() {
+      let x = 10;
+      x /= 2;
+    }`
+    const observed = YAML.parse(transpile(code)) as unknown
+
+    const expected = YAML.parse(`
+    main:
+      steps:
+        - assign1:
+            assign:
+              - x: 10
+        - assign2:
+            assign:
+              - x: \${x / 2}
+    `) as unknown
+
+    expect(observed).to.deep.equal(expected)
+  })
+
+  it('throws if the left-hand side of an assignment is a complex expression', () => {
+    const code = `
+    function main() {
+      2 * x = 4
+    }
+    `
+
+    expect(() => transpile(code)).to.throw()
+  })
+
+  it('throws if the left-hand side of an compound assignment is a complex expression', () => {
+    const code = `
+    function main() {
+      2 * x += 4
+    }
+    `
+
+    expect(() => transpile(code)).to.throw()
+  })
 })
 
 describe('If statements', () => {
