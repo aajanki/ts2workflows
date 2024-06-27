@@ -121,7 +121,6 @@ export class Term {
   }
 
   isLiteral(): boolean {
-    // TODO: literal maps
     if (Array.isArray(this.value)) {
       return this.value.every((x) => {
         if (x instanceof Expression) {
@@ -131,7 +130,20 @@ export class Term {
             typeof x === 'string' ||
             typeof x === 'number' ||
             typeof x === 'boolean' ||
-            this.value === null
+            x === null
+          )
+        }
+      })
+    } else if (isRecord(this.value)) {
+      return Object.values(this.value).every((x) => {
+        if (x instanceof Expression) {
+          return x.isLiteral()
+        } else {
+          return (
+            typeof x === 'string' ||
+            typeof x === 'number' ||
+            typeof x === 'boolean' ||
+            x === null
           )
         }
       })

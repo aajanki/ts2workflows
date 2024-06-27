@@ -27,6 +27,7 @@ import {
 import { InternalTranspilingError, WorkflowSyntaxError } from './errors.js'
 import { WorkflowParameter } from './ast/workflows.js'
 import { generateStepNames } from './ast/stepnames.js'
+import { isRecord } from './utils.js'
 
 const {
   ArrayExpression,
@@ -628,7 +629,8 @@ function forOfStatementToForStep(node: any): ForStepAST {
 
   if (
     listExpression.isLiteral() &&
-    (typeof listExpression.left.value === 'number' ||
+    (isRecord(listExpression.left.value) ||
+      typeof listExpression.left.value === 'number' ||
       typeof listExpression.left.value === 'string' ||
       typeof listExpression.left.value === 'boolean' ||
       listExpression.left.value === null)
