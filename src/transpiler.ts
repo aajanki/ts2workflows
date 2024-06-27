@@ -11,6 +11,7 @@ import {
   SubworkflowAST,
   SwitchConditionAST,
   SwitchStepAST,
+  TryStepAST,
   VariableAssignment,
   WorkflowStepAST,
 } from './ast/steps.js'
@@ -48,6 +49,7 @@ const {
   Program,
   ReturnStatement,
   ThrowStatement,
+  TryStatement,
   TSAsExpression,
   UnaryExpression,
   VariableDeclaration,
@@ -159,6 +161,9 @@ function parseStep(node: any): WorkflowStepAST {
 
     case ContinueStatement:
       return continueStatementToNextStep(node)
+
+    case TryStatement:
+      return tryStatementToTryStep(node)
 
     default:
       throw new WorkflowSyntaxError(
@@ -642,4 +647,32 @@ function breakStatementToNextStep(node: any): NextStepAST {
 function continueStatementToNextStep(node: any): NextStepAST {
   assertType(node, ContinueStatement)
   return new NextStepAST('continue')
+}
+
+function tryStatementToTryStep(node: any): TryStepAST {
+  assertType(node, TryStatement)
+
+  const steps: WorkflowStepAST[] = node.block.body.map(parseStep)
+  const exceptSteps: WorkflowStepAST[] = node.handler.body.body.map(parseStep)
+
+  let errorVariable: string | undefined = undefined
+  const handlerParam = node.handler.param as {
+    type: string
+    name: string
+  } | null
+  if (handlerParam) {
+    assertType(handlerParam, Identifier)
+
+    errorVariable = handlerParam.name
+  }
+
+  if (node.finalizer !== null) {
+    // TODO
+    throw new WorkflowSyntaxError(
+      'finally block not yet supported',
+      node.finalizer.loc,
+    )
+  }
+
+  return new TryStepAST(steps, exceptSteps, undefined, errorVariable)
 }

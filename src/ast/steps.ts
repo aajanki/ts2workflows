@@ -599,7 +599,7 @@ export class TryStepAST implements WorkflowStepAST {
 export class TryStepASTNamed implements WorkflowStepASTWithNamedNested {
   readonly tag = 'try'
   readonly retryPolicy?: string | CustomRetryPolicy
-  readonly errorMap?: StepName
+  readonly errorMap?: VariableName
   // Steps in the try block
   readonly trySteps: NamedWorkflowStep[]
   // Steps in the except block
@@ -637,7 +637,7 @@ export class TryStepASTNamed implements WorkflowStepASTWithNamedNested {
     }
 
     let except
-    if (this.errorMap !== undefined && this.exceptSteps.length > 0) {
+    if (this.exceptSteps.length > 0) {
       except = {
         as: this.errorMap,
         steps: renderSteps(this.exceptSteps),

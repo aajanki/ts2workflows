@@ -525,10 +525,44 @@ describe('Try-catch statement', () => {
                 as: err
                 steps:
                   - switch1:
-                      - condition: \${err.code == 404}
-                        steps:
-                          - return2:
-                              return: "Not found"
+                      switch:
+                        - condition: \${err.code == 404}
+                          steps:
+                            - return2:
+                                return: "Not found"
+    `) as unknown
+
+    expect(observed).to.deep.equal(expected)
+  })
+
+  it('transpiles try-catch without an error variable', () => {
+    const code = `
+    function main() {
+      try {
+        const response = http.get("https://visit.dreamland.test/");
+        return response;
+      } catch {
+        log("Error!");
+      }
+    }`
+    const observed = YAML.parse(transpile(code)) as unknown
+
+    const expected = YAML.parse(`
+      main:
+        steps:
+          - try1:
+              try:
+                steps:
+                  - assign1:
+                      assign:
+                        - response: \${http.get("https://visit.dreamland.test/")}
+                  - return1:
+                      return: \${response}
+              except:
+                steps:
+                  - assign2:
+                      assign:
+                        - "": \${log("Error!")}
     `) as unknown
 
     expect(observed).to.deep.equal(expected)
