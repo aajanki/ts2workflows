@@ -3,6 +3,16 @@ import * as YAML from 'yaml'
 import { transpile } from '../src/transpiler.js'
 
 describe('Transpiler', () => {
+  it('accepts import declaration on the top-level', () => {
+    const code = `
+    import 'http'
+    import defaultExport from 'module'
+    import { log } from 'logger'
+    import * as sys from 'sys'`
+
+    expect(() => transpile(code)).not.to.throw()
+  })
+
   it('throws if top level contains non-function elements', () => {
     const code = `
     function main() { }

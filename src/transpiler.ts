@@ -43,6 +43,7 @@ const {
   ForOfStatement,
   FunctionDeclaration,
   Identifier,
+  ImportDeclaration,
   IfStatement,
   Literal,
   LogicalExpression,
@@ -69,7 +70,7 @@ export function transpile(code: string): string {
   const ast = parser.parse(code, parserOptions)
   assertType(ast, Program)
 
-  const workflowAst = { subworkflows: ast.body.map(parseSubworkflows) }
+  const workflowAst = { subworkflows: ast.body.flatMap(parseTopLevelStatement) }
   const workflow = generateStepNames(workflowAst)
   return YAML.stringify(workflow.render())
 }
@@ -93,13 +94,25 @@ function assertOneOfManyTypes(
   }
 }
 
-function parseSubworkflows(node: any): SubworkflowAST {
-  if (node?.type !== FunctionDeclaration) {
-    throw new WorkflowSyntaxError(
-      `Only function declarations allowed on the top level, encountered ${node?.type}`,
-      node?.loc,
-    )
+function parseTopLevelStatement(node: any): SubworkflowAST[] {
+  switch (node?.type) {
+    case FunctionDeclaration:
+      return [parseSubworkflows(node)]
+
+    case ImportDeclaration:
+      // TODO
+      return []
+
+    default:
+      throw new WorkflowSyntaxError(
+        `Only function declarations and imports allowed on the top level, encountered ${node?.type}`,
+        node?.loc,
+      )
   }
+}
+
+function parseSubworkflows(node: any): SubworkflowAST {
+  assertType(node, FunctionDeclaration)
 
   // TODO: warn if async
 
