@@ -32,6 +32,7 @@ import { isRecord } from './utils.js'
 const {
   ArrayExpression,
   AssignmentExpression,
+  AssignmentPattern,
   BinaryExpression,
   BlockStatement,
   BreakStatement,
@@ -110,14 +111,27 @@ function parseSubworkflows(node: any): SubworkflowAST {
   }
 
   const workflowParams: WorkflowParameter[] = node.params.map((param: any) => {
-    if (param.type !== Identifier) {
-      throw new WorkflowSyntaxError(
-        'TODO: function parameters besides Identifiers are not yet supported',
-        param.loc,
-      )
-    }
+    switch (param.type) {
+      case Identifier:
+        return { name: param.name }
 
-    return { name: param.name }
+      case AssignmentPattern:
+        assertType(param.left, Identifier)
+        if (param.right.type !== Literal) {
+          throw new WorkflowSyntaxError(
+            'The default value must be a literal',
+            param.right.loc,
+          )
+        }
+
+        return { name: param.left.name, default: param.right.value }
+
+      default:
+        throw new WorkflowSyntaxError(
+          'Function parameter must be an identifier or an assignment',
+          param.loc,
+        )
+    }
   })
 
   const steps: WorkflowStepAST[] = node.body.body.map(parseStep)

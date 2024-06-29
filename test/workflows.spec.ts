@@ -65,4 +65,46 @@ describe('workflow transpiler', () => {
 
     expect(observed).to.deep.equal(expected)
   })
+
+  it('handles function parameters with default values', () => {
+    const code = `
+    function greeting(name = "world") {
+      return "Hello " + name
+    }`
+
+    const expected = YAML.parse(`
+    greeting:
+      params:
+        - name: world
+      steps:
+        - return1:
+            return: \${"Hello " + name}
+    `) as unknown
+
+    const observed = YAML.parse(transpile(code)) as unknown
+
+    expect(observed).to.deep.equal(expected)
+  })
+
+  it('handles function with positional and optional parameters', () => {
+    const code = `function my_workflow(positional_arg, optional_arg = 100) {}`
+
+    const expected = YAML.parse(`
+    my_workflow:
+      params:
+        - positional_arg
+        - optional_arg: 100
+      steps: []
+    `) as unknown
+
+    const observed = YAML.parse(transpile(code)) as unknown
+
+    expect(observed).to.deep.equal(expected)
+  })
+
+  it('throws if the default value is an expression', () => {
+    const code = `function my_workflow(a = 1 + 2) {}`
+
+    expect(() => transpile(code)).to.throw()
+  })
 })
