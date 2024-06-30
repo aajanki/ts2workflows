@@ -1012,3 +1012,270 @@ describe('For loops', () => {
     expect(() => transpile(code)).to.throw()
   })
 })
+
+describe('Parallel steps', () => {
+  it('outputs parallel steps', () => {
+    const code = `
+    function main() {
+      parallel([
+        () => {
+          log("Hello from branch 1");
+        },
+        () => {
+          log("Hello from branch 2");
+        },
+        () => {
+          log("Hello from branch 3");
+        },
+      ]);
+    }`
+    const observed = YAML.parse(transpile(code)) as unknown
+
+    const expected = YAML.parse(`
+    main:
+      steps:
+        - parallel1:
+            parallel:
+              branches:
+                - branch1:
+                    steps:
+                      - assign1:
+                          assign:
+                            - "": \${log("Hello from branch 1")}
+                - branch2:
+                    steps:
+                      - assign2:
+                          assign:
+                            - "": \${log("Hello from branch 2")}
+                - branch3:
+                    steps:
+                      - assign3:
+                          assign:
+                            - "": \${log("Hello from branch 3")}
+    `) as unknown
+
+    expect(observed).to.deep.equal(expected)
+  })
+
+  it('calls subworkflows by name', () => {
+    const code = `
+    function main() {
+      parallel([branch1, branch2]);
+    }
+
+    function branch1() {
+      return "A";
+    }
+
+    function branch2() {
+      return "B";
+    }`
+    const observed = YAML.parse(transpile(code)) as unknown
+
+    const expected = YAML.parse(`
+    main:
+      steps:
+        - parallel1:
+            parallel:
+              branches:
+                - branch1:
+                    steps:
+                      - call1:
+                          call: branch1
+                - branch2:
+                    steps:
+                      - call2:
+                          call: branch2
+
+    branch1:
+      steps:
+        - return1:
+            return: "A"
+
+    branch2:
+      steps:
+        - return2:
+            return: "B"
+    `) as unknown
+
+    expect(observed).to.deep.equal(expected)
+  })
+
+  it('handles optional shared variables parameter', () => {
+    const code = `
+    function main() {
+      const results = {};
+
+      parallel([
+        () => {
+          results.branch1 = "hello from branch 1";
+        },
+        () => {
+          results.branch2 = "hello from branch 2";
+        },
+      ],
+      { shared: ["results"] });
+    }`
+    const observed = YAML.parse(transpile(code)) as unknown
+
+    const expected = YAML.parse(`
+    main:
+      steps:
+        - assign1:
+            assign:
+              - results: {}
+        - parallel1:
+            parallel:
+              shared:
+                - results
+              branches:
+                - branch1:
+                    steps:
+                      - assign2:
+                          assign:
+                            - results.branch1: hello from branch 1
+                - branch2:
+                    steps:
+                      - assign3:
+                          assign:
+                            - results.branch2: hello from branch 2
+    `) as unknown
+
+    expect(observed).to.deep.equal(expected)
+  })
+
+  it('handles optional shared variables, exception policy and concurrency limit', () => {
+    const code = `
+    function main() {
+      const results = {};
+
+      parallel([
+        () => {
+          results.branch1 = "hello from branch 1";
+        },
+        () => {
+          results.branch2 = "hello from branch 2";
+        },
+      ], {
+        shared: ["results"],
+        exception_policy: "continueAll",
+        concurrency_limit: 2
+      });
+    }`
+    const observed = YAML.parse(transpile(code)) as unknown
+
+    const expected = YAML.parse(`
+    main:
+      steps:
+        - assign1:
+            assign:
+              - results: {}
+        - parallel1:
+            parallel:
+              shared:
+                - results
+              concurrency_limit: 2
+              exception_policy: continueAll
+              branches:
+                - branch1:
+                    steps:
+                      - assign2:
+                          assign:
+                            - results.branch1: hello from branch 1
+                - branch2:
+                    steps:
+                      - assign3:
+                          assign:
+                            - results.branch2: hello from branch 2
+    `) as unknown
+
+    expect(observed).to.deep.equal(expected)
+  })
+
+  it('rejects invalid types in optional parameters', () => {
+    const code = `
+    function main() {
+      parallel([branch1, branch2], {
+        concurrency_limit: true
+      });
+    }`
+
+    expect(() => transpile(code)).to.throw()
+  })
+
+  it('outputs parallel iteration if called with a for..of loop in an arrow function', () => {
+    const code = `
+    function main() {
+      const total = 0;
+
+      parallel(
+        () => {
+          for (const accountId of ['11', '22', '33', '44']) {
+            total += getBalance(acccountId);
+          }
+        },
+        { shared: ["total"] }
+      );
+    }`
+    const observed = YAML.parse(transpile(code)) as unknown
+
+    const expected = YAML.parse(`
+    main:
+      steps:
+        - assign1:
+            assign:
+              - total: 0
+        - parallel1:
+            parallel:
+              shared:
+                - total
+              for:
+                value: accountId
+                in:
+                  - "11"
+                  - "22"
+                  - "33"
+                  - "44"
+                steps:
+                  - assign2:
+                      assign:
+                        - total: \${total + getBalance(acccountId)}
+    `) as unknown
+
+    expect(observed).to.deep.equal(expected)
+  })
+
+  it('throws if an arrow function contains something else in addition to a for loop', () => {
+    const code = `
+    function main() {
+      const total = 0;
+
+      parallel(
+        () => {
+          for (const accountId of ['11', '22', '33', '44']) {
+            total += getBalance(acccountId);
+          }
+
+          total += 1000
+        },
+        { shared: ["total"] }
+      );
+    }`
+
+    expect(() => transpile(code)).to.throw()
+  })
+
+  it('throws if an arrow function contains something else besides a for loop', () => {
+    const code = `
+    function main() {
+      const total = 0;
+
+      parallel(
+        () => { total = 1 },
+        { shared: ["total"] }
+      );
+    }`
+
+    expect(() => transpile(code)).to.throw()
+  })
+})

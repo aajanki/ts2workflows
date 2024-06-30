@@ -161,6 +161,10 @@ export class Term {
     return this.value instanceof VariableReference
   }
 
+  isFunctionInvocation(): boolean {
+    return this.value instanceof FunctionInvocation
+  }
+
   // Does not add ${}.
   toString(): string {
     let opString = this.unaryOperator ?? ''
@@ -272,7 +276,9 @@ export class Expression {
   isSingleValue(): boolean {
     return (
       this.rest.length === 0 &&
-      (this.left.isLiteral() || this.left.isFullyQualifiedName())
+      (this.left.isLiteral() ||
+        this.left.isFullyQualifiedName() ||
+        this.left.isFunctionInvocation())
     )
   }
 

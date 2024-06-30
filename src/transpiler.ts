@@ -4,10 +4,14 @@ import { AST_NODE_TYPES } from '@typescript-eslint/utils'
 import * as YAML from 'yaml'
 import {
   AssignStepAST,
+  CallStepAST,
   ForStepAST,
   NextStepAST,
+  ParallelStepAST,
   RaiseStepAST,
   ReturnStepAST,
+  StepName,
+  StepsStepAST,
   SubworkflowAST,
   SwitchConditionAST,
   SwitchStepAST,
@@ -31,6 +35,7 @@ import { isRecord } from './utils.js'
 
 const {
   ArrayExpression,
+  ArrowFunctionExpression,
   AssignmentExpression,
   AssignmentPattern,
   BinaryExpression,
@@ -161,7 +166,7 @@ function parseStep(node: any): WorkflowStepAST {
       if (node.expression.type === AssignmentExpression) {
         return assignmentExpressionToAssignStep(node.expression)
       } else if (node.expression.type === CallExpression) {
-        return callExpressionToAssignStep(node.expression)
+        return callExpressionToStep(node.expression)
       } else {
         return generalExpressionToAssignStep(node.expression)
       }
@@ -544,25 +549,177 @@ function assignmentExpressionToAssignStep(node: any): AssignStepAST {
   return new AssignStepAST(assignments)
 }
 
-function callExpressionToAssignStep(node: any): AssignStepAST {
+function callExpressionToStep(node: any): WorkflowStepAST {
   assertType(node, CallExpression)
 
   const calleeExpression = convertExpression(node.callee)
   if (calleeExpression.isFullyQualifiedName()) {
     const calleeName = calleeExpression.left.toString()
-    const argumentExpressions: Expression[] =
-      node.arguments.map(convertExpression)
-    const invocation = new FunctionInvocation(calleeName, argumentExpressions)
-    const assignments: VariableAssignment[] = [
-      ['', new Expression(new Term(invocation), [])],
-    ]
 
-    return new AssignStepAST(assignments)
+    // Convert special functions
+    if (calleeName === 'parallel') {
+      return callExpressionToParallelStep(node)
+    } else {
+      // a "normal" subworkflow or standard library function call
+      const argumentExpressions: Expression[] =
+        node.arguments.map(convertExpression)
+      const invocation = new FunctionInvocation(calleeName, argumentExpressions)
+      const assignments: VariableAssignment[] = [
+        ['', new Expression(new Term(invocation), [])],
+      ]
+
+      return new AssignStepAST(assignments)
+    }
   } else {
     throw new WorkflowSyntaxError(
-      'Callee should be a qualified name',
+      'Expeced a subworkflow or a standard library function name',
       node.callee.loc,
     )
+  }
+}
+
+function callExpressionToParallelStep(node: any): ParallelStepAST {
+  assertType(node, CallExpression)
+  assertType(node.callee, Identifier)
+  if (node.callee.name !== 'parallel') {
+    throw new TypeError(`The parameter must be a call to "parallel"`)
+  }
+
+  let steps: Record<StepName, StepsStepAST> | ForStepAST = {}
+  if (node.arguments.length > 0) {
+    switch (node.arguments[0].type) {
+      case ArrayExpression:
+        steps = parseParallelBranches(node.arguments[0])
+        break
+
+      case ArrowFunctionExpression:
+        steps = parseParallelIteration(node.arguments[0])
+        break
+
+      default:
+        throw new WorkflowSyntaxError(
+          'The first parameter must be an array of functions or an arrow function',
+          node.arguments[0].loc,
+        )
+    }
+  }
+
+  let shared: string[] | undefined = undefined
+  let concurrencyLimit: number | undefined = undefined
+  let exceptionPolicy: string | undefined = undefined
+  if (node.arguments.length > 1) {
+    const options = parseParallelOptions(node.arguments[1])
+    shared = options.shared
+    concurrencyLimit = options.concurrencyLimit
+    exceptionPolicy = options.exceptionPolicy
+  }
+
+  return new ParallelStepAST(steps, shared, concurrencyLimit, exceptionPolicy)
+}
+
+function parseParallelBranches(node: any): Record<StepName, StepsStepAST> {
+  assertType(node, ArrayExpression)
+
+  const stepsArray: [string, StepsStepAST][] = node.elements.map(
+    (arg: any, idx: number) => {
+      const branchName = `branch${idx + 1}`
+
+      switch (arg.type) {
+        case Identifier:
+          return [branchName, new StepsStepAST([new CallStepAST(arg.name)])]
+
+        case ArrowFunctionExpression:
+          return [
+            branchName,
+            new StepsStepAST(arg.body.body.map(parseStep) as WorkflowStepAST[]),
+          ]
+
+        default:
+          throw new WorkflowSyntaxError(
+            'Argument should be a function call of type () => void',
+            arg.loc,
+          )
+      }
+    },
+  )
+
+  return Object.fromEntries(stepsArray)
+}
+
+function parseParallelIteration(node: any): ForStepAST {
+  assertType(node, ArrowFunctionExpression)
+
+  if (
+    node.body.body.length !== 1 ||
+    node.body.body[0].type !== ForOfStatement
+  ) {
+    throw new WorkflowSyntaxError(
+      'The parallel function body must be a single for...of statement',
+      node.body.loc,
+    )
+  }
+
+  return forOfStatementToForStep(node.body.body[0])
+}
+
+function parseParallelOptions(node: any) {
+  if (node.type !== ObjectExpression) {
+    throw new WorkflowSyntaxError(
+      'The second parameter must be an object',
+      node.loc,
+    )
+  }
+
+  const parallelOptions = convertObjectExpression(node)
+  const sharedExpression = parallelOptions.shared
+  if (!Array.isArray(sharedExpression)) {
+    throw new WorkflowSyntaxError(
+      '"shared" must be an array or strings',
+      node.loc,
+    )
+  }
+
+  const shared = sharedExpression.map((x) => {
+    if (x instanceof Expression || typeof x !== 'string') {
+      throw new WorkflowSyntaxError(
+        '"shared" must be an array of strings',
+        node.loc,
+      )
+    }
+
+    return x
+  })
+
+  const concurrencyLimitExpression = parallelOptions.concurrency_limit
+  if (
+    typeof concurrencyLimitExpression !== 'number' &&
+    typeof concurrencyLimitExpression !== 'undefined'
+  ) {
+    throw new WorkflowSyntaxError(
+      '"concurrency_limit" must be a number',
+      node.loc,
+    )
+  }
+
+  const concurrencyLimit = concurrencyLimitExpression
+
+  const exceptionPolicyExpression = parallelOptions.exception_policy
+  if (
+    typeof exceptionPolicyExpression !== 'string' &&
+    typeof exceptionPolicyExpression !== 'undefined'
+  ) {
+    throw new WorkflowSyntaxError(
+      '"exception_policy" must be a string',
+      node.loc,
+    )
+  }
+
+  const exceptionPolicy = exceptionPolicyExpression
+
+  return {
+    shared,
+    concurrencyLimit,
+    exceptionPolicy,
   }
 }
 
