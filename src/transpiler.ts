@@ -64,6 +64,12 @@ const {
   VariableDeclarator,
 } = AST_NODE_TYPES
 
+// special transformation for function names that use reserved Javascript keywords
+const specialFunctions: Record<string, string> = {
+  or_else: 'default',
+  choose: 'if',
+}
+
 export function transpile(code: string): string {
   const parserOptions = {
     comment: true,
@@ -464,10 +470,16 @@ function convertCallExpression(node: any): Expression {
 
   const calleeExpression = convertExpression(node.callee)
   if (calleeExpression.isFullyQualifiedName()) {
+    // Check if this is one of the special functions that needs name transformation
     const calleeName = calleeExpression.left.toString()
+    const transformedName = specialFunctions[calleeName] ?? calleeName
+
     const argumentExpressions: Expression[] =
       node.arguments.map(convertExpression)
-    const invocation = new FunctionInvocation(calleeName, argumentExpressions)
+    const invocation = new FunctionInvocation(
+      transformedName,
+      argumentExpressions,
+    )
     return new Expression(new Term(invocation), [])
   } else {
     throw new WorkflowSyntaxError('Callee should be a qualified name', node.loc)
@@ -556,19 +568,14 @@ function callExpressionToStep(node: any): WorkflowStepAST {
   if (calleeExpression.isFullyQualifiedName()) {
     const calleeName = calleeExpression.left.toString()
 
-    // Convert special functions
     if (calleeName === 'parallel') {
+      // A custom implementation for "parallel"
       return callExpressionToParallelStep(node)
     } else {
+      // Check if this is one of the special functions that needs name transformation or
       // a "normal" subworkflow or standard library function call
-      const argumentExpressions: Expression[] =
-        node.arguments.map(convertExpression)
-      const invocation = new FunctionInvocation(calleeName, argumentExpressions)
-      const assignments: VariableAssignment[] = [
-        ['', new Expression(new Term(invocation), [])],
-      ]
-
-      return new AssignStepAST(assignments)
+      const transformedName = specialFunctions[calleeName] ?? calleeName
+      return functionInvocationStep(transformedName, node.arguments)
     }
   } else {
     throw new WorkflowSyntaxError(
@@ -576,6 +583,19 @@ function callExpressionToStep(node: any): WorkflowStepAST {
       node.callee.loc,
     )
   }
+}
+
+function functionInvocationStep(
+  functionName: string,
+  argumentsNode: any,
+): AssignStepAST {
+  const argumentExpressions: Expression[] = argumentsNode.map(convertExpression)
+  const invocation = new FunctionInvocation(functionName, argumentExpressions)
+  const assignments: VariableAssignment[] = [
+    ['', new Expression(new Term(invocation), [])],
+  ]
+
+  return new AssignStepAST(assignments)
 }
 
 function callExpressionToParallelStep(node: any): ParallelStepAST {

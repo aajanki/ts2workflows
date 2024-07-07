@@ -145,6 +145,11 @@ will be converted to an [assign step](https://cloud.google.com/workflows/docs/re
 
 This syntax can be used to call [standard library functions](https://cloud.google.com/workflows/docs/reference/stdlib/overview) or subworkflows.
 
+Some Workflows standard library functions have names that are reserved keywords in Typescript. Those functions must be called with alternative names in ts2workflows source code:
+
+To generate a call to `default()` in Workflows code, use the name `or_else()`.
+To generete a call to `if()` in Workflows code, use the name `choose()`.
+
 ## Conditional statements
 
 The statement
