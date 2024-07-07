@@ -45,6 +45,7 @@ Operators:
 | !=, !==      | not equal to (both mean strict equality)     |
 | <, >, <=, >= | inequality comparisons                       |
 | &&, \|\|, !  | logical operators                            |
+| in           | check if a property is present in an object  |
 
 The [precendence order of operators](https://cloud.google.com/workflows/docs/reference/syntax/datatypes#order-operations) is the same as in GCP Workflows.
 
