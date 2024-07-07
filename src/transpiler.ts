@@ -384,7 +384,7 @@ function convertUnaryExpression(instance: any): Expression {
 
     default:
       throw new WorkflowSyntaxError(
-        `Unsupported unary operator: ${instance.operation}`,
+        `Unsupported unary operator: ${instance.operator}`,
         instance.loc,
       )
   }
