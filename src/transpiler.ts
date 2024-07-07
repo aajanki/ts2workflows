@@ -382,6 +382,12 @@ function convertUnaryExpression(instance: any): Expression {
       op = 'not'
       break
 
+    case 'void':
+      // Just evalute the side-effecting expression.
+      // This is wrong: the return value should be ignored.
+      op = undefined
+      break
+
     default:
       throw new WorkflowSyntaxError(
         `Unsupported unary operator: ${instance.operator}`,
