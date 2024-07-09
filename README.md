@@ -21,6 +21,16 @@ npm run build
 npm run test
 ```
 
+## Type checking
+
+One benefit of writing the workflow programs in Typescript is that the sources can be type checked. Type annotations for [Workflows standard library functions and expression helpers](https://cloud.google.com/workflows/docs/reference/stdlib/overview) are provided in the directory [typennotations](typeannotations).
+
+This is an example command that shows how to type check source files in the samples directory. [tsconfig.workflows.json](tsconfig.workflows.json) contains a sample configuration for tsc. The command will print typing errors or finish without printing anything, if there are no typing errors.
+
+```
+npx tsc --project tsconfig.workflows.json
+```
+
 ## Command for transpiling a Typescript file to Workflows syntax
 
 ```

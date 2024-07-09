@@ -1,0 +1,17 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ES2015",
+    "moduleResolution": "bundler",
+    "rootDir": ".",
+    "paths": {
+      "workflowslib": ["./typeannotations/workflowslib"]
+    },
+    "lib": ["ES5"],
+    "noEmit": true,
+    "strict": true,
+    "types": [],
+    "skipLibCheck": true
+  },
+  "include": ["samples"]
+}
