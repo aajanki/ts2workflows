@@ -372,11 +372,43 @@ describe('Assignment statement', () => {
       steps:
         - assign1:
             assign:
-              - a: {} 
+              - a: {}
               - b: test
               - c: 12
               - d: \${c + 1}
               - a.id: "1"
+    `) as unknown
+
+    expect(observed).to.deep.equal(expected)
+  })
+
+  it('merges consequtive assignments into a single step in a nested scope', () => {
+    const code = `
+    function main() {
+      if (2 > 1) {
+        const a = {};
+        const b = 'test';
+        const c = 12;
+        const d = c + 1;
+        a.id = '1';
+      }
+    }`
+    const observed = YAML.parse(transpile(code)) as unknown
+
+    const expected = YAML.parse(`
+    main:
+      steps:
+        - switch1:
+            switch:
+              - condition: \${2 > 1}
+                steps:
+                  - assign1:
+                      assign:
+                        - a: {}
+                        - b: test
+                        - c: 12
+                        - d: \${c + 1}
+                        - a.id: "1"
     `) as unknown
 
     expect(observed).to.deep.equal(expected)

@@ -158,10 +158,16 @@ function parseSubworkflows(node: any): SubworkflowAST {
     }
   })
 
-  const steps: WorkflowStepAST[] = node.body.body.map(parseStep)
-  const steps2 = mergeAssignSteps(steps)
+  const steps = parseBlockStatement(node.body)
 
-  return new SubworkflowAST(node.id.name, steps2, workflowParams)
+  return new SubworkflowAST(node.id.name, steps, workflowParams)
+}
+
+function parseBlockStatement(node: any): WorkflowStepAST[] {
+  assertType(node, BlockStatement)
+
+  const steps = node.body.map(parseStep) as WorkflowStepAST[]
+  return mergeAssignSteps(steps)
 }
 
 function parseStep(node: any): WorkflowStepAST {
@@ -656,10 +662,7 @@ function parseParallelBranches(node: any): Record<StepName, StepsStepAST> {
           return [branchName, new StepsStepAST([new CallStepAST(arg.name)])]
 
         case ArrowFunctionExpression:
-          return [
-            branchName,
-            new StepsStepAST(arg.body.body.map(parseStep) as WorkflowStepAST[]),
-          ]
+          return [branchName, new StepsStepAST(parseBlockStatement(arg.body))]
 
         default:
           throw new WorkflowSyntaxError(
@@ -780,7 +783,7 @@ function flattenIfBranches(ifStatement: any): SwitchConditionAST[] {
   const branches = [
     {
       condition: convertExpression(ifStatement.test),
-      steps: ifStatement.consequent.body.map(parseStep) as WorkflowStepAST[],
+      steps: parseBlockStatement(ifStatement.consequent),
     },
   ]
 
@@ -788,7 +791,7 @@ function flattenIfBranches(ifStatement: any): SwitchConditionAST[] {
     if (ifStatement.alternate.type === BlockStatement) {
       branches.push({
         condition: primitiveToExpression(true),
-        steps: ifStatement.alternate.body.map(parseStep) as WorkflowStepAST[],
+        steps: parseBlockStatement(ifStatement.alternate),
       })
     } else if (ifStatement.alternate.type === IfStatement) {
       branches.push(...flattenIfBranches(ifStatement.alternate))
@@ -806,7 +809,7 @@ function forOfStatementToForStep(node: any): ForStepAST {
   assertType(node, ForOfStatement)
   assertType(node.body, BlockStatement)
 
-  const steps = node.body.body.map(parseStep) as WorkflowStepAST[]
+  const steps = parseBlockStatement(node.body)
 
   let loopVariableName: string
   if (node.left.type === Identifier) {
@@ -865,8 +868,8 @@ function continueStatementToNextStep(node: any): NextStepAST {
 function tryStatementToTryStep(node: any): TryStepAST {
   assertType(node, TryStatement)
 
-  const steps: WorkflowStepAST[] = node.block.body.map(parseStep)
-  const exceptSteps: WorkflowStepAST[] = node.handler.body.body.map(parseStep)
+  const steps = parseBlockStatement(node.block)
+  const exceptSteps = parseBlockStatement(node.handler.body)
 
   let errorVariable: string | undefined = undefined
   const handlerParam = node.handler.param as {
