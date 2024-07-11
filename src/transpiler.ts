@@ -32,6 +32,7 @@ import { InternalTranspilingError, WorkflowSyntaxError } from './errors.js'
 import { WorkflowParameter } from './ast/workflows.js'
 import { generateStepNames } from './ast/stepnames.js'
 import { isRecord } from './utils.js'
+import { mergeAssignSteps } from './transformations.js'
 
 const {
   ArrayExpression,
@@ -111,7 +112,6 @@ function parseTopLevelStatement(node: any): SubworkflowAST[] {
       return [parseSubworkflows(node)]
 
     case ImportDeclaration:
-      // TODO
       return []
 
     default:
@@ -159,8 +159,9 @@ function parseSubworkflows(node: any): SubworkflowAST {
   })
 
   const steps: WorkflowStepAST[] = node.body.body.map(parseStep)
+  const steps2 = mergeAssignSteps(steps)
 
-  return new SubworkflowAST(node.id.name, steps, workflowParams)
+  return new SubworkflowAST(node.id.name, steps2, workflowParams)
 }
 
 function parseStep(node: any): WorkflowStepAST {

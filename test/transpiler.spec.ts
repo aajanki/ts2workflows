@@ -234,8 +234,6 @@ describe('Assignment statement', () => {
         - assign1:
             assign:
               - x: 0
-        - assign2:
-            assign:
               - x: \${x + 5}
     `) as unknown
 
@@ -292,8 +290,6 @@ describe('Assignment statement', () => {
         - assign1:
             assign:
               - x: 0
-        - assign2:
-            assign:
               - x: \${x - 5}
     `) as unknown
 
@@ -314,8 +310,6 @@ describe('Assignment statement', () => {
         - assign1:
             assign:
               - x: 1
-        - assign2:
-            assign:
               - x: \${x * 2}
     `) as unknown
 
@@ -336,8 +330,6 @@ describe('Assignment statement', () => {
         - assign1:
             assign:
               - x: 10
-        - assign2:
-            assign:
               - x: \${x / 2}
     `) as unknown
 
@@ -362,6 +354,32 @@ describe('Assignment statement', () => {
     `
 
     expect(() => transpile(code)).to.throw()
+  })
+
+  it('merges consequtive assignments into a single step', () => {
+    const code = `
+    function main() {
+      const a = {};
+      const b = 'test';
+      const c = 12;
+      const d = c + 1;
+      a.id = '1';
+    }`
+    const observed = YAML.parse(transpile(code)) as unknown
+
+    const expected = YAML.parse(`
+    main:
+      steps:
+        - assign1:
+            assign:
+              - a: {} 
+              - b: test
+              - c: 12
+              - d: \${c + 1}
+              - a.id: "1"
+    `) as unknown
+
+    expect(observed).to.deep.equal(expected)
   })
 })
 
@@ -946,15 +964,12 @@ describe('For loops', () => {
     }`
     const observed = YAML.parse(transpile(code)) as unknown
 
-    // TODO: fix this when merging of assign steps is implemented
     const expected = YAML.parse(`
     main:
       steps:
         - assign1:
             assign:
               - total: 0
-        - assign2:
-            assign:
               - values:
                   - 1
                   - 2
@@ -964,7 +979,7 @@ describe('For loops', () => {
               value: x
               in: \${values}
               steps:
-                - assign3:
+                - assign2:
                     assign:
                       - total: \${total + x}
         - return1:

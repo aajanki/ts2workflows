@@ -26,7 +26,6 @@ describe('workflow transpiler', () => {
       const c = 2 * b;
     }`
 
-    // TODO: fix this when the assign steps merging is implemented
     const expected = YAML.parse(`
     my_workflow:
       params:
@@ -35,8 +34,6 @@ describe('workflow transpiler', () => {
         - assign1:
             assign:
               - b: \${a + 1}
-        - assign2:
-            assign:
               - c: \${2 * b}
     `) as unknown
 
