@@ -199,7 +199,9 @@ export declare const math: {
   min: (x: number, y: number) => number
 }
 
-export declare const retry: {
+// The namespace is "retry" in in the GCP standard library, but that conflicts
+// with the custom retry function.
+export declare const retry_policy: {
   always: () => void
   default_backoff: () => void
   never: () => void
@@ -260,4 +262,20 @@ export declare function parallel(
     concurrency_limit?: number
     exception_policy?: string
   },
+): void
+
+export declare function retry(
+  params:
+    | {
+        policy: () => void
+      }
+    | {
+        predicate: (exception: unknown) => boolean
+        max_retries: number
+        backoff: {
+          initial_delay: number
+          max_delay: number
+          multiplier: number
+        }
+      },
 ): void

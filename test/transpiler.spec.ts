@@ -630,6 +630,173 @@ describe('Try-catch statement', () => {
     expect(observed).to.deep.equal(expected)
   })
 
+  it('transpiles try-catch-retry', () => {
+    const code = `
+    function main() {
+      try {
+        const response = http.get("https://visit.dreamland.test/");
+        return response;
+      } catch {
+        log("Error!");
+      }
+      retry({ policy: http.default_retry })
+    }`
+    const observed = YAML.parse(transpile(code)) as unknown
+
+    const expected = YAML.parse(`
+      main:
+        steps:
+          - try1:
+              try:
+                steps:
+                  - assign1:
+                      assign:
+                        - response: \${http.get("https://visit.dreamland.test/")}
+                  - return1:
+                      return: \${response}
+              retry: \${http.default_retry}
+              except:
+                steps:
+                  - assign2:
+                      assign:
+                        - "": \${log("Error!")}
+    `) as unknown
+
+    expect(observed).to.deep.equal(expected)
+  })
+
+  it('does retry with a retry predicate and backoff parameters', () => {
+    const code = `
+    function main() {
+      try {
+        const response = http.get("https://visit.dreamland.test/");
+        return response;
+      } catch {
+        log("Error!");
+      }
+      retry({
+        predicate: http.default_retry_predicate,
+        max_retries: 3,
+        backoff: { initial_delay: 0.5, max_delay: 60, multiplier: 2.5 }
+      })
+    }`
+    const observed = YAML.parse(transpile(code)) as unknown
+
+    const expected = YAML.parse(`
+      main:
+        steps:
+          - try1:
+              try:
+                steps:
+                  - assign1:
+                      assign:
+                        - response: \${http.get("https://visit.dreamland.test/")}
+                  - return1:
+                      return: \${response}
+              retry:
+                predicate: \${http.default_retry_predicate}
+                max_retries: 3
+                backoff:
+                  initial_delay: 0.5
+                  max_delay: 60
+                  multiplier: 2.5
+              except:
+                steps:
+                  - assign2:
+                      assign:
+                        - "": \${log("Error!")}
+    `) as unknown
+
+    expect(observed).to.deep.equal(expected)
+  })
+
+  it('throws if not all custom retry predicate parameters are given', () => {
+    const code = `
+    function main() {
+      try {
+        const response = http.get("https://visit.dreamland.test/");
+        return response;
+      } catch {
+        log("Error!");
+      }
+      retry({
+        predicate: http.default_retry_predicate,
+        max_retries: 3,
+        backoff: { max_delay: 60 } // missing initial_delay and multiplier
+      })
+    }`
+
+    expect(() => transpile(code)).to.throw()
+  })
+
+  it('throws if retry is called without arguments', () => {
+    const code = `
+    function main() {
+      try {
+        const response = http.get("https://visit.dreamland.test/");
+        return response;
+      } catch {
+        log("Error!");
+      }
+      retry()
+    }`
+
+    expect(() => transpile(code)).to.throw()
+  })
+
+  it('throws if retry policy is an unexpected data type', () => {
+    const code = `
+    function main() {
+      try {
+        const response = http.get("https://visit.dreamland.test/");
+        return response;
+      } catch {
+        log("Error!");
+      }
+      retry({ policy: 1000 })
+    }`
+
+    expect(() => transpile(code)).to.throw()
+  })
+
+  it('ignores retry that is not immediately after a try block', () => {
+    const code = `
+    function main() {
+      try {
+        const response = http.get("https://visit.dreamland.test/");
+      } catch {
+        log("Error!");
+      }
+
+      log("try block completed")
+
+
+      retry({ policy: http.default_retry })
+    }`
+    const observed = YAML.parse(transpile(code)) as unknown
+
+    const expected = YAML.parse(`
+      main:
+        steps:
+          - try1:
+              try:
+                steps:
+                  - assign1:
+                      assign:
+                        - response: \${http.get("https://visit.dreamland.test/")}
+              except:
+                steps:
+                  - assign2:
+                      assign:
+                        - "": \${log("Error!")}
+          - assign3:
+              assign:
+                - "": \${log("try block completed")}
+    `) as unknown
+
+    expect(observed).to.deep.equal(expected)
+  })
+
   it('throws on try without a catch', () => {
     const code = `
     function main() {

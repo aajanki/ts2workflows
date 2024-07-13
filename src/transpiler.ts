@@ -32,7 +32,7 @@ import { InternalTranspilingError, WorkflowSyntaxError } from './errors.js'
 import { WorkflowParameter } from './ast/workflows.js'
 import { generateStepNames } from './ast/stepnames.js'
 import { isRecord } from './utils.js'
-import { mergeAssignSteps } from './transformations.js'
+import { transformAST } from './transformations.js'
 
 const {
   ArrayExpression,
@@ -167,7 +167,7 @@ function parseBlockStatement(node: any): WorkflowStepAST[] {
   assertType(node, BlockStatement)
 
   const steps = node.body.map(parseStep) as WorkflowStepAST[]
-  return mergeAssignSteps(steps)
+  return transformAST(steps)
 }
 
 function parseStep(node: any): WorkflowStepAST {
@@ -584,11 +584,13 @@ function callExpressionToStep(node: any): WorkflowStepAST {
     if (calleeName === 'parallel') {
       // A custom implementation for "parallel"
       return callExpressionToParallelStep(node)
+    } else if (calleeName === 'retry') {
+      return callExpressionToCallStep(calleeName, node.arguments)
     } else {
       // Check if this is one of the special functions that needs name transformation or
       // a "normal" subworkflow or standard library function call
       const transformedName = specialFunctions[calleeName] ?? calleeName
-      return functionInvocationStep(transformedName, node.arguments)
+      return callExpressionAssignStep(transformedName, node.arguments)
     }
   } else {
     throw new WorkflowSyntaxError(
@@ -598,7 +600,7 @@ function callExpressionToStep(node: any): WorkflowStepAST {
   }
 }
 
-function functionInvocationStep(
+function callExpressionAssignStep(
   functionName: string,
   argumentsNode: any,
 ): AssignStepAST {
@@ -609,6 +611,28 @@ function functionInvocationStep(
   ]
 
   return new AssignStepAST(assignments)
+}
+
+function callExpressionToCallStep(
+  functionName: string,
+  argumentsNode: any,
+): CallStepAST {
+  if (argumentsNode.length < 1 || argumentsNode[0].type !== ObjectExpression) {
+    throw new WorkflowSyntaxError(
+      'Expected one object parameter',
+      argumentsNode.loc,
+    )
+  }
+
+  const primitiveOrExpArguments = convertObjectExpression(argumentsNode[0])
+  const workflowArguments = Object.fromEntries(
+    Object.entries(primitiveOrExpArguments).map(([key, val]) => {
+      const valEx = val instanceof Expression ? val : primitiveToExpression(val)
+      return [key, valEx]
+    }),
+  )
+
+  return new CallStepAST(functionName, workflowArguments)
 }
 
 function callExpressionToParallelStep(node: any): ParallelStepAST {

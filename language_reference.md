@@ -402,6 +402,69 @@ try1:
 
 The error variable and other variables created inside the catch block are accessible only in that block's scope (similar to [the variable scoping in Workflows](https://cloud.google.com/workflows/docs/reference/syntax/catching-errors#variable-scope)).
 
+## Retrying on errors
+
+It is possible to set a retry policy for a try-catch statement. Because Typescript does not have `retry` keyword, the retry is implemented by a special `retry` function. It must be called immediately after a try-catch block. A call to the `retry` is ignored elsewhere.
+
+The `retry` function must be called with parameters defining a retry policy. It can be either a policy provided by GCP Workflows or a custom retry policy. See the GCP documentation for the [required parameters for the two policy types](https://cloud.google.com/workflows/docs/reference/syntax/retrying#try-retry).
+
+A sample with a GCP-provided retry policy:
+
+```javascript
+import { http } from 'workflowslib'
+
+try {
+  get_http('https://visit.dreamland.test/')
+} catch (err) {
+  return 'Error!'
+}
+retry({ policy: http.default_retry })
+```
+
+A sample with a custom retry policy:
+
+```javascript
+import { http } from 'workflowslib'
+
+try {
+  get_http('https://visit.dreamland.test/')
+} catch (err) {
+  return 'Error!'
+}
+retry({
+  predicate: http.default_retry_predicate,
+  max_retries: 3,
+  backoff: {
+    initial_delay: 0.5
+    max_delay: 60,
+    multiplier: 2
+  },
+})
+```
+
+The above will be compiled to the following [try/except structure](https://cloud.google.com/workflows/docs/reference/syntax/catching-errors)
+
+```yaml
+try1:
+  try:
+    steps:
+      - assign1:
+          assign:
+            - '': ${get_http("https://visit.dreamland.test/")}
+  retry:
+    predicate: ${http.default_retry_predicate}
+    max_retries: 3
+    backoff:
+      initial_delay: 0.5
+      max_delay: 60
+      multiplier: 2
+  except:
+    as: err
+    steps:
+      - return1:
+          return: Error!
+```
+
 ## Throwing errors
 
 The statement
@@ -421,11 +484,30 @@ The error can be a string, a map or an expression that evaluates to string or ma
 
 Thrown errors can be handled by a try statement.
 
+## Importing type annotations
+
+Type annotations for GCP Workflows standard library and expression helper functions are provided by importing "workflowslib".
+
+```typescript
+import { http } from 'workflowslib'
+
+function read_data_from_web() {
+  return http.get('https://visit.dreamland.test/')
+}
+```
+
+Type annotations are not yet available for [connectors](https://cloud.google.com/workflows/docs/reference/googleapis).
+
 ## Run-time functions
 
 ts2workflows provides some special functions for implementing features that are not directly supported by Typescript constructs.
 
-- `parallel` function for executing code blocks in parallel. See the previous sections covering parallel branches and iteration. `function parallel(branches: (() => void)[] | (() => void), options: { shared?: string[], concurrency_limit?: number, exception_policy?: string } = {}): void`
+- `parallel` function for executing code blocks in parallel. See the previous sections covering parallel branches and iteration.
+- `retry` function that can be combined with `try`-`catch` block to specify a retry policy.
+
+It is not possible to call subworkflows with these names, because the transpiler treats these names as special cases.
+
+See [type annotations](typeannotations/workflowslib/index.ts) for these functions.
 
 ## Source code comments
 
