@@ -15,7 +15,7 @@ describe('Transpiler', () => {
     expect(() => transpile(code)).not.to.throw()
   })
 
-  it('throws if top level contains non-function elements', () => {
+  it('throws if top level contains other than functions or import', () => {
     const code = `
     function main() { }
 
@@ -409,6 +409,23 @@ describe('Assignment statement', () => {
                         - c: 12
                         - d: \${c + 1}
                         - a.id: "1"
+    `) as unknown
+
+    expect(observed).to.deep.equal(expected)
+  })
+
+  it('variable definition without initial value is treated as null assignment', () => {
+    const code = `function main() {
+      let a;
+    }`
+    const observed = YAML.parse(transpile(code)) as unknown
+
+    const expected = YAML.parse(`
+    main:
+      steps:
+        - assign1:
+            assign:
+              - a: null
     `) as unknown
 
     expect(observed).to.deep.equal(expected)

@@ -229,7 +229,11 @@ function convertVariableDeclarations(declarations: any): AssignStepAST {
       throw new WorkflowSyntaxError('Expected Identifier', decl.loc)
     }
 
-    return [decl.id.name as string, convertExpression(decl.init)]
+    const initialValue = decl.init
+      ? convertExpression(decl.init)
+      : primitiveToExpression(null)
+
+    return [decl.id.name as string, initialValue]
   })
 
   return new AssignStepAST(assignments)
