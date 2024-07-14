@@ -93,7 +93,7 @@ function errorDisplay(
     lines.push(`File ${prettyFilename}:`)
   } else {
     lines.push(
-      `File ${prettyFilename}, line ${location.start.line}, column ${location.start.column}:`,
+      `File ${prettyFilename}, line ${location.start.line}, column ${location.start.column + 1}:`,
     )
   }
 
