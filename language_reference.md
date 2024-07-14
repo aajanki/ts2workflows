@@ -498,6 +498,22 @@ function read_data_from_web() {
 
 Type annotations are not yet available for [connectors](https://cloud.google.com/workflows/docs/reference/googleapis).
 
+## Labeled steps
+
+The transpiler labels output steps with the step type and sequential numbering by default: e.g. `assign1`, `assign2`, etc. The automatic labels can be overridden by using Typescript labeled statements.
+
+```typescript
+setName: const name = 'Bean'
+```
+
+will be converted to a step with the label `setName`:
+
+```yaml
+- setName:
+    assign:
+      - name: Bean
+```
+
 ## Run-time functions
 
 ts2workflows provides some special functions for implementing features that are not directly supported by Typescript constructs.

@@ -1513,6 +1513,39 @@ describe('Parallel steps', () => {
   })
 })
 
+describe('Labelled statements', () => {
+  it('labels steps', () => {
+    const code = `
+    function signString(x: int): string {
+      if (x > 0) {
+        positive: return "x is positive"
+      } else {
+        nonpositive: return "x is not positive"
+      }
+    }`
+    const observed = YAML.parse(transpile(code)) as unknown
+
+    const expected = YAML.parse(`
+    signString:
+      params:
+        - x
+      steps:
+        - switch1:
+            switch:
+              - condition: \${x > 0}
+                steps:
+                  - positive:
+                      return: x is positive
+              - condition: true
+                steps:
+                  - nonpositive:
+                      return: x is not positive
+    `) as unknown
+
+    expect(observed).to.deep.equal(expected)
+  })
+})
+
 describe('Runtime functions', () => {
   it('or_else', () => {
     const code = `

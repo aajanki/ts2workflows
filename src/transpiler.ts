@@ -51,6 +51,7 @@ const {
   Identifier,
   ImportDeclaration,
   IfStatement,
+  LabeledStatement,
   Literal,
   LogicalExpression,
   MemberExpression,
@@ -210,6 +211,9 @@ function parseStep(node: any): WorkflowStepAST {
 
     case TryStatement:
       return tryStatementToTryStep(node)
+
+    case LabeledStatement:
+      return labeledStep(node)
 
     default:
       throw new WorkflowSyntaxError(
@@ -919,4 +923,13 @@ function tryStatementToTryStep(node: any): TryStepAST {
   }
 
   return new TryStepAST(steps, exceptSteps, undefined, errorVariable)
+}
+
+function labeledStep(node: any): WorkflowStepAST {
+  assertType(node, LabeledStatement)
+
+  const step = parseStep(node.body)
+  step.label = node.label.name as string
+
+  return step
 }
