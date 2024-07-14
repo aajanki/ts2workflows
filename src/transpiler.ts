@@ -44,6 +44,7 @@ const {
   BreakStatement,
   CallExpression,
   ContinueStatement,
+  ExportNamedDeclaration,
   ExpressionStatement,
   ForInStatement,
   ForOfStatement,
@@ -114,6 +115,14 @@ function parseTopLevelStatement(node: any): SubworkflowAST[] {
 
     case ImportDeclaration:
       return []
+
+    case ExportNamedDeclaration:
+      // "export" keyword is ignored, but a possible function declaration is transpiled.
+      if (node?.declaration) {
+        return parseTopLevelStatement(node.declaration)
+      } else {
+        return []
+      }
 
     default:
       throw new WorkflowSyntaxError(

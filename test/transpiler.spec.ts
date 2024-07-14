@@ -15,6 +15,20 @@ describe('Transpiler', () => {
     expect(() => transpile(code)).not.to.throw()
   })
 
+  it('accepts "export function"', () => {
+    const code = `export function main() { return 1; }`
+    const observed = YAML.parse(transpile(code)) as unknown
+
+    const expected = YAML.parse(`
+    main:
+      steps:
+        - return1:
+            return: 1
+    `) as unknown
+
+    expect(observed).to.deep.equal(expected)
+  })
+
   it('throws if top level contains other than functions or import', () => {
     const code = `
     function main() { }
@@ -432,7 +446,7 @@ describe('Assignment statement', () => {
   })
 })
 
-describe('If statements', () => {
+describe('If statement', () => {
   it('if statement', () => {
     const code = `
     function main(x) {
@@ -912,7 +926,7 @@ describe('Throw statement', () => {
   })
 })
 
-describe('For loops', () => {
+describe('For loop', () => {
   it('transpiles a for loop', () => {
     const code = `
     function main() {
@@ -1280,7 +1294,7 @@ describe('For loops', () => {
   })
 })
 
-describe('Parallel steps', () => {
+describe('Parallel step', () => {
   it('outputs parallel steps', () => {
     const code = `
     function main() {
@@ -1547,7 +1561,7 @@ describe('Parallel steps', () => {
   })
 })
 
-describe('Labelled statements', () => {
+describe('Labelled statement', () => {
   it('labels steps', () => {
     const code = `
     function signString(x: int): string {
