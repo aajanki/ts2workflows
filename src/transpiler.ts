@@ -37,6 +37,7 @@ import { transformAST } from './transformations.js'
 const {
   ArrayExpression,
   ArrowFunctionExpression,
+  AwaitExpression,
   AssignmentExpression,
   AssignmentPattern,
   BinaryExpression,
@@ -292,6 +293,9 @@ function convertExpressionOrPrimitive(instance: any): Primitive | Expression {
 
     case TSAsExpression:
       return convertExpressionOrPrimitive(instance.expression)
+
+    case AwaitExpression:
+      return convertExpressionOrPrimitive(instance.argument)
 
     default:
       throw new WorkflowSyntaxError(

@@ -92,6 +92,36 @@ describe('Transpiler', () => {
 
     expect(observed).to.deep.equal(expected)
   })
+
+  it('accepts but ignores async and await', () => {
+    const code = `
+    async function workflow1() {
+      const result = await workflow2();
+      return result;
+    }
+
+    async function workflow2() {
+      return 1;
+    }`
+    const observed = YAML.parse(transpile(code)) as unknown
+
+    const expected = YAML.parse(`
+    workflow1:
+      steps:
+        - assign1:
+            assign:
+              - result: \${workflow2()}
+        - return1:
+            return: \${result}
+
+    workflow2:
+      steps:
+        - return2:
+            return: 1
+    `) as unknown
+
+    expect(observed).to.deep.equal(expected)
+  })
 })
 
 describe('Call statement', () => {
