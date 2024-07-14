@@ -889,11 +889,27 @@ function forOfStatementToForStep(node: any): ForStepAST {
 
 function breakStatementToNextStep(node: any): NextStepAST {
   assertType(node, BreakStatement)
+
+  if (node.label != null) {
+    throw new WorkflowSyntaxError(
+      'Break with a label is not supported',
+      node.label.loc,
+    )
+  }
+
   return new NextStepAST('break')
 }
 
 function continueStatementToNextStep(node: any): NextStepAST {
   assertType(node, ContinueStatement)
+
+  if (node.label != null) {
+    throw new WorkflowSyntaxError(
+      'Continue with a label is not supported',
+      node.label.loc,
+    )
+  }
+
   return new NextStepAST('continue')
 }
 

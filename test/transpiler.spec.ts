@@ -1122,6 +1122,23 @@ describe('For loops', () => {
     expect(observed).to.deep.equal(expected)
   })
 
+  it('throws on continue with a label', () => {
+    const code = `
+    function main() {
+      let total = 0;
+      loop: for (const x of [1, 2, 3, 4]) {
+        if (x % 2 === 0) {
+          continue loop;
+        }
+
+        total = total + x;
+      }
+      return total;
+    }`
+
+    expect(() => transpile(code)).to.throw()
+  })
+
   it('transpiles a break in a for loop body', () => {
     const code = `
     function main() {
@@ -1166,6 +1183,23 @@ describe('For loops', () => {
     `) as unknown
 
     expect(observed).to.deep.equal(expected)
+  })
+
+  it('throws on break with a label', () => {
+    const code = `
+    function main() {
+      let total = 0;
+      loop: for (const x of [1, 2, 3, 4]) {
+        if (total > 5) {
+          break loop;
+        }
+
+        total = total + x;
+      }
+      return total;
+    }`
+
+    expect(() => transpile(code)).to.throw()
   })
 
   it('transpiles a for loop of a list expression', () => {
