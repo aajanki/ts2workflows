@@ -316,6 +316,13 @@ describe('Expressions', () => {
       '${(time.format(sys.now()) + " ") + text.decode(base64.decode("VGlhYmVhbmll"))}',
     )
   })
+
+  it('parses conditional expressions', () => {
+    assertExpression(
+      'x > 0 ? "positive" : "not positive"',
+      '${if(x > 0, "positive", "not positive")}',
+    )
+  })
 })
 
 describe('Variable references', () => {

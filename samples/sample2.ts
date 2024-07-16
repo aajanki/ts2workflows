@@ -11,7 +11,10 @@ function main() {
   try {
     response = http.get('https://visit.dreamland.test/')
   } catch (err) {
-    sys.log('Error in HTTP request at ' + timestamp + ', workflow_id ' + workflow_id, 'ERROR')
+    sys.log(
+      'Error in HTTP request at ' + timestamp + ', workflow_id ' + workflow_id,
+      'ERROR',
+    )
     response = { body: {} }
   }
   retry_policy({

@@ -44,6 +44,7 @@ const {
   BlockStatement,
   BreakStatement,
   CallExpression,
+  ConditionalExpression,
   ContinueStatement,
   ExportNamedDeclaration,
   ExpressionStatement,
@@ -238,8 +239,6 @@ function parseTopLevelStatement(node: any): SubworkflowAST[] {
 function parseSubworkflows(node: any): SubworkflowAST {
   assertType(node, FunctionDeclaration)
 
-  // TODO: warn if async
-
   if (node.id.type !== Identifier) {
     throw new WorkflowSyntaxError(
       'Expected Identifier as a function name',
@@ -400,6 +399,9 @@ function convertExpressionOrPrimitive(instance: any): Primitive | Expression {
 
     case CallExpression:
       return convertCallExpression(instance)
+
+    case ConditionalExpression:
+      return convertConditionalExpression(instance)
 
     case TSAsExpression:
       return convertExpressionOrPrimitive(instance.expression)
@@ -628,6 +630,19 @@ function convertCallExpression(node: any): Expression {
   } else {
     throw new WorkflowSyntaxError('Callee should be a qualified name', node.loc)
   }
+}
+
+function convertConditionalExpression(node: any): Expression {
+  assertType(node, ConditionalExpression)
+
+  const test = convertExpression(node.test)
+  const consequent = convertExpression(node.consequent)
+  const alternate = convertExpression(node.alternate)
+
+  return new Expression(
+    new Term(new FunctionInvocation('if', [test, consequent, alternate])),
+    [],
+  )
 }
 
 function assignmentExpressionToSteps(node: any): WorkflowStepAST[] {

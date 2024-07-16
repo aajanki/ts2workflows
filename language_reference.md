@@ -196,6 +196,22 @@ will be converted to a [switch step](https://cloud.google.com/workflows/docs/ref
                 - part_of_the_day: night
 ```
 
+## Conditional (ternary) operator
+
+The expression
+
+```javascript
+x > 0 ? 'positive' : 'not positive'
+```
+
+will be converted to an [if() expression](https://cloud.google.com/workflows/docs/reference/stdlib/expression-helpers#conditional_functions):
+
+```yaml
+${if(x > 0, "positive", "not positive")}
+```
+
+Note that Workflows always evaluates both expression branches unlike Typescript which evaluates only the branch that gets executed.
+
 ## Loops
 
 The fragment

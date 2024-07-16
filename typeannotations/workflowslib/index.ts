@@ -176,8 +176,8 @@ export declare namespace json {
 }
 
 export declare namespace list {
-  function concat<T>(objs: T[], val: T): T[];
-  function prepend<T>(objs: T[], val: T): T[];
+  function concat<T>(objs: T[], val: T): T[]
+  function prepend<T>(objs: T[], val: T): T[]
 }
 
 export declare const map: {
@@ -200,13 +200,13 @@ export declare namespace math {
 }
 
 export declare namespace retry {
-  function always(exception: unknown): void;
+  function always(exception: unknown): void
   const default_backoff: {
-      initial_delay: number;
-      max_delay: number;
-      multiplier: number;
-  };
-  function never(exception: unknown): void;
+    initial_delay: number
+    max_delay: number
+    multiplier: number
+  }
+  function never(exception: unknown): void
 }
 
 export declare namespace sys {
@@ -236,7 +236,11 @@ export declare namespace text {
   }[]
   function match_regexp(source: string, regexp: string): boolean
   function replace_all(source: string, substr: string, repl: string): string
-  function replace_all_regex(source: string, substr: string, repl: string): string
+  function replace_all_regex(
+    source: string,
+    substr: string,
+    repl: string,
+  ): string
   function split(source: string, separator: string): string[]
   function substring(source: string, start: number, end: number): string
   function to_lower(source: string): string
