@@ -27,19 +27,19 @@ export declare function get_type(
 
 // GCP Workflows standard library functions
 
-export declare const base64: {
-  decode: (data: string, padding?: boolean) => string
-  encode: (data: string, padding?: boolean) => string
+export declare namespace base64 {
+  function decode(data: string, padding?: boolean): string
+  function encode(data: string, padding?: boolean): string
 }
 
-export declare const events: {
-  await_callback: (
+export declare namespace events {
+  function await_callback(
     callback: {
       url: string
     },
     timeout?: number,
-  ) => object
-  create_callback_endpoint: (http_callback_method: string) => {
+  ): object
+  function create_callback_endpoint(http_callback_method: string): {
     url: string
   }
 }
@@ -153,9 +153,9 @@ export declare const http: {
   }
 }
 
-export declare const json: {
-  decode: (data: string) => object
-  encode: (
+export declare namespace json {
+  function decode(data: string): object
+  function encode(
     data: string | number | boolean | unknown[] | Record<string, unknown>,
     indent?:
       | boolean
@@ -163,8 +163,8 @@ export declare const json: {
           prefix?: string
           indent?: string
         },
-  ) => string
-  encode_to_string: (
+  ): string
+  function encode_to_string(
     data: string | number | boolean | unknown[] | Record<string, unknown>,
     indent?:
       | boolean
@@ -172,12 +172,12 @@ export declare const json: {
           prefix?: string
           indent?: string
         },
-  ) => string
+  ): string
 }
 
-export declare const list: {
-  concat: <T>(objs: T[], val: T) => T[]
-  prepend: <T_1>(objs: T_1[], val: T_1) => T_1[]
+export declare namespace list {
+  function concat<T>(objs: T[], val: T): T[];
+  function prepend<T>(objs: T[], val: T): T[];
 }
 
 export declare const map: {
@@ -193,10 +193,10 @@ export declare const map: {
   ) => Record<string, S_1>
 }
 
-export declare const math: {
-  abs: (x: number) => number
-  max: (x: number, y: number) => number
-  min: (x: number, y: number) => number
+export declare namespace math {
+  function abs(x: number): number
+  function max(x: number, y: number): number
+  function min(x: number, y: number): number
 }
 
 export declare namespace retry {
@@ -209,50 +209,50 @@ export declare namespace retry {
   function never(exception: unknown): void;
 }
 
-export declare const sys: {
-  get_env: (name: string, default_value?: string) => string | undefined
-  log: (
+export declare namespace sys {
+  function get_env(name: string, default_value?: string): string | undefined
+  function log(
     data?: number | boolean | string | any[] | object,
     severity?: string,
     text?: number | boolean | string | any[] | object,
     json?: object,
     timeout?: number,
-  ) => void
-  now: () => number
-  sleep: (seconds: number) => void
-  sleep_until: (time: string) => void
+  ): void
+  function now(): number
+  function sleep(seconds: number): void
+  function sleep_until(time: string): void
 }
 
-export declare const text: {
-  decode: (data: string, charset?: string) => string
-  encode: (text: string, charset?: string) => string
-  find_all: (source: string, substr: string) => number[]
-  find_all_regex: (
+export declare namespace text {
+  function decode(data: string, charset?: string): string
+  function encode(text: string, charset?: string): string
+  function find_all(source: string, substr: string): number[]
+  function find_all_regex(
     source: string,
     regexp: string,
-  ) => {
+  ): {
     index: number
     match: string
   }[]
-  match_regexp: (source: string, regexp: string) => boolean
-  replace_all: (source: string, substr: string, repl: string) => string
-  replace_all_regex: (source: string, substr: string, repl: string) => string
-  split: (source: string, separator: string) => string[]
-  substring: (source: string, start: number, end: number) => string
-  to_lower: (source: string) => string
-  to_upper: (source: string) => string
-  url_decode: (source: string) => string
-  url_encode: (source: string) => string
-  url_encode_plus: (source: string) => string
+  function match_regexp(source: string, regexp: string): boolean
+  function replace_all(source: string, substr: string, repl: string): string
+  function replace_all_regex(source: string, substr: string, repl: string): string
+  function split(source: string, separator: string): string[]
+  function substring(source: string, start: number, end: number): string
+  function to_lower(source: string): string
+  function to_upper(source: string): string
+  function url_decode(source: string): string
+  function url_encode(source: string): string
+  function url_encode_plus(source: string): string
 }
 
-export declare const time: {
-  format: (seconds: number, timezone?: string) => string
-  parse: (value: string) => number
+export declare namespace time {
+  function format(seconds: number, timezone?: string): string
+  function parse(value: string): number
 }
 
-export declare const uuid: {
-  generate: () => string
+export declare namespace uuid {
+  function generate(): string
 }
 
 // Functionality that is not implemented by Typescript keywords
