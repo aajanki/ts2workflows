@@ -46,6 +46,7 @@ Operators:
 | <, >, <=, >= | inequality comparisons                       |
 | &&, \|\|, !  | logical operators                            |
 | in           | check if a property is present in an object  |
+| ??           | nullish coalescing                           |
 
 The [precendence order of operators](https://cloud.google.com/workflows/docs/reference/syntax/datatypes#order-operations) is the same as in GCP Workflows.
 
@@ -211,6 +212,22 @@ ${if(x > 0, "positive", "not positive")}
 ```
 
 Note that Workflows always evaluates both expression branches unlike Typescript which evaluates only the branch that gets executed.
+
+## Nullish coalescing operator
+
+The expression
+
+```javascript
+x ?? 'default value'
+```
+
+will be converted to an [default() expression](https://cloud.google.com/workflows/docs/reference/stdlib/expression-helpers#conditional_functions):
+
+```yaml
+${default(x, "default value")}
+```
+
+Note that Workflows always evaluates the right-hand side expression unlike Typescript which evaluates the right-hand side only if the left-hand side is `null` or `undefined`.
 
 ## Loops
 

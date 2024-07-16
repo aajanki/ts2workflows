@@ -323,6 +323,10 @@ describe('Expressions', () => {
       '${if(x > 0, "positive", "not positive")}',
     )
   })
+
+  it('parses nullish coalescing operator', () => {
+    assertExpression('x ?? "default value"', '${default(x, "default value")}')
+  })
 })
 
 describe('Variable references', () => {

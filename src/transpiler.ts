@@ -429,6 +429,12 @@ export function convertExpression(instance: any): Expression {
 function convertBinaryExpression(instance: any): Expression {
   assertOneOfManyTypes(instance, [BinaryExpression, LogicalExpression])
 
+  // Special case for nullish coalescing becuase the result is a function call
+  // expression, not a binary expression
+  if (instance.operator === '??') {
+    return nullishCoalescingExpression(instance.left, instance.right)
+  }
+
   let op: string
   switch (instance.operator) {
     case '+':
@@ -498,6 +504,18 @@ function convertBinaryExpression(instance: any): Expression {
   }
 
   return new Expression(leftTerm, rest)
+}
+
+function nullishCoalescingExpression(left: any, right: any): Expression {
+  return new Expression(
+    new Term(
+      new FunctionInvocation('default', [
+        convertExpression(left),
+        convertExpression(right),
+      ]),
+    ),
+    [],
+  )
 }
 
 function convertUnaryExpression(instance: any): Expression {

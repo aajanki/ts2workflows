@@ -1,10 +1,8 @@
-import { http, sys, time, or_else, retry_policy } from 'workflowslib'
+import { http, sys, time, retry_policy } from 'workflowslib'
 
 function main() {
-  const workflow_id: string = or_else(
-    sys.get_env('GOOGLE_CLOUD_WORKFLOW_ID'),
-    'unknown',
-  )
+  const workflow_id: string =
+    sys.get_env('GOOGLE_CLOUD_WORKFLOW_ID') ?? 'unknown'
   const timestamp: string = time.format(sys.now())
 
   let response
