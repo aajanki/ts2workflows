@@ -5,14 +5,30 @@ import { spawnSync } from 'node:child_process'
 import { transpile } from '../src/transpiler.js'
 
 describe('Transpiler', () => {
-  it('accepts import declaration on the top-level', () => {
+  it('accepts named import declaration on the top-level', () => {
     const code = `
-    import 'http'
-    import defaultExport from 'module'
-    import { log } from 'logger'
-    import * as sys from 'sys'`
+    import { http } from 'workflowlib'
+    import { http, sys } from 'workflowlib'`
 
     expect(() => transpile(code)).not.to.throw()
+  })
+
+  it('accepts side-effecting imports on the top-level', () => {
+    const code = `import 'module'`
+
+    expect(() => transpile(code)).not.to.throw()
+  })
+
+  it('throws on default import', () => {
+    const code = `import myDefault from 'module'`
+
+    expect(() => transpile(code)).to.throw()
+  })
+
+  it('throws on namespace import', () => {
+    const code = `import * as sys from 'sys'`
+
+    expect(() => transpile(code)).to.throw()
   })
 
   it('accepts "export function"', () => {

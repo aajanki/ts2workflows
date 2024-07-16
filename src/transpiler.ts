@@ -52,6 +52,8 @@ const {
   FunctionDeclaration,
   Identifier,
   ImportDeclaration,
+  ImportDefaultSpecifier,
+  ImportNamespaceSpecifier,
   IfStatement,
   LabeledStatement,
   Literal,
@@ -202,6 +204,19 @@ function parseTopLevelStatement(node: any): SubworkflowAST[] {
       return [parseSubworkflows(node)]
 
     case ImportDeclaration:
+      if (
+        node.specifiers.some(
+          (spec: any) =>
+            spec.type === ImportNamespaceSpecifier ||
+            spec.type === ImportDefaultSpecifier,
+        )
+      ) {
+        throw new WorkflowSyntaxError(
+          'Only named imports are allowed',
+          node.loc,
+        )
+      }
+
       return []
 
     case ExportNamedDeclaration:
