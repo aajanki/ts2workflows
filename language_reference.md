@@ -146,6 +146,8 @@ will be converted to an [assign step](https://cloud.google.com/workflows/docs/re
 
 This syntax can be used to call [standard library functions](https://cloud.google.com/workflows/docs/reference/stdlib/overview) or subworkflows.
 
+The transpiler automatically detects [blocking calls](https://cloud.google.com/workflows/docs/reference/syntax/expressions#blocking-calls) and converts them to call steps (instead of assign steps) as required by the GCP Workflows runtime.
+
 Some Workflows standard library functions have names that are reserved keywords in Typescript. Those functions must be called with alternative names in ts2workflows source code:
 
 To generate a call to `default()` in Workflows code, use the name `or_else()`.
@@ -404,42 +406,46 @@ The error variable and other variables created inside the catch block are access
 
 ## Retrying on errors
 
-It is possible to set a retry policy for a try-catch statement. Because Typescript does not have `retry` keyword, the retry is implemented by a special `retry` function. It must be called immediately after a try-catch block. A call to the `retry` is ignored elsewhere.
+It is possible to set a retry policy for a try-catch statement. Because Typescript does not have `retry` keyword, the retry is implemented by a special `retry_policy` function. It must be called immediately after a try-catch block. A call to the `retry_policy` is ignored elsewhere.
 
-The `retry` function must be called with parameters defining a retry policy. It can be either a policy provided by GCP Workflows or a custom retry policy. See the GCP documentation for the [required parameters for the two policy types](https://cloud.google.com/workflows/docs/reference/syntax/retrying#try-retry).
+The `retry_policy` function must be called with parameters defining a retry policy. It can be either a policy provided by GCP Workflows or a custom retry policy. See the GCP documentation for the [required parameters for the two policy types](https://cloud.google.com/workflows/docs/reference/syntax/retrying#try-retry).
 
 A sample with a GCP-provided retry policy:
 
 ```javascript
-import { http } from 'workflowslib'
+import { http, retry_policy } from 'workflowslib'
 
-try {
-  get_http('https://visit.dreamland.test/')
-} catch (err) {
-  return 'Error!'
+function main() {
+  try {
+    http.get('https://visit.dreamland.test/')
+  } catch (err) {
+    return 'Error!'
+  }
+  retry_policy({ policy: http.default_retry })
 }
-retry({ policy: http.default_retry })
 ```
 
 A sample with a custom retry policy:
 
 ```javascript
-import { http } from 'workflowslib'
+import { http, retry_policy } from 'workflowslib'
 
-try {
-  get_http('https://visit.dreamland.test/')
-} catch (err) {
-  return 'Error!'
+function main() {
+  try {
+    http.get('https://visit.dreamland.test/')
+  } catch (err) {
+    return 'Error!'
+  }
+  retry_policy({
+    predicate: http.default_retry_predicate,
+    max_retries: 3,
+    backoff: {
+      initial_delay: 0.5,
+      max_delay: 60,
+      multiplier: 2,
+    },
+  })
 }
-retry({
-  predicate: http.default_retry_predicate,
-  max_retries: 3,
-  backoff: {
-    initial_delay: 0.5
-    max_delay: 60,
-    multiplier: 2
-  },
-})
 ```
 
 The above will be compiled to the following [try/except structure](https://cloud.google.com/workflows/docs/reference/syntax/catching-errors)
@@ -448,9 +454,10 @@ The above will be compiled to the following [try/except structure](https://cloud
 try1:
   try:
     steps:
-      - assign1:
-          assign:
-            - '': ${get_http("https://visit.dreamland.test/")}
+      - call1:
+          call: http.get
+          args:
+            - url: https://visit.dreamland.test/
   retry:
     predicate: ${http.default_retry_predicate}
     max_retries: 3
@@ -519,7 +526,7 @@ will be converted to a step with the label `setName`:
 ts2workflows provides some special functions for implementing features that are not directly supported by Typescript constructs.
 
 - `parallel` function for executing code blocks in parallel. See the previous sections covering parallel branches and iteration.
-- `retry` function that can be combined with `try`-`catch` block to specify a retry policy.
+- `retry_policy` function that can be combined with `try`-`catch` block to specify a retry policy.
 
 It is not possible to call subworkflows with these names, because the transpiler treats these names as special cases.
 

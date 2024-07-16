@@ -808,7 +808,7 @@ describe('Try-catch statement', () => {
       } catch {
         log("Error!");
       }
-      retry({ policy: http.default_retry })
+      retry_policy({ policy: http.default_retry })
     }`
     const observed = YAML.parse(transpile(code)) as unknown
 
@@ -845,7 +845,7 @@ describe('Try-catch statement', () => {
       } catch {
         log("Error!");
       }
-      retry({
+      retry_policy({
         predicate: http.default_retry_predicate,
         max_retries: 3,
         backoff: { initial_delay: 0.5, max_delay: 60, multiplier: 2.5 }
@@ -892,7 +892,7 @@ describe('Try-catch statement', () => {
       } catch {
         log("Error!");
       }
-      retry({
+      retry_policy({
         predicate: http.default_retry_predicate,
         max_retries: 3,
         backoff: { max_delay: 60 } // missing initial_delay and multiplier
@@ -911,7 +911,7 @@ describe('Try-catch statement', () => {
       } catch {
         log("Error!");
       }
-      retry()
+      retry_policy()
     }`
 
     expect(() => transpile(code)).to.throw()
@@ -926,7 +926,7 @@ describe('Try-catch statement', () => {
       } catch {
         log("Error!");
       }
-      retry({ policy: 1000 })
+      retry_policy({ policy: 1000 })
     }`
 
     expect(() => transpile(code)).to.throw()
@@ -944,7 +944,7 @@ describe('Try-catch statement', () => {
       log("try block completed")
 
 
-      retry({ policy: http.default_retry })
+      retry_policy({ policy: http.default_retry })
     }`
     const observed = YAML.parse(transpile(code)) as unknown
 

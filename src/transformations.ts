@@ -33,12 +33,12 @@ function mergeAssignSteps(steps: WorkflowStepAST[]): WorkflowStepAST[] {
   }, [])
 }
 
-// Merge a retry call step with a preceeding try block
+// Merge a retry_policy call step with a preceeding try block
 function combineRetryBlocksToTry(steps: WorkflowStepAST[]): WorkflowStepAST[] {
   return steps.reduce((acc: WorkflowStepAST[], current: WorkflowStepAST) => {
     const prev = acc.length > 0 ? acc[acc.length - 1] : null
 
-    if (current instanceof CallStepAST && current.call === 'retry') {
+    if (current instanceof CallStepAST && current.call === 'retry_policy') {
       if (prev instanceof TryStepAST) {
         if (prev.retryPolicy) {
           throw new InternalTranspilingError('Retry policy already assigned!')
@@ -111,7 +111,7 @@ function combineRetryBlocksToTry(steps: WorkflowStepAST[]): WorkflowStepAST[] {
         acc.pop()
         acc.push(tryWithRetry)
       }
-      // If prev is not a try step, "retry" is ignored. Should print a warning.
+      // If prev is not a try step, "retry_policy" is ignored. Should print a warning.
     } else {
       acc.push(current)
     }

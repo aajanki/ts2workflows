@@ -766,7 +766,7 @@ function callExpressionToStep(node: any): WorkflowStepAST {
     if (calleeName === 'parallel') {
       // A custom implementation for "parallel"
       return callExpressionToParallelStep(node)
-    } else if (calleeName === 'retry') {
+    } else if (calleeName === 'retry_policy') {
       return callExpressionToCallStep(calleeName, node.arguments)
     } else if (blockingFunctions.has(calleeName)) {
       const argumentNames = blockingFunctions.get(calleeName) ?? []
