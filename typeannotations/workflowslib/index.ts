@@ -3,13 +3,6 @@
 export declare function double(x: string | number): number
 export declare function int(x: string | number): number
 export declare function string(x: string | number | boolean): string
-
-// Renamed to "default" in the transpiled Workflows code
-export declare function or_else<T>(val: T | null | undefined, defaultVal: T): T
-
-// Renamed to "if" in the transpiled Workflows code
-export declare function choose<T>(condition: boolean, ifTrue: T, ifFalse: T): T
-
 export declare function keys(map: Record<string, unknown>): string[]
 export declare function len(
   value: unknown[] | Record<string, unknown> | string,

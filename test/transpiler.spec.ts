@@ -1738,46 +1738,6 @@ describe('Labelled statement', () => {
   })
 })
 
-describe('Runtime functions', () => {
-  it('or_else', () => {
-    const code = `
-    function main(x) {
-      return or_else(x, 0);
-    }`
-    const observed = YAML.parse(transpile(code)) as unknown
-
-    const expected = YAML.parse(`
-    main:
-      params:
-        - x
-      steps:
-        - return1:
-            return: \${default(x, 0)}
-    `) as unknown
-
-    expect(observed).to.deep.equal(expected)
-  })
-
-  it('choose', () => {
-    const code = `
-    function main(x) {
-      return choose(x, "x is true", "x is false");
-    }`
-    const observed = YAML.parse(transpile(code)) as unknown
-
-    const expected = YAML.parse(`
-    main:
-      params:
-        - x
-      steps:
-        - return1:
-            return: \${if(x, "x is true", "x is false")}
-    `) as unknown
-
-    expect(observed).to.deep.equal(expected)
-  })
-})
-
 describe('Sample source files', () => {
   const samplesdir = './samples'
 

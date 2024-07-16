@@ -151,8 +151,8 @@ The transpiler automatically detects [blocking calls](https://cloud.google.com/w
 
 Some Workflows standard library functions have names that are reserved keywords in Typescript. Those functions must be called with alternative names in ts2workflows source code:
 
-To generate a call to `default()` in Workflows code, use the name `or_else()`.
-To generete a call to `if()` in Workflows code, use the name `choose()`.
+To generate a call to `default()` in Workflows code, use the nullish coalescing operator `??`.
+To generete a call to `if()` in Workflows code, use the ternary operator `a ? b : c`.
 
 ## Conditional statements
 

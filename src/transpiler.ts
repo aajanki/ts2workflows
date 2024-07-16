@@ -71,12 +71,6 @@ const {
   VariableDeclarator,
 } = AST_NODE_TYPES
 
-// special transformation for function names that use reserved Javascript keywords
-const specialFunctions: Record<string, string> = {
-  or_else: 'default',
-  choose: 'if',
-}
-
 // Blocking calls and their argument names. Blocking call must be run from a
 // call step (not inside an expression)
 const blockingFunctions = new Map([
@@ -634,14 +628,10 @@ function convertCallExpression(node: any): Expression {
 
   const calleeExpression = convertExpression(node.callee)
   if (calleeExpression.isFullyQualifiedName()) {
-    // Check if this is one of the special functions that needs name transformation
-    const calleeName = calleeExpression.left.toString()
-    const transformedName = specialFunctions[calleeName] ?? calleeName
-
     const argumentExpressions: Expression[] =
       node.arguments.map(convertExpression)
     const invocation = new FunctionInvocation(
-      transformedName,
+      calleeExpression.left.toString(),
       argumentExpressions,
     )
     return new Expression(new Term(invocation), [])
@@ -805,10 +795,7 @@ function callExpressionToStep(node: any): WorkflowStepAST {
       const argumentNames = blockingFunctions.get(calleeName) ?? []
       return blockingFunctionCallStep(calleeName, argumentNames, node.arguments)
     } else {
-      // Check if this is one of the special functions that needs name transformation or
-      // a "normal" subworkflow or standard library function call
-      const transformedName = specialFunctions[calleeName] ?? calleeName
-      return callExpressionAssignStep(transformedName, node.arguments)
+      return callExpressionAssignStep(calleeName, node.arguments)
     }
   } else {
     throw new WorkflowSyntaxError(
