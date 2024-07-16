@@ -45,8 +45,8 @@ export declare const events: {
 }
 
 export declare const http: {
-  default_retry: () => void
-  default_retry_non_idempotent: () => void
+  default_retry: (exception: unknown) => void
+  default_retry_non_idempotent: (exception: unknown) => void
   default_retry_predicate: (exception: unknown) => boolean
   default_retry_predicate_non_idempotent: (exception: unknown) => boolean
   delete: (
@@ -199,10 +199,14 @@ export declare const math: {
   min: (x: number, y: number) => number
 }
 
-export declare const retry: {
-  always: () => void
-  default_backoff: () => void
-  never: () => void
+export declare namespace retry {
+  function always(exception: unknown): void;
+  const default_backoff: {
+      initial_delay: number;
+      max_delay: number;
+      multiplier: number;
+  };
+  function never(exception: unknown): void;
 }
 
 export declare const sys: {
@@ -265,7 +269,7 @@ export declare function parallel(
 export declare function retry_policy(
   params:
     | {
-        policy: () => void
+        policy: (exception: unknown) => void
       }
     | {
         predicate: (exception: unknown) => boolean
