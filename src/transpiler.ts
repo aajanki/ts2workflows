@@ -74,6 +74,93 @@ const specialFunctions: Record<string, string> = {
   choose: 'if',
 }
 
+// Blocking calls and their argument names. Blocking call must be run from a
+// call step (not inside an expression)
+const blockingFunctions = new Map([
+  ['events.await_callback', ['callback', 'timeout']],
+  [
+    'http.delete',
+    [
+      'url',
+      'timeout',
+      'body',
+      'headers',
+      'query',
+      'auth',
+      'private_service_name',
+      'ca_certificate',
+    ],
+  ],
+  [
+    'http.get',
+    [
+      'url',
+      'timeout',
+      'headers',
+      'query',
+      'auth',
+      'private_service_name',
+      'ca_certificate',
+    ],
+  ],
+  [
+    'http.patch',
+    [
+      'url',
+      'timeout',
+      'body',
+      'headers',
+      'query',
+      'auth',
+      'private_service_name',
+      'ca_certificate',
+    ],
+  ],
+  [
+    'http.post',
+    [
+      'url',
+      'timeout',
+      'body',
+      'headers',
+      'query',
+      'auth',
+      'private_service_name',
+      'ca_certificate',
+    ],
+  ],
+  [
+    'http.put',
+    [
+      'url',
+      'timeout',
+      'body',
+      'headers',
+      'query',
+      'auth',
+      'private_service_name',
+      'ca_certificate',
+    ],
+  ],
+  [
+    'http.request',
+    [
+      'method',
+      'url',
+      'timeout',
+      'body',
+      'headers',
+      'query',
+      'auth',
+      'private_service_name',
+      'ca_certificate',
+    ],
+  ],
+  ['sys.log', ['data', 'severity', 'text', 'json', 'timeout']],
+  ['sys.sleep', ['seconds']],
+  ['sys.sleep_until', ['time']],
+])
+
 export function transpile(code: string): string {
   const parserOptions = {
     comment: true,
@@ -177,32 +264,32 @@ function parseSubworkflows(node: any): SubworkflowAST {
 function parseBlockStatement(node: any): WorkflowStepAST[] {
   assertType(node, BlockStatement)
 
-  const steps = node.body.map(parseStep) as WorkflowStepAST[]
+  const steps = node.body.flatMap(parseStep) as WorkflowStepAST[]
   return transformAST(steps)
 }
 
-function parseStep(node: any): WorkflowStepAST {
+function parseStep(node: any): WorkflowStepAST[] {
   switch (node.type) {
     case VariableDeclaration:
       return convertVariableDeclarations(node.declarations)
 
     case ExpressionStatement:
       if (node.expression.type === AssignmentExpression) {
-        return assignmentExpressionToAssignStep(node.expression)
+        return assignmentExpressionToSteps(node.expression)
       } else if (node.expression.type === CallExpression) {
-        return callExpressionToStep(node.expression)
+        return [callExpressionToStep(node.expression)]
       } else {
-        return generalExpressionToAssignStep(node.expression)
+        return [generalExpressionToAssignStep(node.expression)]
       }
 
     case ReturnStatement:
-      return returnStatementToReturnStep(node)
+      return [returnStatementToReturnStep(node)]
 
     case ThrowStatement:
-      return throwStatementToRaiseStep(node)
+      return [throwStatementToRaiseStep(node)]
 
     case IfStatement:
-      return ifStatementToSwitchStep(node)
+      return [ifStatementToSwitchStep(node)]
 
     case ForInStatement:
       throw new WorkflowSyntaxError(
@@ -211,16 +298,16 @@ function parseStep(node: any): WorkflowStepAST {
       )
 
     case ForOfStatement:
-      return forOfStatementToForStep(node)
+      return [forOfStatementToForStep(node)]
 
     case BreakStatement:
-      return breakStatementToNextStep(node)
+      return [breakStatementToNextStep(node)]
 
     case ContinueStatement:
-      return continueStatementToNextStep(node)
+      return [continueStatementToNextStep(node)]
 
     case TryStatement:
-      return tryStatementToTryStep(node)
+      return [tryStatementToTryStep(node)]
 
     case LabeledStatement:
       return labeledStep(node)
@@ -233,8 +320,8 @@ function parseStep(node: any): WorkflowStepAST {
   }
 }
 
-function convertVariableDeclarations(declarations: any): AssignStepAST {
-  const assignments: VariableAssignment[] = declarations.map((decl: any) => {
+function convertVariableDeclarations(declarations: any[]): WorkflowStepAST[] {
+  return declarations.map((decl: any) => {
     if (decl.type !== VariableDeclarator) {
       throw new WorkflowSyntaxError('Not a VariableDeclarator', decl.loc)
     }
@@ -243,14 +330,22 @@ function convertVariableDeclarations(declarations: any): AssignStepAST {
       throw new WorkflowSyntaxError('Expected Identifier', decl.loc)
     }
 
-    const initialValue = decl.init
-      ? convertExpression(decl.init)
-      : primitiveToExpression(null)
+    const targetName = decl.id.name as string
+    const maybeBlockingcall = getBlockingCallParameters(decl.init)
 
-    return [decl.id.name as string, initialValue]
+    if (!decl.init) {
+      return new AssignStepAST([[targetName, primitiveToExpression(null)]])
+    } else if (maybeBlockingcall.isBlockingCall) {
+      return blockingFunctionCallStep(
+        maybeBlockingcall.functionName,
+        maybeBlockingcall.argumentNames,
+        decl.init.arguments,
+        targetName,
+      )
+    } else {
+      return new AssignStepAST([[targetName, convertExpression(decl.init)]])
+    }
   })
-
-  return new AssignStepAST(assignments)
 }
 
 function convertExpressionOrPrimitive(instance: any): Primitive | Expression {
@@ -520,7 +615,7 @@ function convertCallExpression(node: any): Expression {
   }
 }
 
-function assignmentExpressionToAssignStep(node: any): AssignStepAST {
+function assignmentExpressionToSteps(node: any): WorkflowStepAST[] {
   assertType(node, AssignmentExpression)
 
   let compoundOperator: string | undefined = undefined
@@ -573,26 +668,77 @@ function assignmentExpressionToAssignStep(node: any): AssignStepAST {
     )
   }
 
+  const steps: WorkflowStepAST[] = []
   const targetName = targetExpression.toString()
+  const maybeBlockingcall = getBlockingCallParameters(node.right)
 
-  let valueExpression: Expression = convertExpression(node.right)
-  if (compoundOperator) {
-    let right: Term
-    if (valueExpression.isSingleValue()) {
-      right = valueExpression.left
-    } else {
-      right = new Term(new ParenthesizedExpression(valueExpression))
+  if (maybeBlockingcall.isBlockingCall) {
+    // Convert a blocking call to a call step
+
+    // A temp variable is needed if the target is something else than a plain
+    // identifier or if this is a compound assignments
+    const useTemp = node.left.type !== Identifier || compoundOperator
+    const resultVariable = useTemp ? '__temp' : targetName
+    steps.push(
+      blockingFunctionCallStep(
+        maybeBlockingcall.functionName,
+        maybeBlockingcall.argumentNames,
+        node.right.arguments,
+        resultVariable,
+      ),
+    )
+
+    if (useTemp) {
+      const tempRef = new Term(new VariableReference('__temp'))
+      let ex: Expression
+      if (compoundOperator) {
+        ex = new Expression(new Term(new VariableReference(targetName)), [
+          { binaryOperator: compoundOperator, right: tempRef },
+        ])
+      } else {
+        ex = new Expression(tempRef, [])
+      }
+
+      steps.push(new AssignStepAST([[targetName, ex]]))
     }
 
-    valueExpression = new Expression(
-      new Term(new VariableReference(targetName)),
-      [{ binaryOperator: compoundOperator, right }],
-    )
+    return steps
+  } else {
+    // assignment of an expression value
+    let valueExpression: Expression = convertExpression(node.right)
+
+    if (compoundOperator) {
+      let right: Term
+      if (valueExpression.isSingleValue()) {
+        right = valueExpression.left
+      } else {
+        right = new Term(new ParenthesizedExpression(valueExpression))
+      }
+
+      valueExpression = new Expression(
+        new Term(new VariableReference(targetName)),
+        [{ binaryOperator: compoundOperator, right }],
+      )
+    }
+
+    return [new AssignStepAST([[targetName, valueExpression]])]
+  }
+}
+
+function getBlockingCallParameters(
+  node: any,
+):
+  | { isBlockingCall: false }
+  | { isBlockingCall: true; functionName: string; argumentNames: string[] } {
+  if (node?.type === CallExpression) {
+    const functionName = convertExpression(node.callee).toString()
+    const argumentNames = blockingFunctions.get(functionName)
+    if (argumentNames) {
+      return { isBlockingCall: true, functionName, argumentNames }
+    }
   }
 
-  const assignments: VariableAssignment[] = [[targetName, valueExpression]]
-
-  return new AssignStepAST(assignments)
+  return { isBlockingCall: false }
 }
 
 function callExpressionToStep(node: any): WorkflowStepAST {
@@ -607,6 +753,9 @@ function callExpressionToStep(node: any): WorkflowStepAST {
       return callExpressionToParallelStep(node)
     } else if (calleeName === 'retry') {
       return callExpressionToCallStep(calleeName, node.arguments)
+    } else if (blockingFunctions.has(calleeName)) {
+      const argumentNames = blockingFunctions.get(calleeName) ?? []
+      return blockingFunctionCallStep(calleeName, argumentNames, node.arguments)
     } else {
       // Check if this is one of the special functions that needs name transformation or
       // a "normal" subworkflow or standard library function call
@@ -623,7 +772,7 @@ function callExpressionToStep(node: any): WorkflowStepAST {
 
 function callExpressionAssignStep(
   functionName: string,
-  argumentsNode: any,
+  argumentsNode: any[],
 ): AssignStepAST {
   const argumentExpressions: Expression[] = argumentsNode.map(convertExpression)
   const invocation = new FunctionInvocation(functionName, argumentExpressions)
@@ -636,12 +785,12 @@ function callExpressionAssignStep(
 
 function callExpressionToCallStep(
   functionName: string,
-  argumentsNode: any,
+  argumentsNode: any[],
 ): CallStepAST {
   if (argumentsNode.length < 1 || argumentsNode[0].type !== ObjectExpression) {
     throw new WorkflowSyntaxError(
       'Expected one object parameter',
-      argumentsNode.loc,
+      argumentsNode[0].loc,
     )
   }
 
@@ -654,6 +803,31 @@ function callExpressionToCallStep(
   )
 
   return new CallStepAST(functionName, workflowArguments)
+}
+
+function blockingFunctionCallStep(
+  functionName: string,
+  argumentNames: string[],
+  argumentsNode: any[],
+  resultName?: string,
+): CallStepAST {
+  const argumentExpressions = argumentsNode.map(convertExpression)
+  const args: Record<string, Expression> = Object.fromEntries(
+    argumentNames.flatMap((argName, i) => {
+      if (i >= argumentExpressions.length) {
+        return []
+      } else if (
+        argumentsNode[i].type === Identifier &&
+        argumentsNode[i].name === 'undefined'
+      ) {
+        return []
+      } else {
+        return [[argName, argumentExpressions[i]]] as [[string, Expression]]
+      }
+    }),
+  )
+
+  return new CallStepAST(functionName, args, resultName)
 }
 
 function callExpressionToParallelStep(node: any): ParallelStepAST {
@@ -954,11 +1128,13 @@ function tryStatementToTryStep(node: any): TryStepAST {
   return new TryStepAST(steps, exceptSteps, undefined, errorVariable)
 }
 
-function labeledStep(node: any): WorkflowStepAST {
+function labeledStep(node: any): WorkflowStepAST[] {
   assertType(node, LabeledStatement)
 
-  const step = parseStep(node.body)
-  step.label = node.label.name as string
+  const steps = parseStep(node.body)
+  if (steps.length > 0) {
+    steps[0].label = node.label.name as string
+  }
 
-  return step
+  return steps
 }

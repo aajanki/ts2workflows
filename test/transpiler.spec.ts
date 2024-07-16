@@ -186,6 +186,93 @@ describe('Call statement', () => {
 
     expect(observed).to.deep.equal(expected)
   })
+
+  it('transpiles blocking functions as call steps', () => {
+    const code = `function main() {
+      sys.log(undefined, "ERROR", "Something bad happened");
+    }`
+    const observed = YAML.parse(transpile(code)) as unknown
+
+    const expected = YAML.parse(`
+    main:
+      steps:
+        - call1:
+            call: sys.log
+            args:
+              text: Something bad happened
+              severity: ERROR
+    `) as unknown
+
+    expect(observed).to.deep.equal(expected)
+  })
+
+  it('assigns the return value of a blocking function call (variable declaration)', () => {
+    const code = `function main() {
+      const response = http.get("https://visit.dreamland.test/");
+    }`
+    const observed = YAML.parse(transpile(code)) as unknown
+
+    const expected = YAML.parse(`
+    main:
+      steps:
+        - call1:
+            call: http.get
+            args:
+              url: https://visit.dreamland.test/
+            result: response
+    `) as unknown
+
+    expect(observed).to.deep.equal(expected)
+  })
+
+  it('assigns the return value of a blocking function call (assignment)', () => {
+    const code = `function main() {
+      let response;
+      response = http.get("https://visit.dreamland.test/");
+    }`
+    const observed = YAML.parse(transpile(code)) as unknown
+
+    const expected = YAML.parse(`
+    main:
+      steps:
+        - assign1:
+            assign:
+              - response:
+        - call1:
+            call: http.get
+            args:
+              url: https://visit.dreamland.test/
+            result: response
+    `) as unknown
+
+    expect(observed).to.deep.equal(expected)
+  })
+
+  it('assigns the return value of a blocking function call to a complex variable', () => {
+    const code = `function main() {
+      const results = {};
+      results.response = http.get("https://visit.dreamland.test/");
+    }`
+    const observed = YAML.parse(transpile(code)) as unknown
+
+    const expected = YAML.parse(`
+    main:
+      steps:
+        - assign1:
+            assign:
+              - results: {}
+        - call1:
+            call: http.get
+            args:
+              url: https://visit.dreamland.test/
+            result: __temp
+        - assign2:
+            assign:
+              - results.response: \${__temp}
+    `) as unknown
+
+    expect(observed).to.deep.equal(expected)
+  })
 })
 
 describe('Assignment statement', () => {
@@ -495,9 +582,10 @@ describe('If statement', () => {
             switch:
               - condition: \${x > 0}
                 steps:
-                  - assign1:
-                      assign:
-                        - "": \${sys.log("positive")}
+                  - call1:
+                      call: sys.log
+                      args:
+                        data: positive
     `) as unknown
 
     expect(observed).to.deep.equal(expected)
@@ -639,9 +727,11 @@ describe('Try-catch statement', () => {
           - try1:
               try:
                 steps:
-                  - assign1:
-                      assign:
-                        - response: \${http.get("https://visit.dreamland.test/")}
+                  - call1:
+                      call: http.get
+                      args:
+                        url: https://visit.dreamland.test/
+                      result: response
                   - return1:
                       return: \${response}
               except:
@@ -676,14 +766,16 @@ describe('Try-catch statement', () => {
           - try1:
               try:
                 steps:
-                  - assign1:
-                      assign:
-                        - response: \${http.get("https://visit.dreamland.test/")}
+                  - call1:
+                      call: http.get
+                      args:
+                        url: https://visit.dreamland.test/
+                      result: response
                   - return1:
                       return: \${response}
               except:
                 steps:
-                  - assign2:
+                  - assign1:
                       assign:
                         - "": \${log("Error!")}
     `) as unknown
@@ -710,15 +802,17 @@ describe('Try-catch statement', () => {
           - try1:
               try:
                 steps:
-                  - assign1:
-                      assign:
-                        - response: \${http.get("https://visit.dreamland.test/")}
+                  - call1:
+                      call: http.get
+                      args:
+                        url: https://visit.dreamland.test/
+                      result: response
                   - return1:
                       return: \${response}
               retry: \${http.default_retry}
               except:
                 steps:
-                  - assign2:
+                  - assign1:
                       assign:
                         - "": \${log("Error!")}
     `) as unknown
@@ -749,9 +843,11 @@ describe('Try-catch statement', () => {
           - try1:
               try:
                 steps:
-                  - assign1:
-                      assign:
-                        - response: \${http.get("https://visit.dreamland.test/")}
+                  - call1:
+                      call: http.get
+                      args:
+                        url: https://visit.dreamland.test/
+                      result: response
                   - return1:
                       return: \${response}
               retry:
@@ -763,7 +859,7 @@ describe('Try-catch statement', () => {
                   multiplier: 2.5
               except:
                 steps:
-                  - assign2:
+                  - assign1:
                       assign:
                         - "": \${log("Error!")}
     `) as unknown
@@ -842,15 +938,17 @@ describe('Try-catch statement', () => {
           - try1:
               try:
                 steps:
-                  - assign1:
-                      assign:
-                        - response: \${http.get("https://visit.dreamland.test/")}
+                  - call1:
+                      call: http.get
+                      args:
+                        url: https://visit.dreamland.test/
+                      result: response
               except:
                 steps:
-                  - assign2:
+                  - assign1:
                       assign:
                         - "": \${log("Error!")}
-          - assign3:
+          - assign2:
               assign:
                 - "": \${log("try block completed")}
     `) as unknown
