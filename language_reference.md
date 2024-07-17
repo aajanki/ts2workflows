@@ -563,7 +563,7 @@ ts2workflows provides some special functions for implementing features that are 
 
 It is not possible to call subworkflows with these names, because the transpiler treats these names as special cases.
 
-See [type annotations](typeannotations/workflowslib/index.ts) for these functions.
+See [type annotations](src/typeannotations/workflowslib/index.ts) for these functions.
 
 ## Source code comments
 

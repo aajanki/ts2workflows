@@ -5,7 +5,7 @@
     "moduleResolution": "bundler",
     "rootDir": ".",
     "paths": {
-      "workflowslib": ["./typeannotations/workflowslib"]
+      "workflowslib": ["./src/typeannotations/workflowslib"]
     },
     "lib": ["ES5"],
     "noEmit": true,
