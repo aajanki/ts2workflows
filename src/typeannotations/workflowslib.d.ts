@@ -205,9 +205,9 @@ export declare namespace retry {
 export declare namespace sys {
   function get_env(name: string, default_value?: string): string | undefined
   function log(
-    data?: number | boolean | string | any[] | object,
+    data?: number | boolean | string | unknown[] | object,
     severity?: string,
-    text?: number | boolean | string | any[] | object,
+    text?: number | boolean | string | unknown[] | object,
     json?: object,
     timeout?: number,
   ): void
