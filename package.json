@@ -8,11 +8,18 @@
     "node": ">=18"
   },
   "scripts": {
-    "build": "rimraf dist && tsc",
+    "build": "rimraf dist && tsc && npm run build:typeannotations",
+    "build:typeannotations": "copyfiles copyfiles -u 2 src/typeannotations/*.d.ts dist/typeannotations/",
     "lint": "eslint .",
     "format": "prettier . --write",
     "test": "mocha"
   },
+  "files": [
+    "dist",
+    "README",
+    "language_reference.md",
+    "LICENSE"
+  ],
   "author": "Antti Ajanki",
   "license": "MIT",
   "devDependencies": {
@@ -23,6 +30,7 @@
     "@typescript-eslint/eslint-plugin": "^7.9.0",
     "@typescript-eslint/parser": "^7.9.0",
     "chai": "^5.1.1",
+    "copyfiles": "^2.4.1",
     "eslint": "^8.57.0",
     "mocha": "^10.4.0",
     "prettier": "^3.2.5",

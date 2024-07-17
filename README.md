@@ -23,7 +23,7 @@ npm run test
 
 ## Type checking
 
-One benefit of writing the workflow programs in Typescript is that the sources can be type checked. Type annotations for [Workflows standard library functions and expression helpers](https://cloud.google.com/workflows/docs/reference/stdlib/overview) are provided in the directory [src/typennotations/workflowslib](src/typeannotations/workflowslib).
+One benefit of writing the workflow programs in Typescript is that the sources can be type checked. Type annotations for [Workflows standard library functions and expression helpers](https://cloud.google.com/workflows/docs/reference/stdlib/overview) are provided in [src/typennotations/workflowslib.d.ts](src/typeannotations/workflowslib.d.ts).
 
 This is an example command that shows how to type check source files in the samples directory. [tsconfig.workflows.json](tsconfig.workflows.json) contains a sample configuration for tsc. The command will print typing errors or finish without printing anything, if there are no typing errors.
 
