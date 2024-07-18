@@ -5,7 +5,7 @@ import {
   NamedWorkflowStep,
   WorkflowStepASTWithNamedNested,
 } from '../src/ast/steps.js'
-import { convertExpression } from '../src/transpiler.js'
+import { convertExpression } from '../src/transpiler/expressions.js'
 
 export function primitiveEx(
   primitive:

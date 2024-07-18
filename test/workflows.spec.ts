@@ -1,6 +1,6 @@
 import { expect } from 'chai'
 import * as YAML from 'yaml'
-import { transpile } from '../src/transpiler.js'
+import { transpile } from '../src/transpiler/index.js'
 
 describe('workflow transpiler', () => {
   it('transpiles a function with parameters', () => {

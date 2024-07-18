@@ -2,7 +2,7 @@ import { expect } from 'chai'
 import * as YAML from 'yaml'
 import * as fs from 'node:fs'
 import { spawnSync } from 'node:child_process'
-import { transpile } from '../src/transpiler.js'
+import { transpile } from '../src/transpiler/index.js'
 
 describe('Transpiler', () => {
   it('accepts named import declaration on the top-level', () => {

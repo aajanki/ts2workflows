@@ -1,7 +1,7 @@
 import { expect } from 'chai'
 import { LiteralValueOrLiteralExpression } from '../src/ast/expressions.js'
 import { parseExpression } from './testutils.js'
-import { transpile } from '../src/transpiler.js'
+import { transpile } from '../src/transpiler/index.js'
 import * as YAML from 'yaml'
 
 describe('Literals', () => {

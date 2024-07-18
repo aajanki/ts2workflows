@@ -1,1 +1,1 @@
-export { transpile } from './transpiler.js'
+export { transpile } from './transpiler/index.js'

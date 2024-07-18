@@ -1,7 +1,5 @@
-/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-argument */
-import * as parser from '@typescript-eslint/typescript-estree'
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-argument */
 import { AST_NODE_TYPES } from '@typescript-eslint/utils'
-import * as YAML from 'yaml'
 import {
   AssignStepAST,
   CallStepAST,
@@ -12,61 +10,44 @@ import {
   ReturnStepAST,
   StepName,
   StepsStepAST,
-  SubworkflowAST,
   SwitchConditionAST,
   SwitchStepAST,
   TryStepAST,
   VariableAssignment,
   WorkflowStepAST,
-} from './ast/steps.js'
+} from '../ast/steps.js'
 import {
   Expression,
   FunctionInvocation,
   ParenthesizedExpression,
-  Primitive,
   Term,
   VariableReference,
   primitiveToExpression,
-} from './ast/expressions.js'
-import { InternalTranspilingError, WorkflowSyntaxError } from './errors.js'
-import { WorkflowParameter } from './ast/workflows.js'
-import { generateStepNames } from './ast/stepnames.js'
-import { isRecord } from './utils.js'
-import { transformAST } from './transformations.js'
+} from '../ast/expressions.js'
+import { InternalTranspilingError, WorkflowSyntaxError } from '../errors.js'
+import { isRecord } from '../utils.js'
+import { transformAST } from '../transformations.js'
+import { assertType } from './asserts.js'
+import { convertExpression, convertObjectExpression } from './expressions.js'
 
 const {
   ArrayExpression,
   ArrowFunctionExpression,
-  AwaitExpression,
   AssignmentExpression,
-  AssignmentPattern,
-  BinaryExpression,
   BlockStatement,
   BreakStatement,
   CallExpression,
-  ConditionalExpression,
   ContinueStatement,
-  ExportNamedDeclaration,
   ExpressionStatement,
   ForInStatement,
   ForOfStatement,
-  FunctionDeclaration,
   Identifier,
-  ImportDeclaration,
-  ImportDefaultSpecifier,
-  ImportNamespaceSpecifier,
   IfStatement,
   LabeledStatement,
-  Literal,
-  LogicalExpression,
-  MemberExpression,
   ObjectExpression,
-  Program,
   ReturnStatement,
   ThrowStatement,
   TryStatement,
-  TSAsExpression,
-  UnaryExpression,
   VariableDeclaration,
   VariableDeclarator,
 } = AST_NODE_TYPES
@@ -158,122 +139,11 @@ const blockingFunctions = new Map([
   ['sys.sleep_until', ['time']],
 ])
 
-export function transpile(code: string): string {
-  const parserOptions = {
-    comment: true,
-    loggerFn: false as const,
-    loc: true,
-    range: true,
-  }
-
-  const ast = parser.parse(code, parserOptions)
-  assertType(ast, Program)
-
-  const workflowAst = { subworkflows: ast.body.flatMap(parseTopLevelStatement) }
-  const workflow = generateStepNames(workflowAst)
-  return YAML.stringify(workflow.render())
-}
-
-function assertType(node: { type: string }, expectedType: string): void {
-  if (node?.type !== expectedType) {
-    throw new InternalTranspilingError(
-      `Expected ${expectedType}, got ${node?.type}`,
-    )
-  }
-}
-
-function assertOneOfManyTypes(
-  node: { type: string },
-  expectAnyOfTheseTypes: string[],
-): void {
-  if (!expectAnyOfTheseTypes.includes(node?.type)) {
-    throw new InternalTranspilingError(
-      `Expected ${expectAnyOfTheseTypes.join(' or ')}, got ${node?.type}`,
-    )
-  }
-}
-
-function parseTopLevelStatement(node: any): SubworkflowAST[] {
-  switch (node?.type) {
-    case FunctionDeclaration:
-      return [parseSubworkflows(node)]
-
-    case ImportDeclaration:
-      if (
-        node.specifiers.some(
-          (spec: any) =>
-            spec.type === ImportNamespaceSpecifier ||
-            spec.type === ImportDefaultSpecifier,
-        )
-      ) {
-        throw new WorkflowSyntaxError(
-          'Only named imports are allowed',
-          node.loc,
-        )
-      }
-
-      return []
-
-    case ExportNamedDeclaration:
-      // "export" keyword is ignored, but a possible function declaration is transpiled.
-      if (node?.declaration) {
-        return parseTopLevelStatement(node.declaration)
-      } else {
-        return []
-      }
-
-    default:
-      throw new WorkflowSyntaxError(
-        `Only function declarations and imports allowed on the top level, encountered ${node?.type}`,
-        node?.loc,
-      )
-  }
-}
-
-function parseSubworkflows(node: any): SubworkflowAST {
-  assertType(node, FunctionDeclaration)
-
-  if (node.id.type !== Identifier) {
-    throw new WorkflowSyntaxError(
-      'Expected Identifier as a function name',
-      node.id.loc,
-    )
-  }
-
-  const workflowParams: WorkflowParameter[] = node.params.map((param: any) => {
-    switch (param.type) {
-      case Identifier:
-        return { name: param.name }
-
-      case AssignmentPattern:
-        assertType(param.left, Identifier)
-        if (param.right.type !== Literal) {
-          throw new WorkflowSyntaxError(
-            'The default value must be a literal',
-            param.right.loc,
-          )
-        }
-
-        return { name: param.left.name, default: param.right.value }
-
-      default:
-        throw new WorkflowSyntaxError(
-          'Function parameter must be an identifier or an assignment',
-          param.loc,
-        )
-    }
-  })
-
-  const steps = parseBlockStatement(node.body)
-
-  return new SubworkflowAST(node.id.name, steps, workflowParams)
-}
-
-function parseBlockStatement(node: any): WorkflowStepAST[] {
+export function parseBlockStatement(node: any): WorkflowStepAST[] {
   assertType(node, BlockStatement)
 
-  const steps = node.body.flatMap(parseStep) as WorkflowStepAST[]
-  return transformAST(steps)
+  const body = node.body as any[]
+  return transformAST(body.flatMap(parseStep))
 }
 
 function parseStep(node: any): WorkflowStepAST[] {
@@ -354,303 +224,6 @@ function convertVariableDeclarations(declarations: any[]): WorkflowStepAST[] {
       return new AssignStepAST([[targetName, convertExpression(decl.init)]])
     }
   })
-}
-
-function convertExpressionOrPrimitive(instance: any): Primitive | Expression {
-  switch (instance.type) {
-    case ArrayExpression:
-      return (instance.elements as any[]).map(convertExpressionOrPrimitive)
-
-    case ObjectExpression:
-      return convertObjectExpression(instance)
-
-    case Literal:
-      return instance.value as Primitive
-
-    case Identifier:
-      if (instance.name === 'null' || instance.name === 'undefined') {
-        return null
-      } else if (instance.name === 'True' || instance.name === 'TRUE') {
-        return true
-      } else if (instance.name === 'False' || instance.name === 'FALSE') {
-        return false
-      } else {
-        return new Expression(
-          new Term(new VariableReference(instance.name as string)),
-          [],
-        )
-      }
-
-    case UnaryExpression:
-      return convertUnaryExpression(instance)
-
-    case BinaryExpression:
-    case LogicalExpression:
-      return convertBinaryExpression(instance)
-
-    case MemberExpression:
-      return new Expression(new Term(convertMemberExpression(instance)), [])
-
-    case CallExpression:
-      return convertCallExpression(instance)
-
-    case ConditionalExpression:
-      return convertConditionalExpression(instance)
-
-    case TSAsExpression:
-      return convertExpressionOrPrimitive(instance.expression)
-
-    case AwaitExpression:
-      return convertExpressionOrPrimitive(instance.argument)
-
-    default:
-      throw new WorkflowSyntaxError(
-        `Not implemented expression type: ${instance.type}`,
-        instance.loc,
-      )
-  }
-}
-
-export function convertExpression(instance: any): Expression {
-  const expOrPrimitive = convertExpressionOrPrimitive(instance)
-  if (expOrPrimitive instanceof Expression) {
-    return expOrPrimitive
-  } else {
-    return primitiveToExpression(expOrPrimitive)
-  }
-}
-
-function convertBinaryExpression(instance: any): Expression {
-  assertOneOfManyTypes(instance, [BinaryExpression, LogicalExpression])
-
-  // Special case for nullish coalescing becuase the result is a function call
-  // expression, not a binary expression
-  if (instance.operator === '??') {
-    return nullishCoalescingExpression(instance.left, instance.right)
-  }
-
-  let op: string
-  switch (instance.operator) {
-    case '+':
-    case '-':
-    case '*':
-    case '/':
-    case '%':
-    case '==':
-    case '!=':
-    case '>':
-    case '>=':
-    case '<':
-    case '<=':
-    case 'in':
-      op = instance.operator
-      break
-
-    case '===':
-      op = '=='
-      break
-
-    case '!==':
-      op = '!='
-      break
-
-    case '&&':
-      op = 'and'
-      break
-
-    case '||':
-      op = 'or'
-      break
-
-    default:
-      throw new WorkflowSyntaxError(
-        `Unsupported binary operator: ${instance.operator}`,
-        instance.loc,
-      )
-  }
-
-  const leftEx = convertExpressionOrPrimitive(instance.left)
-  const rightEx = convertExpressionOrPrimitive(instance.right)
-
-  let rightTerm: Term
-  if (rightEx instanceof Expression && rightEx.rest.length === 0) {
-    rightTerm = rightEx.left
-  } else if (rightEx instanceof Expression) {
-    rightTerm = new Term(new ParenthesizedExpression(rightEx))
-  } else {
-    rightTerm = new Term(rightEx)
-  }
-
-  const rest = [
-    {
-      binaryOperator: op,
-      right: rightTerm,
-    },
-  ]
-
-  let leftTerm: Term
-  if (leftEx instanceof Expression && leftEx.rest.length === 0) {
-    leftTerm = leftEx.left
-  } else if (leftEx instanceof Expression) {
-    leftTerm = new Term(new ParenthesizedExpression(leftEx))
-  } else {
-    leftTerm = new Term(leftEx)
-  }
-
-  return new Expression(leftTerm, rest)
-}
-
-function nullishCoalescingExpression(left: any, right: any): Expression {
-  return new Expression(
-    new Term(
-      new FunctionInvocation('default', [
-        convertExpression(left),
-        convertExpression(right),
-      ]),
-    ),
-    [],
-  )
-}
-
-function convertUnaryExpression(instance: any): Expression {
-  assertType(instance, UnaryExpression)
-
-  if (instance.prefix === false) {
-    throw new WorkflowSyntaxError(
-      'only prefix unary operators are supported',
-      instance.loc,
-    )
-  }
-
-  let op: string | undefined
-  switch (instance.operator) {
-    case '+':
-    case '-':
-    case undefined:
-      op = instance.operator
-      break
-
-    case '!':
-      op = 'not'
-      break
-
-    case 'void':
-      // Just evalute the side-effecting expression.
-      // This is wrong: the return value should be ignored.
-      op = undefined
-      break
-
-    default:
-      throw new WorkflowSyntaxError(
-        `Unsupported unary operator: ${instance.operator}`,
-        instance.loc,
-      )
-  }
-
-  const ex = convertExpressionOrPrimitive(instance.argument)
-
-  let val
-  if (ex instanceof Expression && ex.isSingleValue()) {
-    val = ex.left.value
-  } else if (ex instanceof Expression) {
-    val = new ParenthesizedExpression(ex)
-  } else {
-    val = ex
-  }
-
-  return new Expression(new Term(val, op), [])
-}
-
-function convertObjectExpression(
-  node: any,
-): Record<string, Primitive | Expression> {
-  assertType(node, ObjectExpression)
-
-  const properties = node.properties as {
-    key: any
-    value: any
-  }[]
-
-  return Object.fromEntries(
-    properties.map(({ key, value }) => {
-      let keyPrimitive: string
-      if (key.type === Identifier) {
-        keyPrimitive = key.name
-      } else if (key.type === Literal) {
-        if (typeof key.value === 'string') {
-          keyPrimitive = key.value
-        } else {
-          throw new WorkflowSyntaxError(
-            `Map keys must be identifiers or strings, encountered: ${typeof key.value}`,
-            key.loc,
-          )
-        }
-      } else {
-        throw new WorkflowSyntaxError(
-          `Not implemented object key type: ${key.type}`,
-          key.loc,
-        )
-      }
-
-      return [keyPrimitive, convertExpressionOrPrimitive(value)]
-    }),
-  )
-}
-
-function convertMemberExpression(memberExpression: any): VariableReference {
-  assertType(memberExpression, MemberExpression)
-
-  let objectName: string
-  if (memberExpression.object.type === Identifier) {
-    objectName = memberExpression.object.name
-  } else if (memberExpression.object.type === MemberExpression) {
-    objectName = convertMemberExpression(memberExpression.object).name
-  } else {
-    throw new WorkflowSyntaxError(
-      `Unexpected type in member expression: ${memberExpression.object.type}`,
-      memberExpression.loc,
-    )
-  }
-
-  if (memberExpression.computed) {
-    const member = convertExpression(memberExpression.property).toString()
-
-    return new VariableReference(`${objectName}[${member}]`)
-  } else {
-    return new VariableReference(
-      `${objectName}.${memberExpression.property.name}`,
-    )
-  }
-}
-
-function convertCallExpression(node: any): Expression {
-  assertType(node, CallExpression)
-
-  const calleeExpression = convertExpression(node.callee)
-  if (calleeExpression.isFullyQualifiedName()) {
-    const argumentExpressions: Expression[] =
-      node.arguments.map(convertExpression)
-    const invocation = new FunctionInvocation(
-      calleeExpression.left.toString(),
-      argumentExpressions,
-    )
-    return new Expression(new Term(invocation), [])
-  } else {
-    throw new WorkflowSyntaxError('Callee should be a qualified name', node.loc)
-  }
-}
-
-function convertConditionalExpression(node: any): Expression {
-  assertType(node, ConditionalExpression)
-
-  const test = convertExpression(node.test)
-  const consequent = convertExpression(node.consequent)
-  const alternate = convertExpression(node.alternate)
-
-  return new Expression(
-    new Term(new FunctionInvocation('if', [test, consequent, alternate])),
-    [],
-  )
 }
 
 function assignmentExpressionToSteps(node: any): WorkflowStepAST[] {
@@ -907,7 +480,8 @@ function callExpressionToParallelStep(node: any): ParallelStepAST {
 function parseParallelBranches(node: any): Record<StepName, StepsStepAST> {
   assertType(node, ArrayExpression)
 
-  const stepsArray: [string, StepsStepAST][] = node.elements.map(
+  const nodeElements = node.elements as any[]
+  const stepsArray: [string, StepsStepAST][] = nodeElements.map(
     (arg: any, idx: number) => {
       const branchName = `branch${idx + 1}`
 
@@ -1067,7 +641,7 @@ function forOfStatementToForStep(node: any): ForStepAST {
 
   let loopVariableName: string
   if (node.left.type === Identifier) {
-    loopVariableName = node.left.name
+    loopVariableName = node.left.name as string
   } else if (node.left.type === VariableDeclaration) {
     if (node.left.declarations.length !== 1) {
       throw new WorkflowSyntaxError(
@@ -1076,7 +650,7 @@ function forOfStatementToForStep(node: any): ForStepAST {
       )
     }
 
-    const declaration = node.left.declarations[0]
+    const declaration = node.left.declarations[0] as { init: any; id: any }
     if (declaration.init !== null) {
       throw new WorkflowSyntaxError(
         'Initial value not allowed',
@@ -1086,7 +660,7 @@ function forOfStatementToForStep(node: any): ForStepAST {
 
     assertType(declaration.id, Identifier)
 
-    loopVariableName = declaration.id.name
+    loopVariableName = declaration.id.name as string
   } else {
     throw new InternalTranspilingError(
       `Expected Identifier or VariableDeclaration, got ${node.left.type}`,
