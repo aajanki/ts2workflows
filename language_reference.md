@@ -260,11 +260,29 @@ steps:
                 - total: ${total + i}
 ```
 
-Only `for...of` loops are supported for now. Other types of looping constructs (`do`, `while`) might be added later.
+`while` and `do...while` loops are also supported:
 
-### Break and continue in a for loop
+```typescript
+const total = 0
+let i = 5
 
-Breaking out of loop:
+while (i > 0) {
+  total += i
+  i -= 1
+}
+
+let k = 5
+do {
+  total += k
+  k -= 1
+} while (k > 0)
+```
+
+`for...in` loops are not supported.
+
+### Break and continue in loops
+
+Breaking out of a loop:
 
 ```typescript
 let total = 0

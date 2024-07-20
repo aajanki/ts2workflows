@@ -4,6 +4,7 @@ import {
   AssignStepAST,
   CallStepAST,
   ForStepAST,
+  JumpTargetAST,
   NextStepAST,
   ParallelStepAST,
   RaiseStepAST,
@@ -38,6 +39,7 @@ const {
   BreakStatement,
   CallExpression,
   ContinueStatement,
+  DoWhileStatement,
   ExpressionStatement,
   ForInStatement,
   ForOfStatement,
@@ -50,6 +52,7 @@ const {
   TryStatement,
   VariableDeclaration,
   VariableDeclarator,
+  WhileStatement,
 } = AST_NODE_TYPES
 
 // Blocking calls and their argument names. Blocking call must be run from a
@@ -177,6 +180,12 @@ function parseStep(node: any): WorkflowStepAST[] {
 
     case ForOfStatement:
       return [forOfStatementToForStep(node)]
+
+    case DoWhileStatement:
+      return doWhileStatementSteps(node)
+
+    case WhileStatement:
+      return whileStatementSteps(node)
 
     case BreakStatement:
       return [breakStatementToNextStep(node)]
@@ -681,6 +690,43 @@ function forOfStatementToForStep(node: any): ForStepAST {
   }
 
   return new ForStepAST(steps, loopVariableName, listExpression)
+}
+
+function whileStatementSteps(node: any): WorkflowStepAST[] {
+  assertType(node, WhileStatement)
+
+  const startOfLoop = new JumpTargetAST()
+  const steps: WorkflowStepAST[] = parseBlockStatement(node.body)
+  steps.push(new NextStepAST(startOfLoop.label))
+
+  return [
+    startOfLoop,
+    new SwitchStepAST([
+      {
+        condition: convertExpression(node.test),
+        steps,
+      },
+    ]),
+  ]
+}
+
+function doWhileStatementSteps(node: any): WorkflowStepAST[] {
+  assertType(node, DoWhileStatement)
+
+  const startOfLoop = new JumpTargetAST()
+  const steps: WorkflowStepAST[] = [startOfLoop]
+  steps.push(...parseBlockStatement(node.body))
+  steps.push(
+    new SwitchStepAST([
+      {
+        condition: convertExpression(node.test),
+        steps: [],
+        next: startOfLoop.label,
+      },
+    ]),
+  )
+
+  return steps
 }
 
 function breakStatementToNextStep(node: any): NextStepAST {

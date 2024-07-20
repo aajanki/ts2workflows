@@ -1070,7 +1070,7 @@ describe('Throw statement', () => {
   })
 })
 
-describe('For loop', () => {
+describe('Loops', () => {
   it('transpiles a for loop', () => {
     const code = `
     function main() {
@@ -1392,6 +1392,432 @@ describe('For loop', () => {
                       - total: \${total + x}
         - return1:
             return: \${total}
+    `) as unknown
+
+    expect(observed).to.deep.equal(expected)
+  })
+
+  it('transpiles a while loop', () => {
+    const code = `
+    function main() {
+      const i = 5;
+      while (i > 0) {
+        i -= 1;
+      }
+    }`
+    const observed = YAML.parse(transpile(code)) as unknown
+
+    const expected = YAML.parse(`
+    main:
+      steps:
+        - assign1:
+            assign:
+              - i: 5
+        - switch1:
+            switch:
+              - condition: \${i > 0}
+                steps:
+                  - assign2:
+                      assign:
+                        - i: \${i - 1}
+                  - next1:
+                      next: switch1
+    `) as unknown
+
+    expect(observed).to.deep.equal(expected)
+  })
+
+  it('transpiles a break in a while loop', () => {
+    const code = `
+    function main() {
+      const x = 0.11;
+      while (x >= 0) {
+        if (x > 0.9) {
+          break;
+        }
+
+        if (x < 0.5) {
+          x *= 2;
+        } else {
+          x = 2 * (1 - x);
+        }
+      }
+
+      return x;
+    }`
+    const observed = YAML.parse(transpile(code)) as unknown
+
+    const expected = YAML.parse(`
+    main:
+      steps:
+        - assign1:
+            assign:
+              - x: 0.11
+        - switch3:
+            switch:
+              - condition: \${x >= 0}
+                steps:
+                  - switch1:
+                      switch:
+                        - condition: \${x > 0.9}
+                          next: return1
+                  - switch2:
+                      switch:
+                        - condition: \${x < 0.5}
+                          steps:
+                            - assign2:
+                                assign:
+                                  - x: \${x * 2}
+                        - condition: true
+                          steps:
+                            - assign3:
+                                assign:
+                                  - x: \${2 * (1 - x)}
+                  - next1:
+                      next: switch3
+        - return1:
+            return: \${x}
+    `) as unknown
+
+    expect(observed).to.deep.equal(expected)
+  })
+
+  it('transpiles a break and a while loop as the statement in a block', () => {
+    const code = `
+    function main() {
+      const x = 0.11;
+      while (x >= 0) {
+        if (x > 0.9) {
+          break;
+        }
+
+        if (x < 0.5) {
+          x *= 2;
+        } else {
+          x = 2 * (1 - x);
+        }
+      }
+    }`
+    const observed = YAML.parse(transpile(code)) as unknown
+
+    const expected = YAML.parse(`
+    main:
+      steps:
+        - assign1:
+            assign:
+              - x: 0.11
+        - switch3:
+            switch:
+              - condition: \${x >= 0}
+                steps:
+                  - switch1:
+                      switch:
+                        - condition: \${x > 0.9}
+                          next: end
+                  - switch2:
+                      switch:
+                        - condition: \${x < 0.5}
+                          steps:
+                            - assign2:
+                                assign:
+                                  - x: \${x * 2}
+                        - condition: true
+                          steps:
+                            - assign3:
+                                assign:
+                                  - x: \${2 * (1 - x)}
+                  - next1:
+                      next: switch3
+    `) as unknown
+
+    expect(observed).to.deep.equal(expected)
+  })
+
+  it('transpiles a continue in a while loop', () => {
+    const code = `
+    function main() {
+      const x = 0.11;
+      while (x < 0.9) {
+        if (x < 0.5) {
+          x *= 2;
+          continue;
+        }
+
+        x = 2 * (1 - x);
+      }
+
+      return x;
+    }`
+    const observed = YAML.parse(transpile(code)) as unknown
+
+    const expected = YAML.parse(`
+    main:
+      steps:
+        - assign1:
+            assign:
+              - x: 0.11
+        - switch2:
+            switch:
+              - condition: \${x < 0.9}
+                steps:
+                  - switch1:
+                      switch:
+                        - condition: \${x < 0.5}
+                          steps:
+                            - assign2:
+                                assign:
+                                  - x: \${x * 2}
+                            - next1:
+                                next: switch2
+                  - assign3:
+                      assign:
+                        - x: \${2 * (1 - x)}
+                  - next2:
+                      next: switch2
+        - return1:
+            return: \${x}
+    `) as unknown
+
+    expect(observed).to.deep.equal(expected)
+  })
+
+  it('transpiles a do...while loop', () => {
+    const code = `
+    function main() {
+      const i = 5;
+      do {
+        i -= 1;
+      } while (i > 0);
+    }`
+    const observed = YAML.parse(transpile(code)) as unknown
+
+    const expected = YAML.parse(`
+    main:
+      steps:
+        - assign1:
+            assign:
+              - i: 5
+        - assign2:
+            assign:
+              - i: \${i - 1}
+        - switch1:
+            switch:
+              - condition: \${i > 0}
+                next: assign2
+    `) as unknown
+
+    expect(observed).to.deep.equal(expected)
+  })
+
+  it('transpiles a break in a do...while loop', () => {
+    const code = `
+    function main() {
+      const x = 0.11;
+      do {
+        if (x > 0.9) {
+          break;
+        }
+
+        if (x < 0.5) {
+          x *= 2;
+        } else {
+          x = 2 * (1 - x);
+        }
+      } while (x >= 0)
+
+      return x;
+    }`
+    const observed = YAML.parse(transpile(code)) as unknown
+
+    const expected = YAML.parse(`
+    main:
+      steps:
+        - assign1:
+            assign:
+              - x: 0.11
+        - switch1:
+            switch:
+              - condition: \${x > 0.9}
+                next: return1
+        - switch2:
+            switch:
+              - condition: \${x < 0.5}
+                steps:
+                  - assign2:
+                      assign:
+                        - x: \${x * 2}
+              - condition: true
+                steps:
+                  - assign3:
+                      assign:
+                        - x: \${2 * (1 - x)}
+        - switch3:
+            switch:
+              - condition: \${x >= 0}
+                next: switch1
+        - return1:
+            return: \${x}
+    `) as unknown
+
+    expect(observed).to.deep.equal(expected)
+  })
+
+  it('transpiles a break and a do...while loop as the last statement in a block', () => {
+    const code = `
+    function main() {
+      const x = 0.11;
+      do {
+        if (x > 0.9) {
+          break;
+        }
+
+        if (x < 0.5) {
+          x *= 2;
+        } else {
+          x = 2 * (1 - x);
+        }
+      } while (x >= 0)
+    }`
+    const observed = YAML.parse(transpile(code)) as unknown
+
+    const expected = YAML.parse(`
+    main:
+      steps:
+        - assign1:
+            assign:
+              - x: 0.11
+        - switch1:
+            switch:
+              - condition: \${x > 0.9}
+                next: end
+        - switch2:
+            switch:
+              - condition: \${x < 0.5}
+                steps:
+                  - assign2:
+                      assign:
+                        - x: \${x * 2}
+              - condition: true
+                steps:
+                  - assign3:
+                      assign:
+                        - x: \${2 * (1 - x)}
+        - switch3:
+            switch:
+              - condition: \${x >= 0}
+                next: switch1
+    `) as unknown
+
+    expect(observed).to.deep.equal(expected)
+  })
+
+  it('transpiles a break in a do...while loop nested in try statement', () => {
+    const code = `
+    function main() {
+      const x = 0.11;
+      try {
+        do {
+          if (x > 0.9) {
+            break;
+          }
+  
+          if (x < 0.5) {
+            x *= 2;
+          } else {
+            x = 2 * (1 - x);
+          }
+        } while (x >= 0)
+      } catch (e) {
+        x = -1;
+      }
+
+      return x;
+    }`
+    const observed = YAML.parse(transpile(code)) as unknown
+
+    const expected = YAML.parse(`
+    main:
+      steps:
+        - assign1:
+            assign:
+              - x: 0.11
+        - try1:
+            try:
+              steps:
+                - switch1:
+                    switch:
+                      - condition: \${x > 0.9}
+                        next: return1
+                - switch2:
+                    switch:
+                      - condition: \${x < 0.5}
+                        steps:
+                          - assign2:
+                              assign:
+                                - x: \${x * 2}
+                      - condition: true
+                        steps:
+                          - assign3:
+                              assign:
+                                - x: \${2 * (1 - x)}
+                - switch3:
+                    switch:
+                      - condition: \${x >= 0}
+                        next: switch1
+            except:
+              as: e
+              steps:
+                - assign4:
+                    assign:
+                      - x: -1
+        - return1:
+            return: \${x}
+    `) as unknown
+
+    expect(observed).to.deep.equal(expected)
+  })
+
+  it('transpiles a continue in a do...while loop', () => {
+    const code = `
+    function main() {
+      const x = 0.11;
+      do {
+        if (x < 0.5) {
+          x *= 2;
+          continue;
+        }
+
+        x = 2 * (1 - x);
+      } while (x < 0.9)
+
+      return x;
+    }`
+    const observed = YAML.parse(transpile(code)) as unknown
+
+    const expected = YAML.parse(`
+    main:
+      steps:
+        - assign1:
+            assign:
+              - x: 0.11
+        - switch1:
+            switch:
+              - condition: \${x < 0.5}
+                steps:
+                  - assign2:
+                      assign:
+                        - x: \${x * 2}
+                  - next1:
+                      next: switch1
+        - assign3:
+            assign:
+              - x: \${2 * (1 - x)}
+        - switch2:
+            switch:
+              - condition: \${x < 0.9}
+                next: switch1
+        - return1:
+            return: \${x}
     `) as unknown
 
     expect(observed).to.deep.equal(expected)
