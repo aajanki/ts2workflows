@@ -2,6 +2,7 @@ import {
   AssignStepAST,
   CallStepAST,
   CustomRetryPolicy,
+  SwitchStepAST,
   TryStepAST,
   WorkflowStepAST,
 } from './ast/steps.js'
@@ -10,7 +11,9 @@ import { isRecord } from './utils.js'
 import { Expression, Primitive } from './ast/expressions.js'
 
 export function transformAST(steps: WorkflowStepAST[]): WorkflowStepAST[] {
-  return combineRetryBlocksToTry(mergeAssignSteps(steps))
+  return flattenPlainNextConditions(
+    combineRetryBlocksToTry(mergeAssignSteps(steps)),
+  )
 }
 
 // Merge consecutive assign steps
@@ -143,4 +146,16 @@ function parseRetryPolicyNumber(
   }
 
   return primitiveValue
+}
+
+export function flattenPlainNextConditions(
+  steps: WorkflowStepAST[],
+): WorkflowStepAST[] {
+  return steps.map((step) => {
+    if (step instanceof SwitchStepAST) {
+      return step.flattenPlainNextConditions()
+    } else {
+      return step
+    }
+  })
 }

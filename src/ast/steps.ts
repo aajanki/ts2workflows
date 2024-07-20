@@ -640,6 +640,27 @@ export class SwitchStepAST implements WorkflowStepAST {
     this.branches = branches
   }
 
+  flattenPlainNextConditions(): SwitchStepAST {
+    const transformedBranches = this.branches.map((cond) => {
+      if (
+        !cond.next &&
+        cond.steps.length === 1 &&
+        cond.steps[0] instanceof NextStepAST
+      ) {
+        const nextStep = cond.steps[0]
+        return {
+          condition: cond.condition,
+          steps: [],
+          next: nextStep.target,
+        }
+      } else {
+        return cond
+      }
+    })
+
+    return new SwitchStepAST(transformedBranches)
+  }
+
   withStepNames(generate: (prefix: string) => string): NamedWorkflowStep {
     const namedBranches = this.branches.map(
       (branch) =>

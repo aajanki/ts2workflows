@@ -1267,9 +1267,7 @@ describe('Loops', () => {
                 - switch1:
                     switch:
                       - condition: \${(x % 2) == 0}
-                        steps:
-                          - next1:
-                              next: continue
+                        next: continue
                 - assign2:
                     assign:
                       - total: \${total + x}
@@ -1330,9 +1328,7 @@ describe('Loops', () => {
                 - switch1:
                     switch:
                       - condition: \${total > 5}
-                        steps:
-                          - next1:
-                              next: break
+                        next: break
                 - assign2:
                     assign:
                       - total: \${total + x}
