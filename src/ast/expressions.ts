@@ -75,6 +75,22 @@ export class VariableReference {
   }
 }
 
+export function binaryExpression(
+  left: Expression,
+  operator: string,
+  right: Expression,
+): Expression {
+  const leftTerm = left.isSingleValue()
+    ? left.left
+    : new Term(new ParenthesizedExpression(left))
+  const rightTerm = right.isSingleValue()
+    ? right.left
+    : new Term(new ParenthesizedExpression(right))
+  return new Expression(leftTerm, [
+    { binaryOperator: operator, right: rightTerm },
+  ])
+}
+
 // Function invocation with unnamed parameters: http.get("http://example.com")
 export class FunctionInvocation {
   readonly funcName: string

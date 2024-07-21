@@ -23,6 +23,7 @@ import {
   ParenthesizedExpression,
   Term,
   VariableReference,
+  binaryExpression,
   primitiveToExpression,
 } from '../ast/expressions.js'
 import { InternalTranspilingError, WorkflowSyntaxError } from '../errors.js'
@@ -48,6 +49,8 @@ const {
   LabeledStatement,
   ObjectExpression,
   ReturnStatement,
+  SwitchCase,
+  SwitchStatement,
   ThrowStatement,
   TryStatement,
   VariableDeclaration,
@@ -143,7 +146,9 @@ const blockingFunctions = new Map([
 ])
 
 export interface ParsingContext {
+  // a jump target for an unlabeled break statement
   breakTarget?: StepName
+  // a jump target for an unlabeled continue statement
   continueTarget?: StepName
 }
 
@@ -179,6 +184,9 @@ function parseStep(node: any, ctx: ParsingContext): WorkflowStepAST[] {
 
     case IfStatement:
       return [ifStatementToSwitchStep(node, ctx)]
+
+    case SwitchStatement:
+      return switchStatementToSteps(node, ctx)
 
     case ForInStatement:
       throw new WorkflowSyntaxError(
@@ -660,6 +668,53 @@ function flattenIfBranches(
   }
 
   return branches
+}
+
+function switchStatementToSteps(
+  node: any,
+  ctx: ParsingContext,
+): WorkflowStepAST[] {
+  assertType(node, SwitchStatement)
+
+  const endOfSwitch = new JumpTargetAST()
+  const switchCtx = Object.assign({}, ctx, { breakTarget: endOfSwitch.label })
+
+  const steps: WorkflowStepAST[] = []
+  const branches: SwitchConditionAST[] = []
+  const discriminant = convertExpression(node.discriminant)
+  const cases = node.cases as any[]
+
+  cases.forEach((caseNode) => {
+    assertType(caseNode, SwitchCase)
+
+    let condition: Expression
+    if (caseNode.test) {
+      const test = convertExpression(caseNode.test)
+      condition = binaryExpression(discriminant, '==', test)
+    } else {
+      condition = primitiveToExpression(true)
+    }
+
+    const jumpTarget = new JumpTargetAST()
+    const consequent = caseNode.consequent as any[]
+    const body = transformAST(
+      consequent.flatMap((x) => parseStep(x, switchCtx)),
+    )
+
+    steps.push(jumpTarget)
+    steps.push(...body)
+
+    branches.push({
+      condition,
+      steps: [],
+      next: jumpTarget.label,
+    })
+  })
+
+  steps.unshift(new SwitchStepAST(branches))
+  steps.push(endOfSwitch)
+
+  return steps
 }
 
 function forOfStatementToForStep(node: any, ctx: ParsingContext): ForStepAST {

@@ -676,6 +676,254 @@ describe('If statement', () => {
   })
 })
 
+describe('Switch statement', () => {
+  it('switch statement', () => {
+    const code = `
+    function main(person: string): string {
+      let country: string;
+      switch (person) {
+        case "Bean":
+        case "Zøg":
+          country = "Dreamland";
+          break;
+
+        case "Merkimer":
+          country = "Bentwood";
+          break;
+
+        default:
+          country = "unknown";
+      }
+
+      return country;
+    }`
+    const observed = YAML.parse(transpile(code)) as unknown
+
+    const expected = YAML.parse(`
+    main:
+      params:
+        - person
+      steps:
+        - assign1:
+            assign:
+              - country: null
+        - switch1:
+            switch:
+              - condition: \${person == "Bean"}
+                next: assign2
+              - condition: \${person == "Zøg"}
+                next: assign2
+              - condition: \${person == "Merkimer"}
+                next: assign3
+              - condition: true
+                next: assign4
+        - assign2:
+            assign:
+              - country: Dreamland
+        - next1:
+            next: return1
+        - assign3:
+            assign:
+              - country: Bentwood
+        - next2:
+            next: return1
+        - assign4:
+            assign:
+              - country: unknown
+        - return1:
+            return: \${country}
+    `) as unknown
+
+    expect(observed).to.deep.equal(expected)
+  })
+
+  it('switch statement as the last statement in a block', () => {
+    const code = `
+    function main(person: string): string {
+      let country: string;
+      switch (person) {
+        case "Bean":
+        case "Zøg":
+          country = "Dreamland";
+          break;
+
+        case "Merkimer":
+          country = "Bentwood";
+          break;
+
+        default:
+          country = "unknown";
+      }
+    }`
+    const observed = YAML.parse(transpile(code)) as unknown
+
+    const expected = YAML.parse(`
+    main:
+      params:
+        - person
+      steps:
+        - assign1:
+            assign:
+              - country: null
+        - switch1:
+            switch:
+              - condition: \${person == "Bean"}
+                next: assign2
+              - condition: \${person == "Zøg"}
+                next: assign2
+              - condition: \${person == "Merkimer"}
+                next: assign3
+              - condition: true
+                next: assign4
+        - assign2:
+            assign:
+              - country: Dreamland
+        - next1:
+            next: end
+        - assign3:
+            assign:
+              - country: Bentwood
+        - next2:
+            next: end
+        - assign4:
+            assign:
+              - country: unknown
+    `) as unknown
+
+    expect(observed).to.deep.equal(expected)
+  })
+
+  it('switch statement as a last statement in a nested block', () => {
+    const code = `
+    function main(person: string): string {
+      let country: string;
+      try {
+        switch (person) {
+          case "Bean":
+          case "Zøg":
+            country = "Dreamland";
+            break;
+  
+          case "Merkimer":
+            country = "Bentwood";
+            break;
+  
+          default:
+            country = "unknown";
+        }
+      } catch (e) {
+        country = "error";
+      }
+
+      return country;
+    }`
+    const observed = YAML.parse(transpile(code)) as unknown
+
+    const expected = YAML.parse(`
+    main:
+      params:
+        - person
+      steps:
+        - assign1:
+            assign:
+              - country: null
+        - try1:
+            try:
+              steps:
+                - switch1:
+                    switch:
+                      - condition: \${person == "Bean"}
+                        next: assign2
+                      - condition: \${person == "Zøg"}
+                        next: assign2
+                      - condition: \${person == "Merkimer"}
+                        next: assign3
+                      - condition: true
+                        next: assign4
+                - assign2:
+                    assign:
+                      - country: Dreamland
+                - next1:
+                    next: return1
+                - assign3:
+                    assign:
+                      - country: Bentwood
+                - next2:
+                    next: return1
+                - assign4:
+                    assign:
+                      - country: unknown
+            except:
+              as: e
+              steps:
+                - assign5:
+                    assign:
+                      - country: error
+        - return1:
+            return: \${country}
+    `) as unknown
+
+    expect(observed).to.deep.equal(expected)
+  })
+
+  it('fall-through', () => {
+    const code = `
+    function main(person: string): string {
+      let country: string;
+      let royal: boolean = false;
+
+      switch (person) {
+        case "Bean":
+          royal = true;
+
+        case "Sorcerio":
+          country = "Dreamland";
+          break;
+
+        default:
+          country = "unknown";
+      }
+
+      return country;
+    }`
+    const observed = YAML.parse(transpile(code)) as unknown
+
+    const expected = YAML.parse(`
+    main:
+      params:
+        - person
+      steps:
+        - assign1:
+            assign:
+              - country: null
+              - royal: false
+        - switch1:
+            switch:
+              - condition: \${person == "Bean"}
+                next: assign2
+              - condition: \${person == "Sorcerio"}
+                next: assign3
+              - condition: true
+                next: assign4
+        - assign2:
+            assign:
+              - royal: true
+        - assign3:
+            assign:
+            - country: Dreamland
+        - next1:
+            next: return1
+        - assign4:
+            assign:
+              - country: unknown
+        - return1:
+            return: \${country}
+    `) as unknown
+
+    expect(observed).to.deep.equal(expected)
+  })
+})
+
 describe('Return statement', () => {
   it('return statement without a value', () => {
     const code = `function main() { return; }`

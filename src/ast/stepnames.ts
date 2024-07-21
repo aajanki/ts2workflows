@@ -48,22 +48,27 @@ function fixJumpLabels(subworkflow: Subworkflow): Subworkflow {
 function collectActualJumpTargets(
   subworkflow: Subworkflow,
 ): Map<StepName, StepName> {
-  let currentTargetLabel: StepName | undefined = undefined
+  let currentLabels: StepName[] = []
   const replacements = new Map<StepName, StepName>()
 
   // fixme: this does not work for steps that have multiple children blocks
   for (const { name, step } of subworkflow.iterateStepsDepthFirst()) {
     if (step instanceof JumpTargetAST) {
-      currentTargetLabel = step.label
-    } else if (currentTargetLabel) {
-      replacements.set(currentTargetLabel, name)
-      currentTargetLabel = undefined
+      // Collecting multiple successive JumpTargets into a list so that we can
+      // link them all to the following non-JumpTarget node
+      currentLabels.push(step.label)
+    } else if (currentLabels.length > 0) {
+      currentLabels.forEach((label) => {
+        replacements.set(label, name)
+      })
+
+      currentLabels = []
     }
   }
 
-  if (currentTargetLabel) {
-    replacements.set(currentTargetLabel, 'end')
-  }
+  currentLabels.forEach((label) => {
+    replacements.set(label, 'end')
+  })
 
   return replacements
 }
