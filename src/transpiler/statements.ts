@@ -19,12 +19,12 @@ import {
 } from '../ast/steps.js'
 import {
   Expression,
-  FunctionInvocationTerm,
   ParenthesizedTerm,
   PrimitiveTerm,
   Term,
   VariableReferenceTerm,
   binaryExpression,
+  functionInvocationExpression,
   primitiveExpression,
 } from '../ast/expressions.js'
 import { InternalTranspilingError, WorkflowSyntaxError } from '../errors.js'
@@ -409,12 +409,7 @@ function callExpressionAssignStep(
 ): AssignStepAST {
   const argumentExpressions: Expression[] = argumentsNode.map(convertExpression)
   const assignments: VariableAssignment[] = [
-    [
-      '',
-      new Expression(
-        new FunctionInvocationTerm(functionName, argumentExpressions),
-      ),
-    ],
+    ['', functionInvocationExpression(functionName, argumentExpressions)],
   ]
 
   return new AssignStepAST(assignments)

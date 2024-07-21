@@ -1,6 +1,6 @@
 import { AST_NODE_TYPES } from '@typescript-eslint/utils'
 import * as parser from '@typescript-eslint/typescript-estree'
-import { Expression, PrimitiveTerm } from '../src/ast/expressions.js'
+import { Expression } from '../src/ast/expressions.js'
 import {
   NamedWorkflowStep,
   WorkflowStepASTWithNamedNested,

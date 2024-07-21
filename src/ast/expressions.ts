@@ -80,6 +80,21 @@ export function binaryExpression(
   ])
 }
 
+export function variableReferenceExpression(
+  variableName: VariableName,
+): Expression {
+  return new Expression(new VariableReferenceTerm(variableName))
+}
+
+export function functionInvocationExpression(
+  functionName: string,
+  argumentExpressions: Expression[],
+): Expression {
+  return new Expression(
+    new FunctionInvocationTerm(functionName, argumentExpressions),
+  )
+}
+
 // Term is an abstract base class for
 // (unaryOperator)? ( LITERAL | VARIABLE | LPAREN expr RPAREN | FUNCTION() )
 export class Term {

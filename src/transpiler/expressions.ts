@@ -10,7 +10,9 @@ import {
   VariableName,
   VariableReferenceTerm,
   binaryExpression,
+  functionInvocationExpression,
   primitiveExpression,
+  variableReferenceExpression,
 } from '../ast/expressions.js'
 import { WorkflowSyntaxError } from '../errors.js'
 import { assertOneOfManyTypes, assertType } from './asserts.js'
@@ -94,9 +96,7 @@ function convertExpressionOrPrimitive(instance: any): Primitive | Expression {
       } else if (instance.name === 'False' || instance.name === 'FALSE') {
         return false
       } else {
-        return new Expression(
-          new VariableReferenceTerm(instance.name as string),
-        )
+        return variableReferenceExpression(instance.name as string)
       }
 
     case UnaryExpression:
@@ -107,9 +107,7 @@ function convertExpressionOrPrimitive(instance: any): Primitive | Expression {
       return convertBinaryExpression(instance)
 
     case MemberExpression:
-      return new Expression(
-        new VariableReferenceTerm(convertMemberExpression(instance)),
-      )
+      return variableReferenceExpression(convertMemberExpression(instance))
 
     case CallExpression:
       return convertCallExpression(instance)
@@ -187,12 +185,10 @@ function convertBinaryExpression(instance: any): Expression {
 }
 
 function nullishCoalescingExpression(left: any, right: any): Expression {
-  return new Expression(
-    new FunctionInvocationTerm('default', [
-      convertExpression(left),
-      convertExpression(right),
-    ]),
-  )
+  return functionInvocationExpression('default', [
+    convertExpression(left),
+    convertExpression(right),
+  ])
 }
 
 function convertUnaryExpression(instance: any): Expression {
@@ -300,11 +296,9 @@ function convertCallExpression(node: any): Expression {
   if (calleeExpression.isFullyQualifiedName()) {
     const nodeArguments = node.arguments as any[]
     const argumentExpressions = nodeArguments.map(convertExpression)
-    return new Expression(
-      new FunctionInvocationTerm(
-        calleeExpression.left.toString(),
-        argumentExpressions,
-      ),
+    return functionInvocationExpression(
+      calleeExpression.left.toString(),
+      argumentExpressions,
     )
   } else {
     throw new WorkflowSyntaxError('Callee should be a qualified name', node.loc)
@@ -318,7 +312,5 @@ function convertConditionalExpression(node: any): Expression {
   const consequent = convertExpression(node.consequent)
   const alternate = convertExpression(node.alternate)
 
-  return new Expression(
-    new FunctionInvocationTerm('if', [test, consequent, alternate]),
-  )
+  return functionInvocationExpression('if', [test, consequent, alternate])
 }
