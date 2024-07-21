@@ -2,7 +2,7 @@
 import { expect } from 'chai'
 import * as YAML from 'yaml'
 import { Subworkflow } from '../src/ast/workflows.js'
-import { namedStep, parseExpression, primitiveEx } from './testutils.js'
+import { namedStep, parseExpression } from './testutils.js'
 import {
   AssignStepAST,
   CallStepAST,
@@ -15,11 +15,12 @@ import {
   SwitchStepASTNamed,
   TryStepASTNamed,
 } from '../src/ast/steps.js'
+import { primitiveExpression } from '../src/ast/expressions.js'
 
 describe('workflow step AST', () => {
   it('renders an assign step', () => {
     const step = new AssignStepAST([
-      ['city', primitiveEx('New New York')],
+      ['city', primitiveExpression('New New York')],
       ['value', parseExpression('1 + 2')],
     ])
 
@@ -34,11 +35,11 @@ describe('workflow step AST', () => {
 
   it('assigns variables with index notation', () => {
     const step = new AssignStepAST([
-      ['my_list', primitiveEx([0, 1, 2, 3, 4])],
-      ['idx', primitiveEx(0)],
-      ['my_list[0]', primitiveEx('Value0')],
-      ['my_list[idx + 1]', primitiveEx('Value1')],
-      ['my_list[len(my_list) - 1]', primitiveEx('LastValue')],
+      ['my_list', primitiveExpression([0, 1, 2, 3, 4])],
+      ['idx', primitiveExpression(0)],
+      ['my_list[0]', primitiveExpression('Value0')],
+      ['my_list[idx + 1]', primitiveExpression('Value1')],
+      ['my_list[len(my_list) - 1]', primitiveExpression('LastValue')],
     ])
 
     const expected = YAML.parse(`
@@ -67,8 +68,8 @@ describe('workflow step AST', () => {
     const step = new CallStepAST(
       'deliver_package',
       {
-        destination: primitiveEx('Atlanta'),
-        deliveryCompany: primitiveEx('Planet Express'),
+        destination: primitiveExpression('Atlanta'),
+        deliveryCompany: primitiveExpression('Planet Express'),
       },
       'deliveryResult',
     )
@@ -148,7 +149,7 @@ describe('workflow step AST', () => {
       new CallStepAST(
         'http.get',
         {
-          url: primitiveEx('https://maybe.failing.test/'),
+          url: primitiveExpression('https://maybe.failing.test/'),
         },
         'response',
       ),
@@ -159,7 +160,7 @@ describe('workflow step AST', () => {
         new SwitchConditionASTNamed(parseExpression('e.code == 404'), [
           namedStep(
             'return_error',
-            new ReturnStepAST(primitiveEx('Not found')),
+            new ReturnStepAST(primitiveExpression('Not found')),
           ),
         ]),
       ]),
@@ -205,7 +206,7 @@ describe('workflow step AST', () => {
       new CallStepAST(
         'http.get',
         {
-          url: primitiveEx('https://maybe.failing.test/'),
+          url: primitiveExpression('https://maybe.failing.test/'),
         },
         'response',
       ),
@@ -216,7 +217,7 @@ describe('workflow step AST', () => {
         new SwitchConditionASTNamed(parseExpression('e.code == 404'), [
           namedStep(
             'return_error',
-            new ReturnStepAST(primitiveEx('Not found')),
+            new ReturnStepAST(primitiveExpression('Not found')),
           ),
         ]),
       ]),
@@ -263,7 +264,7 @@ describe('workflow step AST', () => {
       new CallStepAST(
         'http.get',
         {
-          url: primitiveEx('https://maybe.failing.test/'),
+          url: primitiveExpression('https://maybe.failing.test/'),
         },
         'response',
       ),
@@ -274,7 +275,7 @@ describe('workflow step AST', () => {
         new SwitchConditionASTNamed(parseExpression('e.code == 404'), [
           namedStep(
             'return_error',
-            new ReturnStepAST(primitiveEx('Not found')),
+            new ReturnStepAST(primitiveExpression('Not found')),
           ),
         ]),
       ]),
@@ -332,7 +333,7 @@ describe('workflow step AST', () => {
   it('renders a try step with a subworkflow as a retry predicate', () => {
     const predicateSubworkflow = new Subworkflow(
       'my_retry_predicate',
-      [namedStep('always_retry', new ReturnStepAST(primitiveEx(true)))],
+      [namedStep('always_retry', new ReturnStepAST(primitiveExpression(true)))],
       [{ name: 'e' }],
     )
 
@@ -341,7 +342,7 @@ describe('workflow step AST', () => {
       new CallStepAST(
         'http.get',
         {
-          url: primitiveEx('https://maybe.failing.test/'),
+          url: primitiveExpression('https://maybe.failing.test/'),
         },
         'response',
       ),
@@ -352,7 +353,7 @@ describe('workflow step AST', () => {
         new SwitchConditionASTNamed(parseExpression('e.code == 404'), [
           namedStep(
             'return_error',
-            new ReturnStepAST(primitiveEx('Not found')),
+            new ReturnStepAST(primitiveExpression('Not found')),
           ),
         ]),
       ]),
@@ -416,7 +417,7 @@ describe('workflow step AST', () => {
         ),
       ],
       'v',
-      primitiveEx([1, 2, 3]),
+      primitiveExpression([1, 2, 3]),
     )
 
     const expected = YAML.parse(`
@@ -441,7 +442,7 @@ describe('workflow step AST', () => {
         ),
       ],
       'v',
-      primitiveEx([10, 20, 30]),
+      primitiveExpression([10, 20, 30]),
       'i',
     )
 
@@ -493,7 +494,7 @@ describe('workflow step AST', () => {
         namedStep(
           'say_hello_1',
           new CallStepAST('sys.log', {
-            text: primitiveEx('Hello from branch 1'),
+            text: primitiveExpression('Hello from branch 1'),
           }),
         ),
       ]),
@@ -501,7 +502,7 @@ describe('workflow step AST', () => {
         namedStep(
           'say_hello_2',
           new CallStepAST('sys.log', {
-            text: primitiveEx('Hello from branch 2'),
+            text: primitiveExpression('Hello from branch 2'),
           }),
         ),
       ]),
@@ -534,7 +535,7 @@ describe('workflow step AST', () => {
           namedStep(
             'assign_1',
             new AssignStepAST([
-              ['myVariable[0]', primitiveEx('Set in branch 1')],
+              ['myVariable[0]', primitiveExpression('Set in branch 1')],
             ]),
           ),
         ]),
@@ -542,7 +543,7 @@ describe('workflow step AST', () => {
           namedStep(
             'assign_2',
             new AssignStepAST([
-              ['myVariable[1]', primitiveEx('Set in branch 2')],
+              ['myVariable[1]', primitiveExpression('Set in branch 2')],
             ]),
           ),
         ]),
@@ -591,7 +592,7 @@ describe('workflow step AST', () => {
           ),
         ],
         'userId',
-        primitiveEx(['11', '12', '13', '14']),
+        primitiveExpression(['11', '12', '13', '14']),
       ),
       ['total'],
     )

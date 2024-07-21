@@ -7,18 +7,6 @@ import {
 } from '../src/ast/steps.js'
 import { convertExpression } from '../src/transpiler/expressions.js'
 
-export function primitiveEx(
-  primitive:
-    | string
-    | number
-    | boolean
-    | null
-    | (string | number | boolean | null)[]
-    | Record<string, string | number | boolean | null>,
-): Expression {
-  return new Expression(new PrimitiveTerm(primitive))
-}
-
 export function namedStep(
   name: string,
   step: WorkflowStepASTWithNamedNested,

@@ -54,7 +54,7 @@ export function primitiveToString(val: Primitive): string {
   }
 }
 
-export function primitiveToExpression(val: Primitive): Expression {
+export function primitiveExpression(val: Primitive): Expression {
   return new Expression(new PrimitiveTerm(val))
 }
 

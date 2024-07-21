@@ -10,7 +10,7 @@ import {
   VariableName,
   VariableReferenceTerm,
   binaryExpression,
-  primitiveToExpression,
+  primitiveExpression,
 } from '../ast/expressions.js'
 import { WorkflowSyntaxError } from '../errors.js'
 import { assertOneOfManyTypes, assertType } from './asserts.js'
@@ -35,7 +35,7 @@ export function convertExpression(instance: any): Expression {
   if (expOrPrimitive instanceof Expression) {
     return expOrPrimitive
   } else {
-    return primitiveToExpression(expOrPrimitive)
+    return primitiveExpression(expOrPrimitive)
   }
 }
 

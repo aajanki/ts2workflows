@@ -25,7 +25,7 @@ import {
   Term,
   VariableReferenceTerm,
   binaryExpression,
-  primitiveToExpression,
+  primitiveExpression,
 } from '../ast/expressions.js'
 import { InternalTranspilingError, WorkflowSyntaxError } from '../errors.js'
 import { isRecord } from '../utils.js'
@@ -238,7 +238,7 @@ function convertVariableDeclarations(declarations: any[]): WorkflowStepAST[] {
     const maybeBlockingcall = getBlockingCallParameters(decl.init)
 
     if (!decl.init) {
-      return new AssignStepAST([[targetName, primitiveToExpression(null)]])
+      return new AssignStepAST([[targetName, primitiveExpression(null)]])
     } else if (maybeBlockingcall.isBlockingCall) {
       return blockingFunctionCallStep(
         maybeBlockingcall.functionName,
@@ -434,7 +434,7 @@ function callExpressionToCallStep(
   const primitiveOrExpArguments = convertObjectExpression(argumentsNode[0])
   const workflowArguments = Object.fromEntries(
     Object.entries(primitiveOrExpArguments).map(([key, val]) => {
-      const valEx = val instanceof Expression ? val : primitiveToExpression(val)
+      const valEx = val instanceof Expression ? val : primitiveExpression(val)
       return [key, valEx]
     }),
   )
@@ -659,7 +659,7 @@ function flattenIfBranches(
   if (ifStatement.alternate) {
     if (ifStatement.alternate.type === BlockStatement) {
       branches.push({
-        condition: primitiveToExpression(true),
+        condition: primitiveExpression(true),
         steps: parseBlockStatement(ifStatement.alternate, ctx),
       })
     } else if (ifStatement.alternate.type === IfStatement) {
@@ -696,7 +696,7 @@ function switchStatementToSteps(
       const test = convertExpression(caseNode.test)
       condition = binaryExpression(discriminant, '==', test)
     } else {
-      condition = primitiveToExpression(true)
+      condition = primitiveExpression(true)
     }
 
     const jumpTarget = new JumpTargetAST()
