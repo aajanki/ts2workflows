@@ -59,18 +59,24 @@ export function primitiveToExpression(val: Primitive): Expression {
 }
 
 export function binaryExpression(
-  left: Expression,
+  left: Primitive | Expression,
   operator: string,
-  right: Expression,
+  right: Primitive | Expression,
 ): Expression {
-  const leftTerm = left.isSingleValue()
-    ? left.left
-    : new ParenthesizedTerm(left)
-  const rightTerm = right.isSingleValue()
-    ? right.left
-    : new ParenthesizedTerm(right)
-  return new Expression(leftTerm, [
-    { binaryOperator: operator, right: rightTerm },
+  function asTerm(x: Primitive | Expression): Term {
+    if (x instanceof Expression) {
+      if (x.rest.length === 0) {
+        return x.left
+      } else {
+        return new ParenthesizedTerm(x)
+      }
+    } else {
+      return new PrimitiveTerm(x)
+    }
+  }
+
+  return new Expression(asTerm(left), [
+    { binaryOperator: operator, right: asTerm(right) },
   ])
 }
 

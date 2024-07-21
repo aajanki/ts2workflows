@@ -9,6 +9,7 @@ import {
   Term,
   VariableName,
   VariableReferenceTerm,
+  binaryExpression,
   primitiveToExpression,
 } from '../ast/expressions.js'
 import { WorkflowSyntaxError } from '../errors.js'
@@ -179,35 +180,10 @@ function convertBinaryExpression(instance: any): Expression {
       )
   }
 
-  const leftEx = convertExpressionOrPrimitive(instance.left)
-  const rightEx = convertExpressionOrPrimitive(instance.right)
+  const left = convertExpressionOrPrimitive(instance.left)
+  const right = convertExpressionOrPrimitive(instance.right)
 
-  let rightTerm: Term
-  if (rightEx instanceof Expression && rightEx.rest.length === 0) {
-    rightTerm = rightEx.left
-  } else if (rightEx instanceof Expression) {
-    rightTerm = new ParenthesizedTerm(rightEx)
-  } else {
-    rightTerm = new PrimitiveTerm(rightEx)
-  }
-
-  const rest = [
-    {
-      binaryOperator: op,
-      right: rightTerm,
-    },
-  ]
-
-  let leftTerm: Term
-  if (leftEx instanceof Expression && leftEx.rest.length === 0) {
-    leftTerm = leftEx.left
-  } else if (leftEx instanceof Expression) {
-    leftTerm = new ParenthesizedTerm(leftEx)
-  } else {
-    leftTerm = new PrimitiveTerm(leftEx)
-  }
-
-  return new Expression(leftTerm, rest)
+  return binaryExpression(left, op, right)
 }
 
 function nullishCoalescingExpression(left: any, right: any): Expression {
