@@ -779,14 +779,18 @@ function doWhileStatementSteps(
 function breakStatementToNextStep(node: any, ctx: ParsingContext): NextStepAST {
   assertType(node, BreakStatement)
 
-  if (node.label != null) {
-    throw new WorkflowSyntaxError(
-      'Break with a label is not supported',
-      node.label.loc,
-    )
+  let target: StepName
+  if (node.label) {
+    assertType(node.label, Identifier)
+
+    target = node.label.name as string
+  } else if (ctx.breakTarget) {
+    target = ctx.breakTarget
+  } else {
+    target = 'break'
   }
 
-  return new NextStepAST(ctx.breakTarget ?? 'break')
+  return new NextStepAST(target)
 }
 
 function continueStatementToNextStep(
@@ -795,14 +799,18 @@ function continueStatementToNextStep(
 ): NextStepAST {
   assertType(node, ContinueStatement)
 
-  if (node.label != null) {
-    throw new WorkflowSyntaxError(
-      'Continue with a label is not supported',
-      node.label.loc,
-    )
+  let target: StepName
+  if (node.label) {
+    assertType(node.label, Identifier)
+
+    target = node.label.name as string
+  } else if (ctx.continueTarget) {
+    target = ctx.continueTarget
+  } else {
+    target = 'continue'
   }
 
-  return new NextStepAST(ctx.continueTarget ?? 'continue')
+  return new NextStepAST(target)
 }
 
 function tryStatementToTryStep(node: any, ctx: ParsingContext): TryStepAST {

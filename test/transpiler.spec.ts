@@ -1278,7 +1278,7 @@ describe('Loops', () => {
     expect(observed).to.deep.equal(expected)
   })
 
-  it('throws on continue with a label', () => {
+  it('accepts a continue with a label', () => {
     const code = `
     function main() {
       let total = 0;
@@ -1291,8 +1291,35 @@ describe('Loops', () => {
       }
       return total;
     }`
+    const observed = YAML.parse(transpile(code)) as unknown
 
-    expect(() => transpile(code)).to.throw()
+    const expected = YAML.parse(`
+    main:
+      steps:
+        - assign1:
+            assign:
+              - total: 0
+        - loop:
+            for:
+              value: x
+              in:
+                - 1
+                - 2
+                - 3
+                - 4
+              steps:
+                - switch1:
+                    switch:
+                      - condition: \${(x % 2) == 0}
+                        next: loop
+                - assign2:
+                    assign:
+                      - total: \${total + x}
+        - return1:
+            return: \${total}
+    `) as unknown
+
+    expect(observed).to.deep.equal(expected)
   })
 
   it('transpiles a break in a for loop body', () => {
@@ -1339,7 +1366,7 @@ describe('Loops', () => {
     expect(observed).to.deep.equal(expected)
   })
 
-  it('throws on break with a label', () => {
+  it('accepts a break with a label', () => {
     const code = `
     function main() {
       let total = 0;
@@ -1352,8 +1379,35 @@ describe('Loops', () => {
       }
       return total;
     }`
+    const observed = YAML.parse(transpile(code)) as unknown
 
-    expect(() => transpile(code)).to.throw()
+    const expected = YAML.parse(`
+    main:
+      steps:
+        - assign1:
+            assign:
+              - total: 0
+        - loop:
+            for:
+              value: x
+              in:
+                - 1
+                - 2
+                - 3
+                - 4
+              steps:
+                - switch1:
+                    switch:
+                      - condition: \${total > 5}
+                        next: loop
+                - assign2:
+                    assign:
+                      - total: \${total + x}
+        - return1:
+            return: \${total}
+    `) as unknown
+
+    expect(observed).to.deep.equal(expected)
   })
 
   it('transpiles a for loop of a list expression', () => {
