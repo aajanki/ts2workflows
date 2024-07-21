@@ -8,7 +8,7 @@ import {
 } from './ast/steps.js'
 import { InternalTranspilingError } from './errors.js'
 import { isRecord } from './utils.js'
-import { Expression, Primitive } from './ast/expressions.js'
+import { Expression, Primitive, PrimitiveTerm } from './ast/expressions.js'
 
 /**
  * Performs various transformations on the AST.
@@ -89,7 +89,10 @@ function combineRetryBlocksToTry(steps: WorkflowStepAST[]): WorkflowStepAST[] {
             let multiplier = 1
 
             const backoffEx = retryParameters.backoff
-            if (backoffEx?.isLiteral()) {
+            if (
+              backoffEx?.isLiteral() &&
+              backoffEx.left instanceof PrimitiveTerm
+            ) {
               const backoffLit = backoffEx.left.value
 
               if (isRecord(backoffLit)) {

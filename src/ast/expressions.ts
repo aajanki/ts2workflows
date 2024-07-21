@@ -16,6 +16,15 @@ export type LiteralValueOrLiteralExpression =
   | LiteralValueOrLiteralExpression[]
   | { [key: string]: LiteralValueOrLiteralExpression }
 
+export type VariableName = string
+
+// The operator and right-hand side expression of a binary operation
+interface BinaryOperation {
+  // Operator such as: +, -, <, ==
+  binaryOperator: string
+  right: Term
+}
+
 // Convert a Primitive to a string representation.
 // Does not add ${}.
 export function primitiveToString(val: Primitive): string {
@@ -46,33 +55,7 @@ export function primitiveToString(val: Primitive): string {
 }
 
 export function primitiveToExpression(val: Primitive): Expression {
-  return new Expression(new Term(val), [])
-}
-
-export type VariableName = string
-
-// Variable name: a plain identifier (y, year), property access (person.name) or list
-// element accessor (names[3]) or a combination of the above
-export class VariableReference {
-  readonly name: VariableName
-
-  constructor(name: VariableName) {
-    this.name = name
-  }
-
-  // Return true if the name does not contain property or subscript accessors.
-  // That is, if the name is a plain identifier, like "year" or "awesome_variable_3"
-  isPlainIdentifier(): boolean {
-    return (
-      !this.name.includes('.') &&
-      !this.name.includes('[') &&
-      !this.name.includes(']')
-    )
-  }
-
-  toString(): string {
-    return this.name
-  }
+  return new Expression(new PrimitiveTerm(val), [])
 }
 
 export function binaryExpression(
@@ -82,57 +65,56 @@ export function binaryExpression(
 ): Expression {
   const leftTerm = left.isSingleValue()
     ? left.left
-    : new Term(new ParenthesizedExpression(left))
+    : new ParenthesizedTerm(left)
   const rightTerm = right.isSingleValue()
     ? right.left
-    : new Term(new ParenthesizedExpression(right))
+    : new ParenthesizedTerm(right)
   return new Expression(leftTerm, [
     { binaryOperator: operator, right: rightTerm },
   ])
 }
 
-// Function invocation with unnamed parameters: http.get("http://example.com")
-export class FunctionInvocation {
-  readonly funcName: string
-  readonly arguments: Expression[]
-
-  constructor(functionName: string, argumentExpressions: Expression[]) {
-    this.funcName = functionName
-    this.arguments = argumentExpressions
-  }
-
-  toString(): string {
-    const argumentStrings = this.arguments.map((x) => x.toString())
-    return `${this.funcName}(${argumentStrings.join(', ')})`
-  }
-}
-
-// The operator and right-hand side expression of a binary operation. See Term for more details
-interface BinaryOperation {
-  // Operator such as: +, -, <, ==
-  binaryOperator: string
-  right: Term
-}
-
-// term: (unaryOperator)? ( LITERAL | VARIABLE | LPAREN expr RPAREN | FUNCTION() )
+// Term is an abstract base class for
+// (unaryOperator)? ( LITERAL | VARIABLE | LPAREN expr RPAREN | FUNCTION() )
 export class Term {
   // Potentially a unary operator: -, +, not
   readonly unaryOperator?: string
-  readonly value:
-    | Primitive
-    | VariableReference
-    | ParenthesizedExpression
-    | FunctionInvocation
 
-  constructor(
-    value:
-      | Primitive
-      | VariableReference
-      | ParenthesizedExpression
-      | FunctionInvocation,
-    unaryOperator?: string,
-  ) {
+  constructor(unaryOperator?: '-' | '+' | 'not') {
     this.unaryOperator = unaryOperator
+  }
+
+  isLiteral(): boolean {
+    return false
+  }
+
+  // Does not add ${}.
+  toString(): string {
+    throw new Error('Term.toString() should be overridden')
+  }
+
+  // Returns a literal for simple terms and a literal expression enclosed in ${} for complex terms.
+  toLiteralValueOrLiteralExpression(): LiteralValueOrLiteralExpression {
+    throw new Error(
+      'Term.toLiteralValueOrLiteralExpression() should be overridden',
+    )
+  }
+
+  unaryPrefix(): string {
+    let opString = this.unaryOperator ?? ''
+    if (opString && !['-', '+'].includes(opString)) {
+      opString += ' '
+    }
+
+    return opString
+  }
+}
+
+export class PrimitiveTerm extends Term {
+  readonly value: Primitive
+
+  constructor(value: Primitive, unaryOperator?: '-' | '+' | 'not') {
+    super(unaryOperator)
     this.value = value
   }
 
@@ -173,30 +155,10 @@ export class Term {
     }
   }
 
-  isFullyQualifiedName(): boolean {
-    return this.value instanceof VariableReference
-  }
-
-  isFunctionInvocation(): boolean {
-    return this.value instanceof FunctionInvocation
-  }
-
-  // Does not add ${}.
   toString(): string {
-    let opString = this.unaryOperator ?? ''
-    if (opString && !['-', '+'].includes(opString)) {
-      opString += ' '
-    }
-
+    const opString = super.unaryPrefix()
     const val = this.value
-
-    if (val instanceof VariableReference) {
-      return `${opString}${val.toString()}`
-    } else if (val instanceof ParenthesizedExpression) {
-      return `${opString}${val.toString()}`
-    } else if (val instanceof FunctionInvocation) {
-      return `${opString}${val.toString()}`
-    } else if (Array.isArray(val)) {
+    if (Array.isArray(val)) {
       const elements = val.map((t) => {
         if (t instanceof Expression) {
           return t.toString()
@@ -219,7 +181,6 @@ export class Term {
     }
   }
 
-  // Returns a literal for simple terms and a literal expression enclosed in ${} for complex terms.
   toLiteralValueOrLiteralExpression(): LiteralValueOrLiteralExpression {
     if (typeof this.value === 'number') {
       if (this.unaryOperator === '-') {
@@ -238,7 +199,7 @@ export class Term {
         if (x instanceof Expression) {
           return x.toLiteralValueOrLiteralExpression()
         } else if (Array.isArray(x) || isRecord(x)) {
-          return new Term(x).toLiteralValueOrLiteralExpression()
+          return new PrimitiveTerm(x).toLiteralValueOrLiteralExpression()
         } else if (
           x === null ||
           typeof x === 'string' ||
@@ -256,7 +217,7 @@ export class Term {
           if (v instanceof Expression) {
             return [k, v.toLiteralValueOrLiteralExpression()]
           } else if (Array.isArray(v) || isRecord(v)) {
-            return [k, new Term(v).toLiteralValueOrLiteralExpression()]
+            return [k, new PrimitiveTerm(v).toLiteralValueOrLiteralExpression()]
           } else if (
             v === null ||
             typeof v === 'string' ||
@@ -272,6 +233,68 @@ export class Term {
     } else {
       return `\${${this.toString()}}`
     }
+  }
+}
+
+// Variable name: a plain identifier (y, year), property access (person.name) or list
+// element accessor (names[3]) or a combination of the above
+export class VariableReferenceTerm extends Term {
+  readonly variableName: VariableName
+
+  constructor(variableName: VariableName, unaryOperator?: '+' | '-' | 'not') {
+    super(unaryOperator)
+    this.variableName = variableName
+  }
+
+  toString(): string {
+    return `${super.unaryPrefix()}${this.variableName.toString()}`
+  }
+
+  toLiteralValueOrLiteralExpression(): LiteralValueOrLiteralExpression {
+    return `\${${this.toString()}}`
+  }
+}
+
+// LPAREN expr RPAREN
+export class ParenthesizedTerm extends Term {
+  readonly value: Expression
+
+  constructor(value: Expression, unaryOperator?: '+' | '-' | 'not') {
+    super(unaryOperator)
+    this.value = value
+  }
+
+  toString(): string {
+    return `${super.unaryPrefix()}(${this.value.toString()})`
+  }
+
+  toLiteralValueOrLiteralExpression(): LiteralValueOrLiteralExpression {
+    return `\${${this.toString()}}`
+  }
+}
+
+// Function invocation with anonymous parameters: http.get("http://example.com")
+export class FunctionInvocationTerm extends Term {
+  readonly functionName: string
+  readonly arguments: Expression[]
+
+  constructor(
+    functionName: string,
+    argumentExpressions: Expression[],
+    unaryOperator?: '+' | '-' | 'not',
+  ) {
+    super(unaryOperator)
+    this.functionName = functionName
+    this.arguments = argumentExpressions
+  }
+
+  toString(): string {
+    const argumentStrings = this.arguments.map((x) => x.toString())
+    return `${super.unaryPrefix()}${this.functionName}(${argumentStrings.join(', ')})`
+  }
+
+  toLiteralValueOrLiteralExpression(): LiteralValueOrLiteralExpression {
+    return `\${${this.toString()}}`
   }
 }
 
@@ -293,13 +316,13 @@ export class Expression {
     return (
       this.rest.length === 0 &&
       (this.left.isLiteral() ||
-        this.left.isFullyQualifiedName() ||
-        this.left.isFunctionInvocation())
+        this.left instanceof VariableReferenceTerm ||
+        this.left instanceof FunctionInvocationTerm)
     )
   }
 
   isFullyQualifiedName(): boolean {
-    return this.rest.length === 0 && this.left.isFullyQualifiedName()
+    return this.rest.length === 0 && this.left instanceof VariableReferenceTerm
   }
 
   // Does not add ${}.
@@ -320,19 +343,5 @@ export class Expression {
     } else {
       return `\${${this.toString()}}`
     }
-  }
-}
-
-// LPAREN expr RPAREN
-export class ParenthesizedExpression {
-  readonly expression: Expression
-
-  constructor(expression: Expression) {
-    this.expression = expression
-  }
-
-  // Does not add ${}.
-  toString(): string {
-    return `(${this.expression.toString()})`
   }
 }

@@ -19,10 +19,11 @@ import {
 } from '../ast/steps.js'
 import {
   Expression,
-  FunctionInvocation,
-  ParenthesizedExpression,
+  FunctionInvocationTerm,
+  ParenthesizedTerm,
+  PrimitiveTerm,
   Term,
-  VariableReference,
+  VariableReferenceTerm,
   binaryExpression,
   primitiveToExpression,
 } from '../ast/expressions.js'
@@ -325,10 +326,10 @@ function assignmentExpressionToSteps(node: any): WorkflowStepAST[] {
     )
 
     if (useTemp) {
-      const tempRef = new Term(new VariableReference('__temp'))
+      const tempRef = new VariableReferenceTerm('__temp')
       let ex: Expression
       if (compoundOperator) {
-        ex = new Expression(new Term(new VariableReference(targetName)), [
+        ex = new Expression(new VariableReferenceTerm(targetName), [
           { binaryOperator: compoundOperator, right: tempRef },
         ])
       } else {
@@ -348,13 +349,12 @@ function assignmentExpressionToSteps(node: any): WorkflowStepAST[] {
       if (valueExpression.isSingleValue()) {
         right = valueExpression.left
       } else {
-        right = new Term(new ParenthesizedExpression(valueExpression))
+        right = new ParenthesizedTerm(valueExpression)
       }
 
-      valueExpression = new Expression(
-        new Term(new VariableReference(targetName)),
-        [{ binaryOperator: compoundOperator, right }],
-      )
+      valueExpression = new Expression(new VariableReferenceTerm(targetName), [
+        { binaryOperator: compoundOperator, right },
+      ])
     }
 
     return [new AssignStepAST([[targetName, valueExpression]])]
@@ -408,9 +408,14 @@ function callExpressionAssignStep(
   argumentsNode: any[],
 ): AssignStepAST {
   const argumentExpressions: Expression[] = argumentsNode.map(convertExpression)
-  const invocation = new FunctionInvocation(functionName, argumentExpressions)
   const assignments: VariableAssignment[] = [
-    ['', new Expression(new Term(invocation), [])],
+    [
+      '',
+      new Expression(
+        new FunctionInvocationTerm(functionName, argumentExpressions),
+        [],
+      ),
+    ],
   ]
 
   return new AssignStepAST(assignments)
@@ -759,6 +764,7 @@ function forOfStatementToForStep(node: any, ctx: ParsingContext): ForStepAST {
 
   if (
     listExpression.isLiteral() &&
+    listExpression.left instanceof PrimitiveTerm &&
     (isRecord(listExpression.left.value) ||
       typeof listExpression.left.value === 'number' ||
       typeof listExpression.left.value === 'string' ||

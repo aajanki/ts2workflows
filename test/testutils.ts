@@ -1,6 +1,6 @@
 import { AST_NODE_TYPES } from '@typescript-eslint/utils'
 import * as parser from '@typescript-eslint/typescript-estree'
-import { Expression, Term } from '../src/ast/expressions.js'
+import { Expression, PrimitiveTerm } from '../src/ast/expressions.js'
 import {
   NamedWorkflowStep,
   WorkflowStepASTWithNamedNested,
@@ -16,7 +16,7 @@ export function primitiveEx(
     | (string | number | boolean | null)[]
     | Record<string, string | number | boolean | null>,
 ): Expression {
-  return new Expression(new Term(primitive), [])
+  return new Expression(new PrimitiveTerm(primitive), [])
 }
 
 export function namedStep(

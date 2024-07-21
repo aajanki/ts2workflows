@@ -2,11 +2,13 @@
 import { AST_NODE_TYPES } from '@typescript-eslint/utils'
 import {
   Expression,
-  FunctionInvocation,
-  ParenthesizedExpression,
+  FunctionInvocationTerm,
+  ParenthesizedTerm,
   Primitive,
+  PrimitiveTerm,
   Term,
-  VariableReference,
+  VariableName,
+  VariableReferenceTerm,
   primitiveToExpression,
 } from '../ast/expressions.js'
 import { WorkflowSyntaxError } from '../errors.js'
@@ -92,7 +94,7 @@ function convertExpressionOrPrimitive(instance: any): Primitive | Expression {
         return false
       } else {
         return new Expression(
-          new Term(new VariableReference(instance.name as string)),
+          new VariableReferenceTerm(instance.name as string),
           [],
         )
       }
@@ -105,7 +107,10 @@ function convertExpressionOrPrimitive(instance: any): Primitive | Expression {
       return convertBinaryExpression(instance)
 
     case MemberExpression:
-      return new Expression(new Term(convertMemberExpression(instance)), [])
+      return new Expression(
+        new VariableReferenceTerm(convertMemberExpression(instance)),
+        [],
+      )
 
     case CallExpression:
       return convertCallExpression(instance)
@@ -183,9 +188,9 @@ function convertBinaryExpression(instance: any): Expression {
   if (rightEx instanceof Expression && rightEx.rest.length === 0) {
     rightTerm = rightEx.left
   } else if (rightEx instanceof Expression) {
-    rightTerm = new Term(new ParenthesizedExpression(rightEx))
+    rightTerm = new ParenthesizedTerm(rightEx)
   } else {
-    rightTerm = new Term(rightEx)
+    rightTerm = new PrimitiveTerm(rightEx)
   }
 
   const rest = [
@@ -199,9 +204,9 @@ function convertBinaryExpression(instance: any): Expression {
   if (leftEx instanceof Expression && leftEx.rest.length === 0) {
     leftTerm = leftEx.left
   } else if (leftEx instanceof Expression) {
-    leftTerm = new Term(new ParenthesizedExpression(leftEx))
+    leftTerm = new ParenthesizedTerm(leftEx)
   } else {
-    leftTerm = new Term(leftEx)
+    leftTerm = new PrimitiveTerm(leftEx)
   }
 
   return new Expression(leftTerm, rest)
@@ -209,12 +214,10 @@ function convertBinaryExpression(instance: any): Expression {
 
 function nullishCoalescingExpression(left: any, right: any): Expression {
   return new Expression(
-    new Term(
-      new FunctionInvocation('default', [
-        convertExpression(left),
-        convertExpression(right),
-      ]),
-    ),
+    new FunctionInvocationTerm('default', [
+      convertExpression(left),
+      convertExpression(right),
+    ]),
     [],
   )
 }
@@ -229,12 +232,14 @@ function convertUnaryExpression(instance: any): Expression {
     )
   }
 
-  let op: string | undefined
+  let op: '+' | '-' | 'not' | undefined
   switch (instance.operator) {
     case '+':
+      op = '+'
+      break
+
     case '-':
-    case undefined:
-      op = instance.operator as string | undefined
+      op = '-'
       break
 
     case '!':
@@ -247,6 +252,10 @@ function convertUnaryExpression(instance: any): Expression {
       op = undefined
       break
 
+    case undefined:
+      op = undefined
+      break
+
     default:
       throw new WorkflowSyntaxError(
         `Unsupported unary operator: ${instance.operator}`,
@@ -255,27 +264,46 @@ function convertUnaryExpression(instance: any): Expression {
   }
 
   const ex = convertExpressionOrPrimitive(instance.argument)
-
-  let val
-  if (ex instanceof Expression && ex.isSingleValue()) {
-    val = ex.left.value
+  let term: Term
+  if (
+    ex instanceof Expression &&
+    ex.isLiteral() &&
+    ex.left instanceof PrimitiveTerm
+  ) {
+    term = new PrimitiveTerm(ex.left.value, op)
+  } else if (
+    ex instanceof Expression &&
+    ex.isSingleValue() &&
+    ex.left instanceof VariableReferenceTerm
+  ) {
+    term = new VariableReferenceTerm(ex.left.variableName, op)
+  } else if (
+    ex instanceof Expression &&
+    ex.isSingleValue() &&
+    ex.left instanceof FunctionInvocationTerm
+  ) {
+    term = new FunctionInvocationTerm(
+      ex.left.functionName,
+      ex.left.arguments,
+      op,
+    )
   } else if (ex instanceof Expression) {
-    val = new ParenthesizedExpression(ex)
+    term = new ParenthesizedTerm(ex, op)
   } else {
-    val = ex
+    term = new PrimitiveTerm(ex, op)
   }
 
-  return new Expression(new Term(val, op), [])
+  return new Expression(term, [])
 }
 
-function convertMemberExpression(memberExpression: any): VariableReference {
+function convertMemberExpression(memberExpression: any): VariableName {
   assertType(memberExpression, MemberExpression)
 
   let objectName: string
   if (memberExpression.object.type === Identifier) {
     objectName = memberExpression.object.name as string
   } else if (memberExpression.object.type === MemberExpression) {
-    objectName = convertMemberExpression(memberExpression.object).name
+    objectName = convertMemberExpression(memberExpression.object)
   } else {
     throw new WorkflowSyntaxError(
       `Unexpected type in member expression: ${memberExpression.object.type}`,
@@ -286,11 +314,9 @@ function convertMemberExpression(memberExpression: any): VariableReference {
   if (memberExpression.computed) {
     const member = convertExpression(memberExpression.property).toString()
 
-    return new VariableReference(`${objectName}[${member}]`)
+    return `${objectName}[${member}]`
   } else {
-    return new VariableReference(
-      `${objectName}.${memberExpression.property.name}`,
-    )
+    return `${objectName}.${memberExpression.property.name}`
   }
 }
 
@@ -301,11 +327,13 @@ function convertCallExpression(node: any): Expression {
   if (calleeExpression.isFullyQualifiedName()) {
     const nodeArguments = node.arguments as any[]
     const argumentExpressions = nodeArguments.map(convertExpression)
-    const invocation = new FunctionInvocation(
-      calleeExpression.left.toString(),
-      argumentExpressions,
+    return new Expression(
+      new FunctionInvocationTerm(
+        calleeExpression.left.toString(),
+        argumentExpressions,
+      ),
+      [],
     )
-    return new Expression(new Term(invocation), [])
   } else {
     throw new WorkflowSyntaxError('Callee should be a qualified name', node.loc)
   }
@@ -319,7 +347,7 @@ function convertConditionalExpression(node: any): Expression {
   const alternate = convertExpression(node.alternate)
 
   return new Expression(
-    new Term(new FunctionInvocation('if', [test, consequent, alternate])),
+    new FunctionInvocationTerm('if', [test, consequent, alternate]),
     [],
   )
 }
