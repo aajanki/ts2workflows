@@ -469,7 +469,7 @@ function callExpressionToParallelStep(
   if (node.arguments.length > 0) {
     switch (node.arguments[0].type) {
       case ArrayExpression:
-        steps = parseParallelBranches(node.arguments[0], ctx)
+        steps = parseParallelBranches(node.arguments[0])
         break
 
       case ArrowFunctionExpression:
@@ -497,10 +497,7 @@ function callExpressionToParallelStep(
   return new ParallelStepAST(steps, shared, concurrencyLimit, exceptionPolicy)
 }
 
-function parseParallelBranches(
-  node: any,
-  ctx: ParsingContext,
-): Record<StepName, StepsStepAST> {
+function parseParallelBranches(node: any): Record<StepName, StepsStepAST> {
   assertType(node, ArrayExpression)
 
   const nodeElements = node.elements as any[]
