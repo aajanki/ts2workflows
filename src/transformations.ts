@@ -10,13 +10,21 @@ import { InternalTranspilingError } from './errors.js'
 import { isRecord } from './utils.js'
 import { Expression, Primitive } from './ast/expressions.js'
 
+/**
+ * Performs various transformations on the AST.
+ *
+ * This flat list of steps and does not recurse into nested steps. This gets
+ * called on each nesting level separately.
+ */
 export function transformAST(steps: WorkflowStepAST[]): WorkflowStepAST[] {
   return flattenPlainNextConditions(
     combineRetryBlocksToTry(mergeAssignSteps(steps)),
   )
 }
 
-// Merge consecutive assign steps
+/**
+ * Merge consecutive assign steps into one assign step
+ */
 function mergeAssignSteps(steps: WorkflowStepAST[]): WorkflowStepAST[] {
   return steps.reduce((acc: WorkflowStepAST[], current: WorkflowStepAST) => {
     const prev = acc.length > 0 ? acc[acc.length - 1] : null
@@ -36,7 +44,9 @@ function mergeAssignSteps(steps: WorkflowStepAST[]): WorkflowStepAST[] {
   }, [])
 }
 
-// Merge a retry_policy call step with a preceeding try block
+/**
+ * Transform a retry_policy call step to a retry block in a preceeding try step
+ */
 function combineRetryBlocksToTry(steps: WorkflowStepAST[]): WorkflowStepAST[] {
   return steps.reduce((acc: WorkflowStepAST[], current: WorkflowStepAST) => {
     const prev = acc.length > 0 ? acc[acc.length - 1] : null
@@ -148,6 +158,24 @@ function parseRetryPolicyNumber(
   return primitiveValue
 }
 
+/**
+ * Flatten switch conditions that contain a single next step.
+ *
+ * For example, transforms this:
+ *
+ * switch:
+ *   - condition: ${x > 0}
+ *     steps:
+ *       - next1:
+ *           steps:
+ *             next: target1
+ *
+ * into this:
+ *
+ * switch:
+ *   - condition: ${x > 0}
+ *     next: target1
+ */
 export function flattenPlainNextConditions(
   steps: WorkflowStepAST[],
 ): WorkflowStepAST[] {

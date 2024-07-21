@@ -112,7 +112,7 @@ function parseSubworkflows(node: any): SubworkflowAST {
     }
   })
 
-  const steps = parseBlockStatement(node.body)
+  const steps = parseBlockStatement(node.body, {})
 
   return new SubworkflowAST(node.id.name, steps, workflowParams)
 }

@@ -142,14 +142,22 @@ const blockingFunctions = new Map([
   ['sys.sleep_until', ['time']],
 ])
 
-export function parseBlockStatement(node: any): WorkflowStepAST[] {
+export interface ParsingContext {
+  breakTarget?: StepName
+  continueTarget?: StepName
+}
+
+export function parseBlockStatement(
+  node: any,
+  ctx: ParsingContext,
+): WorkflowStepAST[] {
   assertType(node, BlockStatement)
 
   const body = node.body as any[]
-  return transformAST(body.flatMap(parseStep))
+  return transformAST(body.flatMap((x) => parseStep(x, ctx)))
 }
 
-function parseStep(node: any): WorkflowStepAST[] {
+function parseStep(node: any, ctx: ParsingContext): WorkflowStepAST[] {
   switch (node.type) {
     case VariableDeclaration:
       return convertVariableDeclarations(node.declarations)
@@ -158,7 +166,7 @@ function parseStep(node: any): WorkflowStepAST[] {
       if (node.expression.type === AssignmentExpression) {
         return assignmentExpressionToSteps(node.expression)
       } else if (node.expression.type === CallExpression) {
-        return [callExpressionToStep(node.expression)]
+        return [callExpressionToStep(node.expression, ctx)]
       } else {
         return [generalExpressionToAssignStep(node.expression)]
       }
@@ -170,7 +178,7 @@ function parseStep(node: any): WorkflowStepAST[] {
       return [throwStatementToRaiseStep(node)]
 
     case IfStatement:
-      return [ifStatementToSwitchStep(node)]
+      return [ifStatementToSwitchStep(node, ctx)]
 
     case ForInStatement:
       throw new WorkflowSyntaxError(
@@ -179,25 +187,25 @@ function parseStep(node: any): WorkflowStepAST[] {
       )
 
     case ForOfStatement:
-      return [forOfStatementToForStep(node)]
+      return [forOfStatementToForStep(node, ctx)]
 
     case DoWhileStatement:
-      return doWhileStatementSteps(node)
+      return doWhileStatementSteps(node, ctx)
 
     case WhileStatement:
-      return whileStatementSteps(node)
+      return whileStatementSteps(node, ctx)
 
     case BreakStatement:
-      return [breakStatementToNextStep(node)]
+      return [breakStatementToNextStep(node, ctx)]
 
     case ContinueStatement:
-      return [continueStatementToNextStep(node)]
+      return [continueStatementToNextStep(node, ctx)]
 
     case TryStatement:
-      return [tryStatementToTryStep(node)]
+      return [tryStatementToTryStep(node, ctx)]
 
     case LabeledStatement:
-      return labeledStep(node)
+      return labeledStep(node, ctx)
 
     default:
       throw new WorkflowSyntaxError(
@@ -361,7 +369,7 @@ function getBlockingCallParameters(
   return { isBlockingCall: false }
 }
 
-function callExpressionToStep(node: any): WorkflowStepAST {
+function callExpressionToStep(node: any, ctx: ParsingContext): WorkflowStepAST {
   assertType(node, CallExpression)
 
   const calleeExpression = convertExpression(node.callee)
@@ -370,7 +378,7 @@ function callExpressionToStep(node: any): WorkflowStepAST {
 
     if (calleeName === 'parallel') {
       // A custom implementation for "parallel"
-      return callExpressionToParallelStep(node)
+      return callExpressionToParallelStep(node, ctx)
     } else if (calleeName === 'retry_policy') {
       return callExpressionToCallStep(calleeName, node.arguments)
     } else if (blockingFunctions.has(calleeName)) {
@@ -447,7 +455,10 @@ function blockingFunctionCallStep(
   return new CallStepAST(functionName, args, resultName)
 }
 
-function callExpressionToParallelStep(node: any): ParallelStepAST {
+function callExpressionToParallelStep(
+  node: any,
+  ctx: ParsingContext,
+): ParallelStepAST {
   assertType(node, CallExpression)
   assertType(node.callee, Identifier)
   if (node.callee.name !== 'parallel') {
@@ -458,11 +469,11 @@ function callExpressionToParallelStep(node: any): ParallelStepAST {
   if (node.arguments.length > 0) {
     switch (node.arguments[0].type) {
       case ArrayExpression:
-        steps = parseParallelBranches(node.arguments[0])
+        steps = parseParallelBranches(node.arguments[0], ctx)
         break
 
       case ArrowFunctionExpression:
-        steps = parseParallelIteration(node.arguments[0])
+        steps = parseParallelIteration(node.arguments[0], ctx)
         break
 
       default:
@@ -486,7 +497,10 @@ function callExpressionToParallelStep(node: any): ParallelStepAST {
   return new ParallelStepAST(steps, shared, concurrencyLimit, exceptionPolicy)
 }
 
-function parseParallelBranches(node: any): Record<StepName, StepsStepAST> {
+function parseParallelBranches(
+  node: any,
+  ctx: ParsingContext,
+): Record<StepName, StepsStepAST> {
   assertType(node, ArrayExpression)
 
   const nodeElements = node.elements as any[]
@@ -499,7 +513,10 @@ function parseParallelBranches(node: any): Record<StepName, StepsStepAST> {
           return [branchName, new StepsStepAST([new CallStepAST(arg.name)])]
 
         case ArrowFunctionExpression:
-          return [branchName, new StepsStepAST(parseBlockStatement(arg.body))]
+          return [
+            branchName,
+            new StepsStepAST(parseBlockStatement(arg.body, {})),
+          ]
 
         default:
           throw new WorkflowSyntaxError(
@@ -513,7 +530,7 @@ function parseParallelBranches(node: any): Record<StepName, StepsStepAST> {
   return Object.fromEntries(stepsArray)
 }
 
-function parseParallelIteration(node: any): ForStepAST {
+function parseParallelIteration(node: any, ctx: ParsingContext): ForStepAST {
   assertType(node, ArrowFunctionExpression)
 
   if (
@@ -526,7 +543,7 @@ function parseParallelIteration(node: any): ForStepAST {
     )
   }
 
-  return forOfStatementToForStep(node.body.body[0])
+  return forOfStatementToForStep(node.body.body[0], ctx)
 }
 
 function parseParallelOptions(node: any) {
@@ -607,20 +624,26 @@ function throwStatementToRaiseStep(node: any): RaiseStepAST {
   return new RaiseStepAST(convertExpression(node.argument))
 }
 
-function ifStatementToSwitchStep(node: any): SwitchStepAST {
+function ifStatementToSwitchStep(
+  node: any,
+  ctx: ParsingContext,
+): SwitchStepAST {
   assertType(node, IfStatement)
 
-  return new SwitchStepAST(flattenIfBranches(node))
+  return new SwitchStepAST(flattenIfBranches(node, ctx))
 }
 
-function flattenIfBranches(ifStatement: any): SwitchConditionAST[] {
+function flattenIfBranches(
+  ifStatement: any,
+  ctx: ParsingContext,
+): SwitchConditionAST[] {
   assertType(ifStatement, IfStatement)
   assertType(ifStatement.consequent, BlockStatement)
 
   const branches = [
     {
       condition: convertExpression(ifStatement.test),
-      steps: parseBlockStatement(ifStatement.consequent),
+      steps: parseBlockStatement(ifStatement.consequent, ctx),
     },
   ]
 
@@ -628,10 +651,10 @@ function flattenIfBranches(ifStatement: any): SwitchConditionAST[] {
     if (ifStatement.alternate.type === BlockStatement) {
       branches.push({
         condition: primitiveToExpression(true),
-        steps: parseBlockStatement(ifStatement.alternate),
+        steps: parseBlockStatement(ifStatement.alternate, ctx),
       })
     } else if (ifStatement.alternate.type === IfStatement) {
-      branches.push(...flattenIfBranches(ifStatement.alternate))
+      branches.push(...flattenIfBranches(ifStatement.alternate, ctx))
     } else {
       throw new InternalTranspilingError(
         `Expected BlockStatement or IfStatement, got ${ifStatement.alternate.type}`,
@@ -642,11 +665,15 @@ function flattenIfBranches(ifStatement: any): SwitchConditionAST[] {
   return branches
 }
 
-function forOfStatementToForStep(node: any): ForStepAST {
+function forOfStatementToForStep(node: any, ctx: ParsingContext): ForStepAST {
   assertType(node, ForOfStatement)
   assertType(node.body, BlockStatement)
 
-  const steps = parseBlockStatement(node.body)
+  const bodyCtx = Object.assign({}, ctx, {
+    continueTarget: undefined,
+    breakTarget: undefined,
+  })
+  const steps = parseBlockStatement(node.body, bodyCtx)
 
   let loopVariableName: string
   if (node.left.type === Identifier) {
@@ -692,11 +719,20 @@ function forOfStatementToForStep(node: any): ForStepAST {
   return new ForStepAST(steps, loopVariableName, listExpression)
 }
 
-function whileStatementSteps(node: any): WorkflowStepAST[] {
+function whileStatementSteps(
+  node: any,
+  ctx: ParsingContext,
+): WorkflowStepAST[] {
   assertType(node, WhileStatement)
 
   const startOfLoop = new JumpTargetAST()
-  const steps: WorkflowStepAST[] = parseBlockStatement(node.body)
+  const endOfLoop = new JumpTargetAST()
+  const ctx2 = Object.assign({}, ctx, {
+    continueTarget: startOfLoop.label,
+    breakTarget: endOfLoop.label,
+  })
+
+  const steps: WorkflowStepAST[] = parseBlockStatement(node.body, ctx2)
   steps.push(new NextStepAST(startOfLoop.label))
 
   return [
@@ -707,15 +743,25 @@ function whileStatementSteps(node: any): WorkflowStepAST[] {
         steps,
       },
     ]),
+    endOfLoop,
   ]
 }
 
-function doWhileStatementSteps(node: any): WorkflowStepAST[] {
+function doWhileStatementSteps(
+  node: any,
+  ctx: ParsingContext,
+): WorkflowStepAST[] {
   assertType(node, DoWhileStatement)
 
   const startOfLoop = new JumpTargetAST()
+  const endOfLoop = new JumpTargetAST()
+  const ctx2 = Object.assign({}, ctx, {
+    continueTarget: startOfLoop.label,
+    breakTarget: endOfLoop.label,
+  })
+
   const steps: WorkflowStepAST[] = [startOfLoop]
-  steps.push(...parseBlockStatement(node.body))
+  steps.push(...parseBlockStatement(node.body, ctx2))
   steps.push(
     new SwitchStepAST([
       {
@@ -725,11 +771,12 @@ function doWhileStatementSteps(node: any): WorkflowStepAST[] {
       },
     ]),
   )
+  steps.push(endOfLoop)
 
   return steps
 }
 
-function breakStatementToNextStep(node: any): NextStepAST {
+function breakStatementToNextStep(node: any, ctx: ParsingContext): NextStepAST {
   assertType(node, BreakStatement)
 
   if (node.label != null) {
@@ -739,10 +786,13 @@ function breakStatementToNextStep(node: any): NextStepAST {
     )
   }
 
-  return new NextStepAST('break')
+  return new NextStepAST(ctx.breakTarget ?? 'break')
 }
 
-function continueStatementToNextStep(node: any): NextStepAST {
+function continueStatementToNextStep(
+  node: any,
+  ctx: ParsingContext,
+): NextStepAST {
   assertType(node, ContinueStatement)
 
   if (node.label != null) {
@@ -752,14 +802,14 @@ function continueStatementToNextStep(node: any): NextStepAST {
     )
   }
 
-  return new NextStepAST('continue')
+  return new NextStepAST(ctx.continueTarget ?? 'continue')
 }
 
-function tryStatementToTryStep(node: any): TryStepAST {
+function tryStatementToTryStep(node: any, ctx: ParsingContext): TryStepAST {
   assertType(node, TryStatement)
 
-  const steps = parseBlockStatement(node.block)
-  const exceptSteps = parseBlockStatement(node.handler.body)
+  const steps = parseBlockStatement(node.block, ctx)
+  const exceptSteps = parseBlockStatement(node.handler.body, ctx)
 
   let errorVariable: string | undefined = undefined
   const handlerParam = node.handler.param as {
@@ -783,10 +833,10 @@ function tryStatementToTryStep(node: any): TryStepAST {
   return new TryStepAST(steps, exceptSteps, undefined, errorVariable)
 }
 
-function labeledStep(node: any): WorkflowStepAST[] {
+function labeledStep(node: any, ctx: ParsingContext): WorkflowStepAST[] {
   assertType(node, LabeledStatement)
 
-  const steps = parseStep(node.body)
+  const steps = parseStep(node.body, ctx)
   if (steps.length > 0) {
     steps[0].label = node.label.name as string
   }

@@ -55,11 +55,9 @@ function collectActualJumpTargets(
   for (const { name, step } of subworkflow.iterateStepsDepthFirst()) {
     if (step instanceof JumpTargetAST) {
       currentTargetLabel = step.label
-    } else {
-      if (currentTargetLabel) {
-        replacements.set(currentTargetLabel, name)
-        currentTargetLabel = undefined
-      }
+    } else if (currentTargetLabel) {
+      replacements.set(currentTargetLabel, name)
+      currentTargetLabel = undefined
     }
   }
 
