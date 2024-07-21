@@ -16,7 +16,7 @@ export function primitiveEx(
     | (string | number | boolean | null)[]
     | Record<string, string | number | boolean | null>,
 ): Expression {
-  return new Expression(new PrimitiveTerm(primitive), [])
+  return new Expression(new PrimitiveTerm(primitive))
 }
 
 export function namedStep(

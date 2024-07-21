@@ -333,7 +333,7 @@ function assignmentExpressionToSteps(node: any): WorkflowStepAST[] {
           { binaryOperator: compoundOperator, right: tempRef },
         ])
       } else {
-        ex = new Expression(tempRef, [])
+        ex = new Expression(tempRef)
       }
 
       steps.push(new AssignStepAST([[targetName, ex]]))
@@ -413,7 +413,6 @@ function callExpressionAssignStep(
       '',
       new Expression(
         new FunctionInvocationTerm(functionName, argumentExpressions),
-        [],
       ),
     ],
   ]

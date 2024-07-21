@@ -55,7 +55,7 @@ export function primitiveToString(val: Primitive): string {
 }
 
 export function primitiveToExpression(val: Primitive): Expression {
-  return new Expression(new PrimitiveTerm(val), [])
+  return new Expression(new PrimitiveTerm(val))
 }
 
 export function binaryExpression(
@@ -303,7 +303,7 @@ export class Expression {
   readonly left: Term
   readonly rest: BinaryOperation[]
 
-  constructor(left: Term, rest: BinaryOperation[]) {
+  constructor(left: Term, rest: BinaryOperation[] = []) {
     this.left = left
     this.rest = rest
   }

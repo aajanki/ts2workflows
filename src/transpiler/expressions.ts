@@ -95,7 +95,6 @@ function convertExpressionOrPrimitive(instance: any): Primitive | Expression {
       } else {
         return new Expression(
           new VariableReferenceTerm(instance.name as string),
-          [],
         )
       }
 
@@ -109,7 +108,6 @@ function convertExpressionOrPrimitive(instance: any): Primitive | Expression {
     case MemberExpression:
       return new Expression(
         new VariableReferenceTerm(convertMemberExpression(instance)),
-        [],
       )
 
     case CallExpression:
@@ -218,7 +216,6 @@ function nullishCoalescingExpression(left: any, right: any): Expression {
       convertExpression(left),
       convertExpression(right),
     ]),
-    [],
   )
 }
 
@@ -293,7 +290,7 @@ function convertUnaryExpression(instance: any): Expression {
     term = new PrimitiveTerm(ex, op)
   }
 
-  return new Expression(term, [])
+  return new Expression(term)
 }
 
 function convertMemberExpression(memberExpression: any): VariableName {
@@ -332,7 +329,6 @@ function convertCallExpression(node: any): Expression {
         calleeExpression.left.toString(),
         argumentExpressions,
       ),
-      [],
     )
   } else {
     throw new WorkflowSyntaxError('Callee should be a qualified name', node.loc)
@@ -348,6 +344,5 @@ function convertConditionalExpression(node: any): Expression {
 
   return new Expression(
     new FunctionInvocationTerm('if', [test, consequent, alternate]),
-    [],
   )
 }
