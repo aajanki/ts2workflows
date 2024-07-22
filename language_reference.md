@@ -107,7 +107,7 @@ The statement
 const name = 'Bean'
 ```
 
-will be converted to an [assign step](https://cloud.google.com/workflows/docs/reference/syntax/variables#assign-step):
+is converted to an [assign step](https://cloud.google.com/workflows/docs/reference/syntax/variables#assign-step):
 
 ```yaml
 - assign1:
@@ -121,7 +121,7 @@ Compound assignments are also supported:
 total += 1
 ```
 
-will be converted to
+is converted to
 
 ```yaml
 - assign1:
@@ -137,7 +137,7 @@ The statement
 const projectId = sys.get_env('GOOGLE_CLOUD_PROJECT_ID')
 ```
 
-will be converted to an [assign step](https://cloud.google.com/workflows/docs/reference/syntax/variables#assign-step):
+is converted to an [assign step](https://cloud.google.com/workflows/docs/reference/syntax/variables#assign-step):
 
 ```yaml
 - assign1:
@@ -170,7 +170,7 @@ if (hour < 12) {
 }
 ```
 
-will be converted to a [switch step](https://cloud.google.com/workflows/docs/reference/syntax/conditions)
+is converted to a [switch step](https://cloud.google.com/workflows/docs/reference/syntax/conditions)
 
 ```yaml
 - switch1:
@@ -197,6 +197,60 @@ will be converted to a [switch step](https://cloud.google.com/workflows/docs/ref
                 - part_of_the_day: night
 ```
 
+## Switch statements
+
+Typescript switch statements are transpiled to chains of conditions. For example, this statement
+
+```typescript
+let b
+switch (a) {
+  case 1:
+    b = 'first'
+    break
+
+  case 2:
+    b = 'second'
+    break
+
+  default:
+    b = 'other'
+}
+
+return b
+```
+
+is converted to
+
+```yaml
+steps:
+  - assign1:
+      assign:
+        - b: null
+  - switch1:
+      switch:
+        - condition: ${a == 1}
+          next: assign2
+        - condition: ${a == 2}
+          next: assign3
+        - condition: true
+          next: assign4
+  - assign2:
+      assign:
+        - b: first
+  - next1:
+      next: return1
+  - assign3:
+      assign:
+        - b: second
+  - next2:
+      next: return1
+  - assign4:
+      assign:
+        - b: other
+  - return1:
+      return: ${b}
+```
+
 ## Conditional (ternary) operator
 
 The expression
@@ -205,7 +259,7 @@ The expression
 x > 0 ? 'positive' : 'not positive'
 ```
 
-will be converted to an [if() expression](https://cloud.google.com/workflows/docs/reference/stdlib/expression-helpers#conditional_functions):
+is converted to an [if() expression](https://cloud.google.com/workflows/docs/reference/stdlib/expression-helpers#conditional_functions):
 
 ```yaml
 ${if(x > 0, "positive", "not positive")}
@@ -221,7 +275,7 @@ The expression
 x ?? 'default value'
 ```
 
-will be converted to an [default() expression](https://cloud.google.com/workflows/docs/reference/stdlib/expression-helpers#conditional_functions):
+is converted to an [default() expression](https://cloud.google.com/workflows/docs/reference/stdlib/expression-helpers#conditional_functions):
 
 ```yaml
 ${default(x, "default value")}
@@ -240,7 +294,7 @@ for (const i of [1, 2, 3]) {
 }
 ```
 
-will be converted to the following [for loop statement](https://cloud.google.com/workflows/docs/reference/syntax/iteration)
+is converted to the following [for loop statement](https://cloud.google.com/workflows/docs/reference/syntax/iteration)
 
 ```yaml
 steps:
@@ -326,7 +380,7 @@ parallel([
 ])
 ```
 
-will be converted to [parallel steps](https://cloud.google.com/workflows/docs/reference/syntax/parallel-steps)
+is converted to [parallel steps](https://cloud.google.com/workflows/docs/reference/syntax/parallel-steps)
 
 ```yaml
 parallel1:
@@ -390,7 +444,7 @@ parallel(() => {
 })
 ```
 
-will be converted to [parallel iteration](https://cloud.google.com/workflows/docs/reference/syntax/parallel-steps#parallel-iteration):
+is converted to [parallel iteration](https://cloud.google.com/workflows/docs/reference/syntax/parallel-steps#parallel-iteration):
 
 ```yaml
 - parallel1:
@@ -437,7 +491,7 @@ try {
 }
 ```
 
-will be compiled to the following [try/except structure](https://cloud.google.com/workflows/docs/reference/syntax/catching-errors)
+is compiled to the following [try/except structure](https://cloud.google.com/workflows/docs/reference/syntax/catching-errors)
 
 ```yaml
 try1:
@@ -499,7 +553,7 @@ function main() {
 }
 ```
 
-The above will be compiled to the following [try/except structure](https://cloud.google.com/workflows/docs/reference/syntax/catching-errors)
+The above is compiled to the following [try/except structure](https://cloud.google.com/workflows/docs/reference/syntax/catching-errors)
 
 ```yaml
 try1:
@@ -531,7 +585,7 @@ The statement
 throw 'Error!'
 ```
 
-will be compiled to the following [raise block](https://cloud.google.com/workflows/docs/reference/syntax/raising-errors)
+is compiled to the following [raise block](https://cloud.google.com/workflows/docs/reference/syntax/raising-errors)
 
 ```yaml
 raise1:
@@ -564,7 +618,7 @@ The transpiler labels output steps with the step type and sequential numbering b
 setName: const name = 'Bean'
 ```
 
-will be converted to a step with the label `setName`:
+is converted to a step with the label `setName`:
 
 ```yaml
 - setName:
