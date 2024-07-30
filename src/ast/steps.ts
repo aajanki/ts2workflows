@@ -448,8 +448,8 @@ export class ParallelStepASTNamed implements WorkflowStepASTWithNamedNested {
     let transformedSteps: Record<StepName, StepsStepASTNamed> | ForStepASTNamed
     if (this.branches) {
       transformedSteps = Object.fromEntries(
-        this.branches.map((x) => {
-          const tranformedSteps = x.step
+        this.branches.map(({ name, step }) => {
+          const nestedSteps = step
             .nestedSteps()
             .flat()
             .map((x) => ({
@@ -457,7 +457,7 @@ export class ParallelStepASTNamed implements WorkflowStepASTWithNamedNested {
               step: x.step.renameJumpTargets(replaceLabels),
             }))
 
-          return [x.name, new StepsStepASTNamed(tranformedSteps)]
+          return [name, new StepsStepASTNamed(nestedSteps)]
         }),
       )
     } else if (this.forStep) {
