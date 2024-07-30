@@ -81,7 +81,7 @@ export class Subworkflow {
 
         yield step
 
-        for (const x of step.step.nestedSteps()) {
+        for (const x of step.step.nestedSteps().flat()) {
           yield* visitPreOrder(x)
         }
       }

@@ -58,7 +58,7 @@ export interface WorkflowStepASTWithNamedNested {
   readonly tag: string
 
   render(): object
-  nestedSteps(): NamedWorkflowStep[]
+  nestedSteps(): NamedWorkflowStep[][]
   renameJumpTargets(
     replaceLabels: Map<StepName, StepName>,
   ): WorkflowStepASTWithNamedNested
@@ -99,7 +99,7 @@ export class AssignStepAST
     }
   }
 
-  nestedSteps(): NamedWorkflowStep[] {
+  nestedSteps(): NamedWorkflowStep[][] {
     return []
   }
 
@@ -154,7 +154,7 @@ export class CallStepAST
     }
   }
 
-  nestedSteps(): NamedWorkflowStep[] {
+  nestedSteps(): NamedWorkflowStep[][] {
     return []
   }
 
@@ -261,8 +261,8 @@ export class ForStepASTNamed implements WorkflowStepASTWithNamedNested {
     }
   }
 
-  nestedSteps(): NamedWorkflowStep[] {
-    return this.steps
+  nestedSteps(): NamedWorkflowStep[][] {
+    return [this.steps]
   }
 
   renameJumpTargets(replaceLabels: Map<StepName, StepName>): ForStepASTNamed {
@@ -318,7 +318,7 @@ export class NextStepAST
     }
   }
 
-  nestedSteps(): NamedWorkflowStep[] {
+  nestedSteps(): NamedWorkflowStep[][] {
     return []
   }
 
@@ -429,8 +429,17 @@ export class ParallelStepASTNamed implements WorkflowStepASTWithNamedNested {
     }
   }
 
-  nestedSteps(): NamedWorkflowStep[] {
-    return (this.branches ?? []).concat(this.forStep?.steps ?? [])
+  nestedSteps(): NamedWorkflowStep[][] {
+    const nested = []
+    if (this.branches && this.branches.length > 0) {
+      // return each branch as a separate child
+      nested.push(...this.branches.map((x) => [x]))
+    }
+    if (this.forStep?.steps && this.forStep.steps.length > 0) {
+      nested.push(this.forStep.steps)
+    }
+
+    return nested
   }
 
   renameJumpTargets(
@@ -440,10 +449,13 @@ export class ParallelStepASTNamed implements WorkflowStepASTWithNamedNested {
     if (this.branches) {
       transformedSteps = Object.fromEntries(
         this.branches.map((x) => {
-          const tranformedSteps = x.step.nestedSteps().map((x) => ({
-            name: x.name,
-            step: x.step.renameJumpTargets(replaceLabels),
-          }))
+          const tranformedSteps = x.step
+            .nestedSteps()
+            .flat()
+            .map((x) => ({
+              name: x.name,
+              step: x.step.renameJumpTargets(replaceLabels),
+            }))
 
           return [x.name, new StepsStepASTNamed(tranformedSteps)]
         }),
@@ -472,7 +484,7 @@ export class ParallelStepASTNamed implements WorkflowStepASTWithNamedNested {
         this.branches.map((x) => {
           return [
             x.name,
-            new StepsStepASTNamed(transform(x.step.nestedSteps())),
+            new StepsStepASTNamed(transform(x.step.nestedSteps().flat())),
           ]
         }),
       )
@@ -517,7 +529,7 @@ export class RaiseStepAST
     }
   }
 
-  nestedSteps(): NamedWorkflowStep[] {
+  nestedSteps(): NamedWorkflowStep[][] {
     return []
   }
 
@@ -561,7 +573,7 @@ export class ReturnStepAST
     }
   }
 
-  nestedSteps(): NamedWorkflowStep[] {
+  nestedSteps(): NamedWorkflowStep[][] {
     return []
   }
 
@@ -610,8 +622,8 @@ export class StepsStepASTNamed implements WorkflowStepASTWithNamedNested {
     }
   }
 
-  nestedSteps(): NamedWorkflowStep[] {
-    return this.steps
+  nestedSteps(): NamedWorkflowStep[][] {
+    return [this.steps]
   }
 
   renameJumpTargets(replaceLabels: Map<StepName, StepName>): StepsStepASTNamed {
@@ -695,8 +707,8 @@ export class SwitchStepASTNamed implements WorkflowStepASTWithNamedNested {
     }
   }
 
-  nestedSteps(): NamedWorkflowStep[] {
-    return this.conditions.flatMap((x) => x.steps)
+  nestedSteps(): NamedWorkflowStep[][] {
+    return this.conditions.map((x) => x.steps)
   }
 
   renameJumpTargets(
@@ -872,8 +884,15 @@ export class TryStepASTNamed implements WorkflowStepASTWithNamedNested {
     }
   }
 
-  nestedSteps(): NamedWorkflowStep[] {
-    return this.trySteps.concat(this.exceptSteps)
+  nestedSteps(): NamedWorkflowStep[][] {
+    const nested = []
+    if (this.trySteps.length > 0) {
+      nested.push(this.trySteps)
+    }
+    if (this.exceptSteps.length > 0) {
+      nested.push(this.exceptSteps)
+    }
+    return nested
   }
 
   renameJumpTargets(replaceLabels: Map<StepName, StepName>): TryStepASTNamed {
@@ -929,7 +948,7 @@ export class JumpTargetAST
     return {}
   }
 
-  nestedSteps(): NamedWorkflowStep[] {
+  nestedSteps(): NamedWorkflowStep[][] {
     return []
   }
 
