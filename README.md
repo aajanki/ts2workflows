@@ -8,17 +8,18 @@ Only a subset of Typescript features are supported. The [language reference](lan
 
 See the [samples](samples) directory for code examples.
 
-## Build
+## Command for transpiling a Typescript file to Workflows syntax
+
+Converting Typescript code in a file samples/sample1.ts into GCP Workflows syntax:
 
 ```
-npm install
-npm run build
+npx ts2workflows samples/sample1.ts
 ```
 
-## Run unit tests
+When developing ts2workflows, you can run the tranpiler directly from the source directory:
 
 ```
-npm run test
+npx tsx src/cli.ts samples/sample1.ts
 ```
 
 ## Type checking
@@ -31,10 +32,17 @@ This is an example command that shows how to type check source files in the samp
 npx tsc --project tsconfig.workflows.json
 ```
 
-## Command for transpiling a Typescript file to Workflows syntax
+## Build
 
 ```
-npx tsx src/cli.ts samples/sample1.ts
+npm install
+npm run build
+```
+
+## Run unit tests
+
+```
+npm run test
 ```
 
 ## License

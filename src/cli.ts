@@ -147,7 +147,7 @@ function highlightedSourceCodeLine(
 
 if (
   import.meta.url.endsWith(process.argv[1]) ||
-  process.argv[1].endsWith('/ts2workflow')
+  process.argv[1].endsWith('/ts2workflows')
 ) {
   cliMain()
 }
