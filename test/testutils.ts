@@ -53,7 +53,7 @@ function isJSONObject(val: string): boolean {
   try {
     JSON.parse(val)
     return true
-  } catch (err) {
+  } catch {
     return false
   }
 }
