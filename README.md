@@ -24,13 +24,25 @@ npx tsx src/cli.ts samples/sample1.ts
 
 ## Type checking
 
-One benefit of writing the workflow programs in Typescript is that the sources can be type checked. Type annotations for [Workflows standard library functions and expression helpers](https://cloud.google.com/workflows/docs/reference/stdlib/overview) are provided in [src/typennotations/workflowslib.d.ts](src/typeannotations/workflowslib.d.ts).
+One benefit of writing the workflow programs in Typescript is that the sources can be type checked.
 
-This is an example command that shows how to type check source files in the samples directory. [tsconfig.workflows.json](tsconfig.workflows.json) contains a sample configuration for tsc. The command will print typing errors or finish without printing anything, if there are no typing errors.
+This example command shows how to type check source files in the [samples](samples) directory. The command will print typing errors or finish quietly, if there are no errors.
 
 ```
-npx tsc --project tsconfig.workflows.json
+npx tsc --project samples/tsconfig.workflows.json
 ```
+
+The file [samples/tsconfig.workflows.json](samples/tsconfig.workflows.json) contains a sample configuration for type checking workflow sources.
+
+Type annotations for [Workflows standard library functions and expression helpers](https://cloud.google.com/workflows/docs/reference/stdlib/overview) are provided in [src/typennotations/workflowslib.d.ts](src/typeannotations/workflowslib.d.ts). The path to the type annotation file is set by the `compilerOptions.paths.workflowslib` key in the tsconfig file. In practice, you should change that value to the following when you are using ts2workflows as a dependency, like this:
+
+```json
+"paths": {
+  "workflowslib": ["./node_modules/ts2workflows/dist/typeannotations/workflowslib.d.ts"]
+}
+```
+
+TODO: VS Code does not find the workflowslib module. Maybe create a separate npm package for the types?
 
 ## Build
 
