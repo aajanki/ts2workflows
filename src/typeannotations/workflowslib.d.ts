@@ -1,3 +1,7 @@
+// An opaque bytes type.
+// This should really be defined in the transpiler, not here.
+export class bytes {}
+
 // GCP Workflows expression helpers
 
 export declare function double(x: string | number): number
@@ -15,14 +19,15 @@ export declare function get_type(
     | unknown[]
     | Record<string, unknown>
     | null
+    | bytes
     | undefined,
 ): string
 
 // GCP Workflows standard library functions
 
 export declare namespace base64 {
-  function decode(data: string, padding?: boolean): string
-  function encode(data: string, padding?: boolean): string
+  function decode(data: bytes, padding?: boolean): string
+  function encode(data: string, padding?: boolean): bytes
 }
 
 export declare namespace events {
@@ -147,7 +152,7 @@ export declare const http: {
 }
 
 export declare namespace json {
-  function decode(data: string): object
+  function decode(data: bytes | string): object
   function encode(
     data: string | number | boolean | unknown[] | Record<string, unknown>,
     indent?:
@@ -156,7 +161,7 @@ export declare namespace json {
           prefix?: string
           indent?: string
         },
-  ): string
+  ): bytes
   function encode_to_string(
     data: string | number | boolean | unknown[] | Record<string, unknown>,
     indent?:
@@ -217,8 +222,8 @@ export declare namespace sys {
 }
 
 export declare namespace text {
-  function decode(data: string, charset?: string): string
-  function encode(text: string, charset?: string): string
+  function decode(data: bytes, charset?: string): string
+  function encode(text: string, charset?: string): bytes
   function find_all(source: string, substr: string): number[]
   function find_all_regex(
     source: string,
