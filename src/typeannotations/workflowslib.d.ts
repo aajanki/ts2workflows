@@ -1,6 +1,9 @@
 // An opaque bytes type.
 // This should really be defined in the transpiler, not here.
-export class bytes {}
+declare const tag: unique symbol
+export interface bytes {
+  readonly [tag]: 'bytes'
+}
 
 // GCP Workflows expression helpers
 
