@@ -1,29 +1,14 @@
-import { http, sys, time, retry_policy } from 'workflowslib'
+import { sys, time } from 'workflowslib'
+import { get_url } from './http_helpers'
 
 function main() {
+  // Calling GCP Workflows standard library functions
+  const timestamp: string = time.format(sys.now())
   const workflow_id: string =
     sys.get_env('GOOGLE_CLOUD_WORKFLOW_ID') ?? 'unknown'
-  const timestamp: string = time.format(sys.now())
 
-  let response
-  try {
-    response = http.get('https://visit.dreamland.test/')
-  } catch (err) {
-    sys.log(
-      'Error in HTTP request at ' + timestamp + ', workflow_id ' + workflow_id,
-      'ERROR',
-    )
-    response = { body: {} }
-  }
-  retry_policy({
-    predicate: http.default_retry_predicate,
-    max_retries: 3,
-    backoff: {
-      initial_delay: 0.5,
-      max_delay: 60,
-      multiplier: 2,
-    },
-  })
+  // Calling a subworkflow defined in another source file
+  const response = get_url('https://visit.dreamland.test/')
 
   sys.log(response.body as object)
 }

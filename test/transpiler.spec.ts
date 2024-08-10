@@ -2466,7 +2466,10 @@ describe('Sample source files', () => {
   const samplesdir = './samples'
 
   it('type checks samples files', () => {
-    const res = spawnSync('tsc', ['--project', 'tsconfig.workflows.json'])
+    const res = spawnSync('tsc', [
+      '--project',
+      'samples/tsconfig.workflows.json',
+    ])
     const stdoutString = res.stdout.toString('utf-8')
     const stderrString = res.stderr.toString('utf-8')
 
