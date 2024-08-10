@@ -305,9 +305,6 @@ describe('Expressions', () => {
   })
 
   it('parses function expressions', () => {
-    // "default" is a reserved keyword in Javascript. TODO
-    //assertExpression('default(value, "")', '${default(value, "")}')
-    //assertExpression('default(null, "")', '${default(null, "")}')
     assertExpression('int("5")', '${int("5")}')
     assertExpression('sys.now()', '${sys.now()}')
     assertExpression('time.format(sys.now())', '${time.format(sys.now())}')
@@ -326,6 +323,13 @@ describe('Expressions', () => {
 
   it('parses nullish coalescing operator', () => {
     assertExpression('x ?? "default value"', '${default(x, "default value")}')
+    assertExpression('null ?? ""', '${default(null, "")}')
+  })
+
+  it('parses the "as" expression', () => {
+    assertExpression('1 as number', 1)
+    assertExpression('error as {code: number}', '${error}')
+    assertExpression('(error as {code: number}).number', '${error.number}')
   })
 })
 

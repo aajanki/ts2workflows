@@ -92,23 +92,6 @@ describe('Transpiler', () => {
     expect(observed).to.deep.equal(expected)
   })
 
-  it('accepts the "as" expression', () => {
-    const code = `
-    function main() {
-      return 1 as number;
-    }`
-    const observed = YAML.parse(transpile(code)) as unknown
-
-    const expected = YAML.parse(`
-    main:
-      steps:
-        - return1:
-            return: 1
-    `) as unknown
-
-    expect(observed).to.deep.equal(expected)
-  })
-
   it('accepts but ignores async and await', () => {
     const code = `
     async function workflow1() {
@@ -2484,11 +2467,13 @@ describe('Sample source files', () => {
 
   it('transpiles sample files', () => {
     fs.readdirSync(samplesdir).forEach((file) => {
-      const code = fs.readFileSync(`${samplesdir}/${file}`, {
-        encoding: 'utf-8',
-      })
+      if (file.endsWith('.ts')) {
+        const code = fs.readFileSync(`${samplesdir}/${file}`, {
+          encoding: 'utf-8',
+        })
 
-      expect(() => transpile(code)).not.to.throw()
+        expect(() => transpile(code)).not.to.throw()
+      }
     })
   })
 })

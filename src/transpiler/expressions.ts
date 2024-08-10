@@ -269,15 +269,31 @@ function convertMemberExpression(memberExpression: any): VariableName {
   assertType(memberExpression, MemberExpression)
 
   let objectName: string
-  if (memberExpression.object.type === Identifier) {
-    objectName = memberExpression.object.name as string
-  } else if (memberExpression.object.type === MemberExpression) {
-    objectName = convertMemberExpression(memberExpression.object)
-  } else {
-    throw new WorkflowSyntaxError(
-      `Unexpected type in member expression: ${memberExpression.object.type}`,
-      memberExpression.loc,
-    )
+  switch (memberExpression.object.type) {
+    case Identifier:
+      objectName = memberExpression.object.name as string
+      break
+
+    case MemberExpression:
+      objectName = convertMemberExpression(memberExpression.object)
+      break
+
+    case TSAsExpression:
+      if (memberExpression.object.expression.type === Identifier) {
+        objectName = memberExpression.object.expression.name as string
+      } else {
+        throw new WorkflowSyntaxError(
+          `Not implemented: only Identifier is implemented`,
+          memberExpression.object.expression.loc,
+        )
+      }
+      break
+
+    default:
+      throw new WorkflowSyntaxError(
+        `Unexpected type in member expression: ${memberExpression.object.type}`,
+        memberExpression.loc,
+      )
   }
 
   if (memberExpression.computed) {
