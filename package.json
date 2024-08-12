@@ -2,21 +2,28 @@
   "name": "ts2workflows",
   "version": "0.1.0",
   "description": "Transpile Typescript code to GCP Workflows programs",
+  "homepage": "https://github.com/aajanki/ts2workflows",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/aajanki/ts2workflows.git"
+  },
+  "bugs": "https://github.com/aajanki/ts2workflows/issues",
   "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "type": "module",
   "engines": {
     "node": ">=18"
   },
   "scripts": {
-    "build": "rimraf dist && tsc && npm run build:typeannotations",
-    "build:typeannotations": "copyfiles copyfiles -u 2 src/typeannotations/*.d.ts dist/typeannotations/",
-    "lint": "eslint .",
+    "build": "rimraf dist && tsc",
+    "lint": "eslint src test",
     "format": "prettier . --write",
     "test": "mocha"
   },
   "bin": "./dist/cli.js",
   "files": [
     "dist",
+    "types",
     "README",
     "language_reference.md",
     "LICENSE"
@@ -31,7 +38,6 @@
     "@typescript-eslint/eslint-plugin": "^8.0.0",
     "@typescript-eslint/parser": "^8.0.0",
     "chai": "^5.1.1",
-    "copyfiles": "^2.4.1",
     "eslint": "^8.57.0",
     "mocha": "^10.4.0",
     "prettier": "^3.2.5",

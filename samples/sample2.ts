@@ -1,4 +1,6 @@
-import { sys, time } from 'workflowslib'
+// Change the path to 'ts2workflows/types/workflowslib'
+// in projects that use ts2workflows module as a dependency.
+import { sys, time } from '../types/workflowslib'
 import { get_url } from './http_helpers'
 
 function main() {

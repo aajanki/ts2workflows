@@ -1,3 +1,6 @@
+// Type annotations for GCP Workflows expression helpers, standard library
+// functions and (some) connectors
+
 // An opaque bytes type.
 // This should really be defined in the transpiler, not here.
 declare const tag: unique symbol

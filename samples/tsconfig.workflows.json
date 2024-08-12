@@ -4,9 +4,6 @@
     "module": "ES2015",
     "moduleResolution": "bundler",
     "rootDir": ".",
-    "paths": {
-      "workflowslib": ["../src/typeannotations/workflowslib.d.ts"]
-    },
     "lib": ["ES5"],
     "noEmit": true,
     "strict": true,

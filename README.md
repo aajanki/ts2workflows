@@ -12,13 +12,13 @@ See the [samples](samples) directory for code examples.
 
 Converting Typescript code in a file samples/sample1.ts into GCP Workflows syntax:
 
-```
+```sh
 npx ts2workflows samples/sample1.ts
 ```
 
-When developing ts2workflows, you can run the tranpiler directly from the source directory:
+When developing ts2workflows, you can run the transpiler directly from the source directory:
 
-```
+```sh
 npx tsx src/cli.ts samples/sample1.ts
 ```
 
@@ -28,21 +28,17 @@ One benefit of writing the workflow programs in Typescript is that the sources c
 
 This example command shows how to type check source files in the [samples](samples) directory. The command will print typing errors or finish quietly, if there are no errors.
 
-```
+```sh
 npx tsc --project samples/tsconfig.workflows.json
 ```
 
 The file [samples/tsconfig.workflows.json](samples/tsconfig.workflows.json) contains a sample configuration for type checking workflow sources.
 
-Type annotations for [Workflows standard library functions and expression helpers](https://cloud.google.com/workflows/docs/reference/stdlib/overview) and for some [connectors](https://cloud.google.com/workflows/docs/reference/googleapis) are provided in [src/typennotations/workflowslib.d.ts](src/typeannotations/workflowslib.d.ts). The path to the type annotation file is set by the `compilerOptions.paths.workflowslib` key in the tsconfig file. In practice, you should change that value to the following when you are using ts2workflows as a dependency, like this:
+Type annotations for [Workflows standard library functions and expression helpers](https://cloud.google.com/workflows/docs/reference/stdlib/overview) and for some [connectors](https://cloud.google.com/workflows/docs/reference/googleapis) are provided in [types/workflowslib.d.ts](types/workflowslib.d.ts). They are also included in the npm module. To import type annotations in a project that has ts2workflows module as a dependency, do the following:
 
-```json
-"paths": {
-  "workflowslib": ["./node_modules/ts2workflows/dist/typeannotations/workflowslib.d.ts"]
-}
+```javascript
+import { http, retry_policy } from 'ts2workflows/types/workflowslib'
 ```
-
-TODO: VS Code does not find the workflowslib module. Maybe create a separate npm package for the types?
 
 ## Build
 
