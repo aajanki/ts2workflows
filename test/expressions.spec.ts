@@ -112,21 +112,18 @@ describe('Literals', () => {
   it('template literals', () => {
     assertExpression('``', '')
     assertExpression('`abc`', 'abc')
-    assertExpression('`Hello ${name}!`', '${"Hello " + string(name) + "!"}')
+    assertExpression('`Hello ${name}!`', '${"Hello " + name + "!"}')
     assertExpression(
       '`Value of ${name} is ${value}.`',
-      '${"Value of " + string(name) + " is " + string(value) + "."}',
+      '${"Value of " + name + " is " + value + "."}',
     )
-    assertExpression('`${a}${b}`', '${string(a) + string(b)}')
-    assertExpression(
-      '`The sum is ${x + y}`',
-      '${"The sum is " + string(x + y)}',
-    )
+    assertExpression('`${a}${b}`', '${"" + a + "" + b}')
+    assertExpression('`The sum is ${x + y}`', '${"The sum is " + (x + y)}')
     assertExpression(
       '`Logarithm of 4 is ${log(4)}`',
-      '${"Logarithm of 4 is " + string(log(4))}',
+      '${"Logarithm of 4 is " + log(4)}',
     )
-    assertExpression('`value:\\t${x}`', '${"value:\\t" + string(x)}')
+    assertExpression('`value:\\t${x}`', '${"value:\\t" + x}')
   })
 })
 

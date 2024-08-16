@@ -23,7 +23,7 @@ Semicolon can be used as optional statement delimitter.
 
 Template literals are strings that support string interpolation. For example, `Hello ${name}`.
 
-Interpolated values can be numbers, strings, booleans or nulls. Other types will throw a TypeError during execution.
+Interpolated values can be numbers, strings, booleans. Other types will throw a TypeError during execution.
 
 ## Expressions
 

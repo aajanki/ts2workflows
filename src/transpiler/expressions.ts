@@ -344,20 +344,19 @@ function convertTemplateLiteralToExpression(node: any): Expression {
     .map((x) => new PrimitiveTerm(x))
 
   const expressionNodes = node.expressions as any[]
-  const templateTerms = expressionNodes
-    .map(convertExpression)
-    .map((ex) => new FunctionInvocationTerm('string', [ex]))
+  const templateTerms = expressionNodes.map(convertExpression).map((ex) => {
+    if (ex.isSingleValue()) {
+      return ex.left
+    } else {
+      return new ParenthesizedTerm(ex)
+    }
+  })
 
   // interleave string parts and the expression parts starting with strings
   const interleavedTerms: Term[] = stringTerms
     .slice(0, stringTerms.length - 1)
     .flatMap((stringTerm, i) => {
-      const combined = []
-
-      if (stringTerm.value !== '') {
-        combined.push(stringTerm)
-      }
-
+      const combined: Term[] = [stringTerm]
       if (i < templateTerms.length) {
         combined.push(templateTerms[i])
       }
