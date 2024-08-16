@@ -28,6 +28,7 @@ const {
   LogicalExpression,
   MemberExpression,
   ObjectExpression,
+  TemplateLiteral,
   TSAsExpression,
   UnaryExpression,
 } = AST_NODE_TYPES
@@ -87,6 +88,9 @@ function convertExpressionOrPrimitive(instance: any): Primitive | Expression {
 
     case Literal:
       return instance.value as Primitive
+
+    case TemplateLiteral:
+      return convertTemplateLiteralToExpression(instance)
 
     case Identifier:
       if (instance.name === 'null' || instance.name === 'undefined') {
@@ -329,4 +333,50 @@ function convertConditionalExpression(node: any): Expression {
   const alternate = convertExpression(node.alternate)
 
   return functionInvocationExpression('if', [test, consequent, alternate])
+}
+
+function convertTemplateLiteralToExpression(node: any): Expression {
+  assertType(node, TemplateLiteral)
+
+  const elements = node.quasis as { value: { cooked: string } }[]
+  const stringTerms = elements
+    .map((x) => x.value.cooked)
+    .map((x) => new PrimitiveTerm(x))
+
+  const expressionNodes = node.expressions as any[]
+  const templateTerms = expressionNodes
+    .map(convertExpression)
+    .map((ex) => new FunctionInvocationTerm('string', [ex]))
+
+  // interleave string parts and the expression parts starting with strings
+  const interleavedTerms: Term[] = stringTerms
+    .slice(0, stringTerms.length - 1)
+    .flatMap((stringTerm, i) => {
+      const combined = []
+
+      if (stringTerm.value !== '') {
+        combined.push(stringTerm)
+      }
+
+      if (i < templateTerms.length) {
+        combined.push(templateTerms[i])
+      }
+
+      return combined
+    })
+  if (stringTerms[stringTerms.length - 1].value !== '') {
+    interleavedTerms.push(stringTerms[stringTerms.length - 1])
+  }
+
+  const head = interleavedTerms.shift()
+  if (head !== undefined) {
+    const rest = interleavedTerms.map((term) => ({
+      binaryOperator: '+',
+      right: term,
+    }))
+
+    return new Expression(head, rest)
+  } else {
+    return primitiveExpression('')
+  }
 }

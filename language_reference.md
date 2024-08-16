@@ -12,11 +12,18 @@ Semicolon can be used as optional statement delimitter.
 
 - Integer (64 bit, signed)
 - Double (64 bit, signed floating point number)
-- String: `"my beautiful string"`
+- String: `"my beautiful string"`, both single or double quotes are accepted
 - Boolean: `true`/`false`
+- Bytes
 - `null`. In addition to the literal `null`, the Typescript `undefined` value is also converted to `null`.
-- Array: `[1, 2, 3]`. Array are not objects. In particular, methods like `map()` and `concat()` are not available.
-- Map: `{"temperature": -12, "unit": "Celsius"}`
+- Array: `[1, 2, 3]`. Array are not objects. In particular, methods like `array.map()` and `array.concat()` are not available.
+- Map: `{temperature: -12, unit: "Celsius"}`. Key can also be strings: `{"temperature": -12, "unit": "Celsius"}`. Trailing commas are allowed.
+
+## Template literals
+
+Template literals are strings that support string interpolation. For example, `Hello ${name}`.
+
+Interpolated values can be numbers, strings, booleans or nulls. Other types will throw a TypeError during execution.
 
 ## Expressions
 
@@ -83,7 +90,7 @@ Parameters can be optional and have a default value that is used if a value is n
 
 ```typescript
 function log(x, base = 10) {
-  return 'Compute logarithm of x'
+  return 'Should compute the logarithm of x'
 }
 ```
 
@@ -369,13 +376,13 @@ The special function `parallel` can be used to execute several code branches in 
 ```javascript
 parallel([
   () => {
-    post_http('https://forum.dreamland.test/register/bean')
+    http.post('https://forum.dreamland.test/register/bean')
   },
   () => {
-    post_http('https://forum.dreamland.test/register/elfo')
+    http.post('https://forum.dreamland.test/register/elfo')
   },
   () => {
-    post_http('https://forum.dreamland.test/register/luci')
+    http.post('https://forum.dreamland.test/register/luci')
   },
 ])
 ```
@@ -383,24 +390,27 @@ parallel([
 is converted to [parallel steps](https://cloud.google.com/workflows/docs/reference/syntax/parallel-steps)
 
 ```yaml
-parallel1:
-  parallel:
-    branches:
-      - branch1:
-          steps:
-            - assign1:
-                assign:
-                  - '': ${post_http("https://forum.dreamland.test/register/bean")}
-      - branch2:
-          steps:
-            - assign2:
-                assign:
-                  - '': ${post_http("https://forum.dreamland.test/register/elfo")}
-      - branch3:
-          steps:
-            - assign3:
-                assign:
-                  - '': ${post_http("https://forum.dreamland.test/register/luci")}
+- parallel1:
+    parallel:
+      branches:
+        - branch1:
+            steps:
+              - call1:
+                  call: http.post
+                  args:
+                    url: https://forum.dreamland.test/register/bean
+        - branch2:
+            steps:
+              - call2:
+                  call: http.post
+                  args:
+                    url: https://forum.dreamland.test/register/elfo
+        - branch3:
+            steps:
+              - call3:
+                  call: http.post
+                  args:
+                    url: https://forum.dreamland.test/register/luci
 ```
 
 The branches can also be subworkflow names:
@@ -417,11 +427,11 @@ let numPosts = 0
 parallel(
   [
     () => {
-      n = get_http('https://forum.dreamland.test/numPosts/bean')
+      n = http.get('https://forum.dreamland.test/numPosts/bean')
       numPosts = numPosts + n
     },
     () => {
-      n = get_http('https://forum.dreamland.test/numPosts/elfo')
+      n = http.get('https://forum.dreamland.test/numPosts/elfo')
       numPosts = numPosts + n
     },
   ],
@@ -439,7 +449,7 @@ The following form of `parallel` can be called to execute iterations in parallel
 ```typescript
 parallel(() => {
   for (const username of ['bean', 'elfo', 'luci']) {
-    post_http('https://forum.dreamland.test/register/' + username)
+    http.post('https://forum.dreamland.test/register/' + username)
   }
 })
 ```
@@ -456,9 +466,10 @@ is converted to [parallel iteration](https://cloud.google.com/workflows/docs/ref
           - elfo
           - luci
         steps:
-          - assign1:
-              assign:
-                - '': ${post_http("https://forum.dreamland.test/register/" + username)}
+          - call1:
+              call: http.post
+              args:
+                url: ${"https://forum.dreamland.test/register/" + username}
 ```
 
 The shared variables and concurrency limits can be set with the following syntax:
@@ -485,7 +496,7 @@ The statement
 
 ```javascript
 try {
-  get_http('https://visit.dreamland.test/')
+  http.get('https://visit.dreamland.test/')
 } catch (err) {
   return 'Error!'
 }
@@ -494,17 +505,18 @@ try {
 is compiled to the following [try/except structure](https://cloud.google.com/workflows/docs/reference/syntax/catching-errors)
 
 ```yaml
-try1:
-  try:
-    steps:
-      - assign1:
-          assign:
-            - '': ${get_http("https://visit.dreamland.test/")}
-  except:
-    as: err
-    steps:
-      - return1:
-          return: Error!
+- try1:
+    try:
+      steps:
+        - call1:
+            call: http.get
+            args:
+              url: https://visit.dreamland.test/
+    except:
+      as: err
+      steps:
+        - return1:
+            return: Error!
 ```
 
 The error variable and other variables created inside the catch block are accessible only in that block's scope (similar to [the variable scoping in Workflows](https://cloud.google.com/workflows/docs/reference/syntax/catching-errors#variable-scope)).
@@ -518,7 +530,7 @@ The `retry_policy` function must be called with parameters defining a retry poli
 A sample with a GCP-provided retry policy:
 
 ```javascript
-import { http, retry_policy } from 'workflowslib'
+import { http, retry_policy } from 'ts2workflows/types/workflowslib'
 
 function main() {
   try {
@@ -533,7 +545,7 @@ function main() {
 A sample with a custom retry policy:
 
 ```javascript
-import { http, retry_policy } from 'workflowslib'
+import { http, retry_policy } from 'ts2workflows/types/workflowslib'
 
 function main() {
   try {
@@ -556,25 +568,27 @@ function main() {
 The above is compiled to the following [try/except structure](https://cloud.google.com/workflows/docs/reference/syntax/catching-errors)
 
 ```yaml
-try1:
-  try:
-    steps:
-      - call1:
-          call: http.get
-          args:
-            - url: https://visit.dreamland.test/
-  retry:
-    predicate: ${http.default_retry_predicate}
-    max_retries: 3
-    backoff:
-      initial_delay: 0.5
-      max_delay: 60
-      multiplier: 2
-  except:
-    as: err
-    steps:
-      - return1:
-          return: Error!
+main:
+  steps:
+    - try1:
+        try:
+          steps:
+            - call1:
+                call: http.get
+                args:
+                  url: https://visit.dreamland.test/
+        retry:
+          predicate: ${http.default_retry_predicate}
+          max_retries: 3
+          backoff:
+            initial_delay: 0.5
+            max_delay: 60
+            multiplier: 2
+        except:
+          as: err
+          steps:
+            - return1:
+                return: Error!
 ```
 
 ## Throwing errors
@@ -588,8 +602,8 @@ throw 'Error!'
 is compiled to the following [raise block](https://cloud.google.com/workflows/docs/reference/syntax/raising-errors)
 
 ```yaml
-raise1:
-  raise: 'Error!'
+- raise1:
+    raise: 'Error!'
 ```
 
 The error can be a string, a map or an expression that evaluates to string or map.
@@ -598,17 +612,17 @@ Thrown errors can be handled by a try statement.
 
 ## Importing type annotations
 
-Type annotations for GCP Workflows standard library and expression helper functions are provided by importing "workflowslib".
+Type annotations for GCP Workflows standard library functions and expression helpers are provided by importing "ts2workflows/types/workflowslib".
 
 ```typescript
-import { http } from 'workflowslib'
+import { http } from 'ts2workflows/types/workflowslib'
 
 function read_data_from_web() {
   return http.get('https://visit.dreamland.test/')
 }
 ```
 
-Type annotations are not yet available for [connectors](https://cloud.google.com/workflows/docs/reference/googleapis).
+At the moment, type annotations are provided for some [connectors](https://cloud.google.com/workflows/docs/reference/googleapis) but not for all of them.
 
 ## Labeled steps
 
@@ -626,16 +640,16 @@ is converted to a step with the label `setName`:
       - name: Bean
 ```
 
-## Run-time functions
+## Special run-time functions
 
-ts2workflows provides some special functions for implementing features that are not directly supported by Typescript constructs.
+ts2workflows provides some special functions for implementing features that are not directly supported by Typescript language features.
 
 - `parallel` function for executing code blocks in parallel. See the previous sections covering parallel branches and iteration.
 - `retry_policy` function that can be combined with `try`-`catch` block to specify a retry policy.
 
 It is not possible to call subworkflows with these names, because the transpiler treats these names as special cases.
 
-See [type annotations](src/typeannotations/workflowslib.d.ts) for these functions.
+See [type annotations](types/workflowslib.d.ts) for these functions.
 
 ## Source code comments
 
@@ -646,3 +660,17 @@ Example:
 ```typescript
 const var1 = 1 // This is a comment
 ```
+
+## Unsupported Typescript features
+
+ts2workflows supports only a subset of all Typescript language features. Some examples that are not (yet) supported by ts2workflows:
+
+- Functions provided by a Javascript runtime (`console.log`, `setInterval`, etc) are not available. Only the [GCP Workflows standard library functions](https://cloud.google.com/workflows/docs/reference/stdlib/overview) are available.
+- Classes (`class`) are not supported
+- Arrays and maps are not objects. In particular, arrays don't have methods such as `array.push()`, `array.map()`, etc.
+- Functions (subworkflows) are not first-class objects. Functions can not be assigned to a variable or passed to other functions
+- Update expressions (`x++` and similar) are not supported
+- Destructuring (`[a, b] = func()`) is not supported
+- and many other Typescript language features are not supported
+
+Some of these might be implemented later, but the goal of ts2workflows project is not to implement the full Typescript compatibility.
