@@ -8,6 +8,8 @@ Type annotations are allowed. Type checking is done by the compiler but the type
 
 Semicolon can be used as optional statement delimitter.
 
+⚠️ Semantics of certain operations are different from Typescript semantics. These differences are highlighted with the warning icon ⚠️ on this documentation.
+
 ## Data types
 
 - Integer (64 bit, signed)
@@ -16,14 +18,26 @@ Semicolon can be used as optional statement delimitter.
 - Boolean: `true`/`false`
 - Bytes
 - `null`. In addition to the literal `null`, the Typescript `undefined` value is also converted to `null`.
-- Array: `[1, 2, 3]`. Array are not objects. In particular, methods like `array.map()` and `array.concat()` are not available.
-- Map: `{temperature: -12, unit: "Celsius"}`. Key can also be strings: `{"temperature": -12, "unit": "Celsius"}`. Trailing commas are allowed.
+- Array: `[1, 2, 3]`
+- Map: `{temperature: -12, unit: "Celsius"}`
+
+## Array type
+
+⚠️ Arrays are not objects. In particular, methods like `array.map()` and `array.concat()` are not available.
+
+⚠️ Accessing out-of-bounds index will cause an IndexError at runtime unlike in Typescript where out-of-bounds access would return `undefined`.
+
+## Map type
+
+Map keys can be identifiers or strings: `{temperature: -12}` or `{"temperature": -12}`. Trailing commas are allowed.
+
+⚠️ Trying to access a non-existing member of an object will throw a KeyError at runtime, unlike in Typescript where it would return `undefined`.
 
 ## Template literals
 
 Template literals are strings that support string interpolation. For example, `Hello ${name}`.
 
-Interpolated values can be numbers, strings, booleans. Other types will throw a TypeError during execution.
+⚠️ Interpolated values can (only) be numbers, strings or booleans. Other types will throw a TypeError at runtime.
 
 ## Expressions
 
@@ -272,7 +286,7 @@ is converted to an [if() expression](https://cloud.google.com/workflows/docs/ref
 ${if(x > 0, "positive", "not positive")}
 ```
 
-Note that Workflows always evaluates both expression branches unlike Typescript which evaluates only the branch that gets executed.
+⚠️ Note that Workflows always evaluates both expression branches unlike Typescript which evaluates only the branch that gets executed.
 
 ## Nullish coalescing operator
 
@@ -288,7 +302,7 @@ is converted to an [default() expression](https://cloud.google.com/workflows/doc
 ${default(x, "default value")}
 ```
 
-Note that Workflows always evaluates the right-hand side expression unlike Typescript which evaluates the right-hand side only if the left-hand side is `null` or `undefined`.
+⚠️ Note that Workflows always evaluates the right-hand side expression unlike Typescript which evaluates the right-hand side only if the left-hand side is `null` or `undefined`.
 
 ## Loops
 
