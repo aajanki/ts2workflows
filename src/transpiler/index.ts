@@ -34,7 +34,7 @@ export function transpile(code: string): string {
 
   const workflowAst = { subworkflows: ast.body.flatMap(parseTopLevelStatement) }
   const workflow = generateStepNames(workflowAst)
-  return YAML.stringify(workflow.render())
+  return YAML.stringify(workflow.render(), { lineWidth: 100 })
 }
 
 function parseTopLevelStatement(node: any): SubworkflowAST[] {
