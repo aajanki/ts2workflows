@@ -12,34 +12,37 @@ Semicolon can be used as optional statement delimitter.
 
 ## Data types
 
-- Integer (64 bit, signed)
-- Double (64 bit, signed floating point number)
-- String: `"my beautiful string"`, both single or double quotes are accepted
-- Boolean: `true`/`false`
-- Bytes
-- `null`. In addition to the literal `null`, the Typescript `undefined` value is also converted to `null`.
+- `number`: Integer (64 bit, signed) or double (64 bit, signed floating point number)
+- `string`: `"my beautiful string"`, both single or double quotes are accepted
+- `boolean`: `true`/`false`
+- `bytes`
+- `null`
 - Array: `[1, 2, 3]`
 - Map: `{temperature: -12, unit: "Celsius"}`
 
-## Array type
+### Array type
 
 ⚠️ Arrays are not objects. In particular, methods like `array.map()` and `array.concat()` are not available.
 
 ⚠️ Accessing out-of-bounds index will cause an IndexError at runtime unlike in Typescript where out-of-bounds access would return `undefined`.
 
-## Map type
+### Map type
 
 Map keys can be identifiers or strings: `{temperature: -12}` or `{"temperature": -12}`. Trailing commas are allowed.
 
 ⚠️ Trying to access a non-existing member of an object will throw a KeyError at runtime, unlike in Typescript where it would return `undefined`.
 
-## Template literals
+### Bytes type
 
-Template literals are strings that support string interpolation. For example, `Hello ${name}`.
+It is not possible to construct a bytes object expect by calling a function that returns bytes (e.g. base64.decode). It is not possible to do anything else with a bytes object than to assign it to a variable and to pass it one of the functions that take bytes type as input variable (e.g. base64.encode).
 
-⚠️ Interpolated values can (only) be numbers, strings or booleans. Other types will throw a TypeError at runtime.
+### null type
+
+In addition to the literal `null`, the Typescript `undefined` value is also treated as `null` in Workflows YAML.
 
 ## Expressions
+
+Most Typescript expressions work as expected.
 
 Examples:
 
@@ -72,6 +75,12 @@ Operators:
 The [precendence order of operators](https://cloud.google.com/workflows/docs/reference/syntax/datatypes#order-operations) is the same as in GCP Workflows.
 
 See [expression in GCP Workflows](https://cloud.google.com/workflows/docs/reference/syntax/expressions) for more information.
+
+## Template literals
+
+Template literals are strings that support string interpolation. For example, `Hello ${name}`.
+
+⚠️ Interpolated values can (only) be numbers, strings or booleans. Other types will throw a TypeError at runtime.
 
 ## Subworkflow definitions
 
@@ -120,6 +129,57 @@ The returned value can be an expression:
 return firstFactor * secondFactor
 ```
 
+## Calling functions and subworkflows
+
+The statement
+
+```typescript
+const projectId = sys.get_env('GOOGLE_CLOUD_PROJECT_ID')
+```
+
+is converted to an [assign step](https://cloud.google.com/workflows/docs/reference/syntax/variables#assign-step):
+
+```yaml
+- assign1:
+    assign:
+      - projectId: ${sys.get_env("GOOGLE_CLOUD_PROJECT_ID")}
+```
+
+This syntax can be used to call [standard library functions](https://cloud.google.com/workflows/docs/reference/stdlib/overview), subworkflows or connectors.
+
+GCP Workflows language has two ways of calling functions and subworkflows: as expression in an [assign step](https://cloud.google.com/workflows/docs/reference/syntax/variables#assign-step) or as [call step](https://cloud.google.com/workflows/docs/reference/syntax/calls). They can mostly be used interchangeably. However, [blocking calls](https://cloud.google.com/workflows/docs/reference/syntax/expressions#blocking-calls) must be made as call steps. The transpiler tries to automatically output a call step when necessary.
+
+It is also possible to force a function to be called as call step. This might be useful, if the transpiler fails to output call step when it should, or if you want to use named parameters. For example, the following Typescript program
+
+```typescript
+import { call_step, sys } from 'ts2workflows/types/workflowslib'
+
+function main() {
+  call_step(sys.log, {
+    json: { message: 'Hello log' },
+    severity: 'INFO',
+  })
+}
+```
+
+is converted to call step:
+
+```yaml
+main:
+  steps:
+    - call1:
+        call: sys.log
+        args:
+          json:
+            message: Hello log
+          severity: INFO
+```
+
+Some Workflows standard library functions have names that are reserved keywords in Typescript. Those functions must be called with alternative names in ts2workflows source code:
+
+- To generate a call to `default()` in Workflows code, use the nullish coalescing operator `??`.
+- To generete a call to `if()` in Workflows code, use the ternary operator `a ? b : c`.
+
 ## Assignments
 
 The statement
@@ -149,31 +209,6 @@ is converted to
     assign:
       - total: ${total + 1}
 ```
-
-## Function and subworkflow calls
-
-The statement
-
-```typescript
-const projectId = sys.get_env('GOOGLE_CLOUD_PROJECT_ID')
-```
-
-is converted to an [assign step](https://cloud.google.com/workflows/docs/reference/syntax/variables#assign-step):
-
-```yaml
-- assign1:
-    assign:
-      - projectId: ${sys.get_env("GOOGLE_CLOUD_PROJECT_ID")}
-```
-
-This syntax can be used to call [standard library functions](https://cloud.google.com/workflows/docs/reference/stdlib/overview) or subworkflows.
-
-The transpiler automatically detects [blocking calls](https://cloud.google.com/workflows/docs/reference/syntax/expressions#blocking-calls) and converts them to call steps (instead of assign steps) as required by the GCP Workflows runtime.
-
-Some Workflows standard library functions have names that are reserved keywords in Typescript. Those functions must be called with alternative names in ts2workflows source code:
-
-To generate a call to `default()` in Workflows code, use the nullish coalescing operator `??`.
-To generete a call to `if()` in Workflows code, use the ternary operator `a ? b : c`.
 
 ## Conditional statements
 
@@ -624,20 +659,6 @@ The error can be a string, a map or an expression that evaluates to string or ma
 
 Thrown errors can be handled by a try statement.
 
-## Importing type annotations
-
-Type annotations for GCP Workflows standard library functions and expression helpers are provided by importing "ts2workflows/types/workflowslib".
-
-```typescript
-import { http } from 'ts2workflows/types/workflowslib'
-
-function read_data_from_web() {
-  return http.get('https://visit.dreamland.test/')
-}
-```
-
-At the moment, type annotations are provided for some [connectors](https://cloud.google.com/workflows/docs/reference/googleapis) but not for all of them.
-
 ## Labeled steps
 
 The transpiler labels output steps with the step type and sequential numbering by default: e.g. `assign1`, `assign2`, etc. The automatic labels can be overridden by using Typescript labeled statements.
@@ -654,16 +675,76 @@ is converted to a step with the label `setName`:
       - name: Bean
 ```
 
+## Type annotations for standard library functions
+
+Type annotations for GCP Workflows standard library functions and expression helpers are provided by importing "ts2workflows/types/workflowslib".
+
+```typescript
+import { sys } from 'ts2workflows/types/workflowslib'
+
+function read_from_env() {
+  return sys.get_env('GOOGLE_CLOUD_PROJECT_ID')
+}
+```
+
+At the moment, type annotations are provided for some [connectors](https://cloud.google.com/workflows/docs/reference/googleapis) but not for all of them.
+
 ## Special run-time functions
 
-ts2workflows provides some special functions for implementing features that are not directly supported by Typescript language features.
+ts2workflows provides some special functions for implementing features that are not directly supported by Typescript language features. The type annotations for these functions can be imported from ts2workflows/types/workflowslib:
 
-- `parallel` function for executing code blocks in parallel. See the previous sections covering parallel branches and iteration.
-- `retry_policy` function that can be combined with `try`-`catch` block to specify a retry policy.
+```typescript
+import {
+  call_step,
+  parallel,
+  retry_policy,
+} from 'ts2workflows/types/workflowslib'
+```
 
-It is not possible to call subworkflows with these names, because the transpiler treats these names as special cases.
+### call_step
 
-See [type annotations](types/workflowslib.d.ts) for these functions.
+```typescript
+function call_step(func: Function, args: Record<string, unknown>): unknown
+```
+
+The `call_step` function outputs a [call step](https://cloud.google.com/workflows/docs/reference/syntax/calls).
+
+### parallel
+
+```typescript
+function parallel(
+  branches: (() => void)[] | (() => void),
+  options?: {
+    shared?: string[]
+    concurrency_limit?: number
+    exception_policy?: string
+  },
+): void
+```
+
+The `parallel` function executes code blocks in parallel (using [parallel step](https://cloud.google.com/workflows/docs/reference/syntax/parallel-steps)). See the previous sections covering parallel branches and iteration.
+
+### retry_policy
+
+```typescript
+function retry_policy(
+  params:
+    | {
+        policy: (exception: unknown) => void
+      }
+    | {
+        predicate: (exception: unknown) => boolean
+        max_retries: number
+        backoff: {
+          initial_delay: number
+          max_delay: number
+          multiplier: number
+        }
+      },
+): void
+```
+
+The `retry_policy` function can called right after a `try`-`catch` block to specify a retry policy. See the section on retrying.
 
 ## Source code comments
 
@@ -679,7 +760,7 @@ const var1 = 1 // This is a comment
 
 ts2workflows supports only a subset of all Typescript language features. Some examples that are not (yet) supported by ts2workflows:
 
-- Functions provided by a Javascript runtime (`console.log`, `setInterval`, etc) are not available. Only the [GCP Workflows standard library functions](https://cloud.google.com/workflows/docs/reference/stdlib/overview) are available.
+- Functions provided by a Javascript runtime (`console.log`, `setInterval`, etc) are not available. Only the [GCP Workflows standard library functions](https://cloud.google.com/workflows/docs/reference/stdlib/overview) and [connectors](https://cloud.google.com/workflows/docs/reference/googleapis) are available.
 - Classes (`class`) are not supported
 - Arrays and maps are not objects. In particular, arrays don't have methods such as `array.push()`, `array.map()`, etc.
 - Functions (subworkflows) are not first-class objects. Functions can not be assigned to a variable or passed to other functions

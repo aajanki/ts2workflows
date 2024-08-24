@@ -119,10 +119,10 @@ export class CallStepAST
   readonly tag = 'call'
   readonly call: string
   readonly args?: WorkflowParameters
-  readonly result?: string
+  readonly result?: VariableName
   label: string | undefined
 
-  constructor(call: string, args?: WorkflowParameters, result?: string) {
+  constructor(call: string, args?: WorkflowParameters, result?: VariableName) {
     this.call = call
     this.args = args
     this.result = result

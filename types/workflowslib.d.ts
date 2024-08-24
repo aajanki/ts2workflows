@@ -710,3 +710,8 @@ export declare function retry_policy(
         }
       },
 ): void
+
+export declare function call_step(
+  func: Function,
+  arguments: Record<string, unknown>,
+): unknown

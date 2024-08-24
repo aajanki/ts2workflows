@@ -15,6 +15,7 @@ import {
   SwitchStepAST,
   TryStepAST,
   VariableAssignment,
+  WorkflowParameters,
   WorkflowStepAST,
 } from '../ast/steps.js'
 import {
@@ -22,6 +23,7 @@ import {
   ParenthesizedTerm,
   PrimitiveTerm,
   Term,
+  VariableName,
   VariableReferenceTerm,
   binaryExpression,
   functionInvocationExpression,
@@ -31,7 +33,12 @@ import { InternalTranspilingError, WorkflowSyntaxError } from '../errors.js'
 import { isRecord } from '../utils.js'
 import { transformAST } from '../transformations.js'
 import { assertType } from './asserts.js'
-import { convertExpression, convertObjectExpression } from './expressions.js'
+import {
+  convertExpression,
+  convertMemberExpression,
+  convertObjectExpression,
+  convertObjectAsExpressionValues,
+} from './expressions.js'
 
 const {
   ArrayExpression,
@@ -48,6 +55,7 @@ const {
   Identifier,
   IfStatement,
   LabeledStatement,
+  MemberExpression,
   ObjectExpression,
   ReturnStatement,
   SwitchCase,
@@ -235,17 +243,27 @@ function convertVariableDeclarations(declarations: any[]): WorkflowStepAST[] {
     }
 
     const targetName = decl.id.name as string
-    const maybeBlockingcall = getBlockingCallParameters(decl.init)
 
     if (!decl.init) {
       return new AssignStepAST([[targetName, primitiveExpression(null)]])
-    } else if (maybeBlockingcall.isBlockingCall) {
-      return blockingFunctionCallStep(
-        maybeBlockingcall.functionName,
-        maybeBlockingcall.argumentNames,
-        decl.init.arguments,
-        targetName,
-      )
+    } else if (decl.init.type === CallExpression) {
+      const maybeBlockingcall = getBlockingCallParameters(decl.init)
+
+      if (maybeBlockingcall.isBlockingCall) {
+        return blockingFunctionCallStep(
+          maybeBlockingcall.functionName,
+          maybeBlockingcall.argumentNames,
+          decl.init.arguments,
+          targetName,
+        )
+      } else if (
+        decl.init.callee.type === Identifier &&
+        decl.init.callee.name === 'call_step'
+      ) {
+        return createCallStep(decl.init.arguments, targetName)
+      } else {
+        return new AssignStepAST([[targetName, convertExpression(decl.init)]])
+      }
     } else {
       return new AssignStepAST([[targetName, convertExpression(decl.init)]])
     }
@@ -389,6 +407,8 @@ function callExpressionToStep(node: any, ctx: ParsingContext): WorkflowStepAST {
       return callExpressionToParallelStep(node, ctx)
     } else if (calleeName === 'retry_policy') {
       return callExpressionToCallStep(calleeName, node.arguments)
+    } else if (calleeName === 'call_step') {
+      return createCallStep(node.arguments)
     } else if (blockingFunctions.has(calleeName)) {
       const argumentNames = blockingFunctions.get(calleeName) ?? []
       return blockingFunctionCallStep(calleeName, argumentNames, node.arguments)
@@ -426,15 +446,47 @@ function callExpressionToCallStep(
     )
   }
 
-  const primitiveOrExpArguments = convertObjectExpression(argumentsNode[0])
-  const workflowArguments = Object.fromEntries(
-    Object.entries(primitiveOrExpArguments).map(([key, val]) => {
-      const valEx = val instanceof Expression ? val : primitiveExpression(val)
-      return [key, valEx]
-    }),
-  )
+  const workflowArguments = convertObjectAsExpressionValues(argumentsNode[0])
 
   return new CallStepAST(functionName, workflowArguments)
+}
+
+function createCallStep(
+  argumentsNode: any[],
+  resultVariable?: VariableName,
+): CallStepAST {
+  if (argumentsNode.length < 1) {
+    throw new WorkflowSyntaxError(
+      'The first argument must be a Function',
+      argumentsNode[0].loc,
+    )
+  }
+
+  let functionName: string
+  if (argumentsNode[0].type === Identifier) {
+    functionName = argumentsNode[0].name as string
+  } else if (argumentsNode[0].type === MemberExpression) {
+    functionName = convertMemberExpression(argumentsNode[0])
+  } else {
+    throw new WorkflowSyntaxError(
+      'Expected an identifier or a member expression',
+      argumentsNode[0].loc,
+    )
+  }
+
+  let args: WorkflowParameters = {}
+  if (argumentsNode.length >= 2) {
+    if (argumentsNode[1].type !== ObjectExpression) {
+      throw new WorkflowSyntaxError(
+        'The second argument must be an object',
+        argumentsNode[1].loc,
+      )
+    }
+
+    args = convertObjectAsExpressionValues(argumentsNode[1])
+  }
+
+  return new CallStepAST(functionName, args, resultVariable)
 }
 
 function blockingFunctionCallStep(

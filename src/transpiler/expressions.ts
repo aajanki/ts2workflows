@@ -78,6 +78,20 @@ export function convertObjectExpression(
   )
 }
 
+export function convertObjectAsExpressionValues(
+  node: any,
+): Record<string, Expression> {
+  const primitiveOrExpArguments = convertObjectExpression(node)
+
+  // Convert Primitive values to Expressions
+  return Object.fromEntries(
+    Object.entries(primitiveOrExpArguments).map(([key, val]) => {
+      const valEx = val instanceof Expression ? val : primitiveExpression(val)
+      return [key, valEx]
+    }),
+  )
+}
+
 function convertExpressionOrPrimitive(instance: any): Primitive | Expression {
   switch (instance.type) {
     case ArrayExpression:
@@ -269,7 +283,7 @@ function convertUnaryExpression(instance: any): Expression {
   return new Expression(term)
 }
 
-function convertMemberExpression(memberExpression: any): VariableName {
+export function convertMemberExpression(memberExpression: any): VariableName {
   assertType(memberExpression, MemberExpression)
 
   let objectName: string

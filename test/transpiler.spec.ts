@@ -272,6 +272,73 @@ describe('Call statement', () => {
 
     expect(observed).to.deep.equal(expected)
   })
+
+  it('call_step() outputs a call step', () => {
+    const code = `function main() {
+      call_step(sys.log, {
+        json: {"message": "Meow. That's what cats say, right?"},
+        severity: "DEBUG"
+      })
+    }`
+    const observed = YAML.parse(transpile(code)) as unknown
+
+    const expected = YAML.parse(`
+    main:
+      steps:
+        - call1:
+            call: sys.log
+            args:
+              json:
+                message: Meow. That's what cats say, right?
+              severity: DEBUG
+    `) as unknown
+
+    expect(observed).to.deep.equal(expected)
+  })
+
+  it('call_step() with a return value', () => {
+    const code = `function main() {
+      const response = call_step(http.post, {
+        url: "https://visit.dreamland.test/",
+        body: {
+          "user": "bean"
+        }
+      })
+    }`
+    const observed = YAML.parse(transpile(code)) as unknown
+
+    const expected = YAML.parse(`
+    main:
+      steps:
+        - call1:
+            call: http.post
+            args:
+              url: https://visit.dreamland.test/
+              body:
+                user: bean
+            result: response
+    `) as unknown
+
+    expect(observed).to.deep.equal(expected)
+  })
+
+  it('call_step() without arguments', () => {
+    const code = `function main() {
+      const timestamp = call_step(sys.now)
+    }`
+    const observed = YAML.parse(transpile(code)) as unknown
+
+    const expected = YAML.parse(`
+    main:
+      steps:
+        - call1:
+            call: sys.now
+            args: {}
+            result: timestamp
+    `) as unknown
+
+    expect(observed).to.deep.equal(expected)
+  })
 })
 
 describe('Assignment statement', () => {
