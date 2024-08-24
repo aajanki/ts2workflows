@@ -195,7 +195,7 @@ describe('Call statement', () => {
     const expected = YAML.parse(`
     main:
       steps:
-        - call1:
+        - call_sys_log_1:
             call: sys.log
             args:
               text: Something bad happened
@@ -214,7 +214,7 @@ describe('Call statement', () => {
     const expected = YAML.parse(`
     main:
       steps:
-        - call1:
+        - call_http_get_1:
             call: http.get
             args:
               url: https://visit.dreamland.test/
@@ -237,7 +237,7 @@ describe('Call statement', () => {
         - assign1:
             assign:
               - response:
-        - call1:
+        - call_http_get_1:
             call: http.get
             args:
               url: https://visit.dreamland.test/
@@ -260,7 +260,7 @@ describe('Call statement', () => {
         - assign1:
             assign:
               - results: {}
-        - call1:
+        - call_http_get_1:
             call: http.get
             args:
               url: https://visit.dreamland.test/
@@ -285,7 +285,7 @@ describe('Call statement', () => {
     const expected = YAML.parse(`
     main:
       steps:
-        - call1:
+        - call_sys_log_1:
             call: sys.log
             args:
               json:
@@ -310,7 +310,7 @@ describe('Call statement', () => {
     const expected = YAML.parse(`
     main:
       steps:
-        - call1:
+        - call_http_post_1:
             call: http.post
             args:
               url: https://visit.dreamland.test/
@@ -331,7 +331,7 @@ describe('Call statement', () => {
     const expected = YAML.parse(`
     main:
       steps:
-        - call1:
+        - call_sys_now_1:
             call: sys.now
             args: {}
             result: timestamp
@@ -648,7 +648,7 @@ describe('If statement', () => {
             switch:
               - condition: \${x > 0}
                 steps:
-                  - call1:
+                  - call_sys_log_1:
                       call: sys.log
                       args:
                         data: positive
@@ -1041,7 +1041,7 @@ describe('Try-catch statement', () => {
           - try1:
               try:
                 steps:
-                  - call1:
+                  - call_http_get_1:
                       call: http.get
                       args:
                         url: https://visit.dreamland.test/
@@ -1080,7 +1080,7 @@ describe('Try-catch statement', () => {
           - try1:
               try:
                 steps:
-                  - call1:
+                  - call_http_get_1:
                       call: http.get
                       args:
                         url: https://visit.dreamland.test/
@@ -1116,7 +1116,7 @@ describe('Try-catch statement', () => {
           - try1:
               try:
                 steps:
-                  - call1:
+                  - call_http_get_1:
                       call: http.get
                       args:
                         url: https://visit.dreamland.test/
@@ -1157,7 +1157,7 @@ describe('Try-catch statement', () => {
           - try1:
               try:
                 steps:
-                  - call1:
+                  - call_http_get_1:
                       call: http.get
                       args:
                         url: https://visit.dreamland.test/
@@ -1252,7 +1252,7 @@ describe('Try-catch statement', () => {
           - try1:
               try:
                 steps:
-                  - call1:
+                  - call_http_get_1:
                       call: http.get
                       args:
                         url: https://visit.dreamland.test/
@@ -2279,11 +2279,11 @@ describe('Parallel step', () => {
               branches:
                 - branch1:
                     steps:
-                      - call1:
+                      - call_branch1_1:
                           call: branch1
                 - branch2:
                     steps:
-                      - call2:
+                      - call_branch2_1:
                           call: branch2
 
     branch1:

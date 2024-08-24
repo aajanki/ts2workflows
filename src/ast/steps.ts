@@ -130,9 +130,13 @@ export class CallStepAST
 
   withStepNames(generate: (prefix: string) => string): NamedWorkflowStep {
     return {
-      name: this.label ?? generate('call'),
+      name: this.label ?? generate(this.labelPrefix()),
       step: this,
     }
+  }
+
+  labelPrefix(): string {
+    return 'call_' + this.call.replaceAll(/[^a-zA-Z0-9]/g, '_') + '_'
   }
 
   render(): object {
