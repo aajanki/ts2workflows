@@ -4,7 +4,7 @@ import * as fs from 'node:fs'
 import { spawnSync } from 'node:child_process'
 import { transpile } from '../src/transpiler/index.js'
 
-describe('Transpiler', () => {
+describe('Import statement', () => {
   it('accepts named import declaration on the top-level', () => {
     const code = `
     import { http } from 'workflowlib'
@@ -30,31 +30,9 @@ describe('Transpiler', () => {
 
     expect(() => transpile(code)).to.throw()
   })
+})
 
-  it('accepts "export function"', () => {
-    const code = `export function main() { return 1; }`
-    const observed = YAML.parse(transpile(code)) as unknown
-
-    const expected = YAML.parse(`
-    main:
-      steps:
-        - return1:
-            return: 1
-    `) as unknown
-
-    expect(observed).to.deep.equal(expected)
-  })
-
-  it('throws if top level contains other than functions or import', () => {
-    const code = `
-    function main() { }
-
-    const a = 1;
-    `
-
-    expect(() => transpile(code)).to.throw()
-  })
-
+describe('Type annotations', () => {
   it('accepts type annotations on variable declaration', () => {
     const code = `
     function main() {
@@ -91,6 +69,22 @@ describe('Transpiler', () => {
 
     expect(observed).to.deep.equal(expected)
   })
+})
+
+describe('Function definition', () => {
+  it('accepts "export function"', () => {
+    const code = `export function main() { return 1; }`
+    const observed = YAML.parse(transpile(code)) as unknown
+
+    const expected = YAML.parse(`
+    main:
+      steps:
+        - return1:
+            return: 1
+    `) as unknown
+
+    expect(observed).to.deep.equal(expected)
+  })
 
   it('accepts but ignores async and await', () => {
     const code = `
@@ -120,6 +114,25 @@ describe('Transpiler', () => {
     `) as unknown
 
     expect(observed).to.deep.equal(expected)
+  })
+
+  it('throws if function is defined in a nested scope', () => {
+    const code = `
+    function main() {
+      function not_allowed() {}
+    }`
+
+    expect(() => transpile(code)).to.throw()
+  })
+
+  it('throws if top level contains other than functions or import', () => {
+    const code = `
+    function main() { }
+
+    const a = 1;
+    `
+
+    expect(() => transpile(code)).to.throw()
   })
 })
 

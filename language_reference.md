@@ -86,7 +86,7 @@ Template literals are strings that support string interpolation. For example, `H
 
 Typescript `function`s are converted to subworkflow definitions.
 
-The program code must be written inside workflow blocks. Only `function` and `import` declarations are allowed on the top level of a source code file.
+The program code must be written inside workflow blocks. Only `function` and `import` declarations are allowed on the top level of a source code file. Functions can only be defined at the top level of a source file, not inside functions or in other nested scopes.
 
 The workflow execution starts from the subworkflow called "main".
 

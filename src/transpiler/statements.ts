@@ -52,6 +52,7 @@ const {
   ExpressionStatement,
   ForInStatement,
   ForOfStatement,
+  FunctionDeclaration,
   Identifier,
   IfStatement,
   LabeledStatement,
@@ -223,6 +224,12 @@ function parseStep(node: any, ctx: ParsingContext): WorkflowStepAST[] {
 
     case LabeledStatement:
       return labeledStep(node, ctx)
+
+    case FunctionDeclaration:
+      throw new WorkflowSyntaxError(
+        'Functions must be defined at the top level of a source file',
+        node.loc,
+      )
 
     default:
       throw new WorkflowSyntaxError(
