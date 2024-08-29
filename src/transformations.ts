@@ -4,11 +4,21 @@ import {
   CustomRetryPolicy,
   SwitchStepAST,
   TryStepAST,
+  WorkflowParameters,
   WorkflowStepAST,
 } from './ast/steps.js'
 import { InternalTranspilingError } from './errors.js'
 import { isRecord } from './utils.js'
-import { Expression, Primitive, PrimitiveTerm } from './ast/expressions.js'
+import {
+  Expression,
+  FunctionInvocationTerm,
+  ParenthesizedTerm,
+  Primitive,
+  PrimitiveTerm,
+  Term,
+  VariableReferenceTerm,
+} from './ast/expressions.js'
+import { blockingFunctions } from './transpiler/functionMetadata.js'
 
 /**
  * Performs various transformations on the AST.
@@ -17,8 +27,10 @@ import { Expression, Primitive, PrimitiveTerm } from './ast/expressions.js'
  * called on each nesting level separately.
  */
 export function transformAST(steps: WorkflowStepAST[]): WorkflowStepAST[] {
-  return flattenPlainNextConditions(
-    combineRetryBlocksToTry(mergeAssignSteps(steps)),
+  return blockingCallsAsCallSteps(
+    flattenPlainNextConditions(
+      combineRetryBlocksToTry(mergeAssignSteps(steps)),
+    ),
   )
 }
 
@@ -189,4 +201,138 @@ export function flattenPlainNextConditions(
       return step
     }
   })
+}
+
+/**
+ * Search for blocking calls in expressions and replace them with call step + variable.
+ *
+ * Workflows specify that blocking calls must be executed by call steps.
+ *
+ * For example, transforms this:
+ *
+ * - return1:
+ *     return: ${http.get("https://example.com")}
+ *
+ * into this:
+ *
+ * - call_http_get_1:
+ *     call: http.get
+ *     args:
+ *       url: https://example.com
+ *     result: __temp0
+ * - return1:
+ *     return: ${__temp0}
+ */
+function blockingCallsAsCallSteps(steps: WorkflowStepAST[]): WorkflowStepAST[] {
+  const transformer = (ex: Expression): [WorkflowStepAST[], Expression] => {
+    const generateTemporaryVariableName = createTempVariableGenerator()
+    const { transformedExpression, callSteps } = replaceBlockingCalls(
+      ex,
+      generateTemporaryVariableName,
+    )
+
+    return [callSteps, transformedExpression]
+  }
+
+  return steps.reduce((acc: WorkflowStepAST[], current: WorkflowStepAST) => {
+    const transformedSteps = current.transformEpressions(transformer)
+    acc.push(...transformedSteps)
+
+    return acc
+  }, [])
+}
+
+function createTempVariableGenerator(): () => string {
+  let i = 0
+  const generator = () => `__temp${i++}`
+  return generator
+}
+
+const Unmodified = Symbol()
+
+function replaceBlockingCalls(
+  expression: Expression,
+  generateName: () => string,
+): { transformedExpression: Expression; callSteps: CallStepAST[] } {
+  function replaceBlockingFunctionInvocations(
+    t: Term,
+  ): Term | typeof Unmodified {
+    if (t instanceof FunctionInvocationTerm) {
+      const blockingCallArgumentNames = blockingFunctions.get(t.functionName)
+      if (blockingCallArgumentNames) {
+        if (t.arguments.length > blockingCallArgumentNames.length) {
+          throw new InternalTranspilingError(
+            'FunctionInvocationTerm has more arguments than metadata allows!',
+          )
+        }
+
+        const nameAndValue = t.arguments.map(
+          (val, i) => [blockingCallArgumentNames[i], val] as const,
+        )
+        const args: WorkflowParameters = Object.fromEntries(nameAndValue)
+        const tempCallResultVariable = generateName()
+
+        callSteps.push(
+          new CallStepAST(t.functionName, args, tempCallResultVariable),
+        )
+
+        // replace function invocation with a reference to a temporary variable
+        return new VariableReferenceTerm(tempCallResultVariable)
+      } else {
+        return Unmodified
+      }
+    } else {
+      return Unmodified
+    }
+  }
+
+  const callSteps: CallStepAST[] = []
+
+  return {
+    transformedExpression: transformExpression(
+      expression,
+      replaceBlockingFunctionInvocations,
+    ),
+    callSteps,
+  }
+}
+
+function transformExpression(
+  ex: Expression,
+  transformTerm: (t: Term) => Term | typeof Unmodified,
+): Expression {
+  function transformRecursively(term: Term): Term {
+    const transformedTerm = transformTerm(term)
+
+    if (transformedTerm === Unmodified) {
+      // Keep term but recurse into nested expressions
+      if (term instanceof ParenthesizedTerm) {
+        return new ParenthesizedTerm(
+          transformExpression(term.value, transformTerm),
+          term.unaryOperator,
+        )
+      } else if (term instanceof FunctionInvocationTerm) {
+        const newArguments = term.arguments.map((x) =>
+          transformExpression(x, transformTerm),
+        )
+        return new FunctionInvocationTerm(
+          term.functionName,
+          newArguments,
+          term.unaryOperator,
+        )
+      } else {
+        return term
+      }
+    } else {
+      // Use the transformed version of this term
+      return transformedTerm
+    }
+  }
+
+  const transformedRest = ex.rest.map((op) => ({
+    binaryOperator: op.binaryOperator,
+    right: transformRecursively(op.right),
+  }))
+
+  return new Expression(transformRecursively(ex.left), transformedRest)
 }

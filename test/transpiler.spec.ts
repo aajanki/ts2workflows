@@ -247,14 +247,15 @@ describe('Call statement', () => {
     const expected = YAML.parse(`
     main:
       steps:
-        - assign1:
-            assign:
-              - response:
         - call_http_get_1:
             call: http.get
             args:
               url: https://visit.dreamland.test/
-            result: response
+            result: __temp0
+        - assign1:
+            assign:
+              - response:
+              - response: \${__temp0}
     `) as unknown
 
     expect(observed).to.deep.equal(expected)
@@ -270,17 +271,184 @@ describe('Call statement', () => {
     const expected = YAML.parse(`
     main:
       steps:
-        - assign1:
-            assign:
-              - results: {}
         - call_http_get_1:
             call: http.get
             args:
               url: https://visit.dreamland.test/
-            result: __temp
-        - assign2:
+            result: __temp0
+        - assign1:
             assign:
-              - results.response: \${__temp}
+              - results: {}
+              - results.response: \${__temp0}
+    `) as unknown
+
+    expect(observed).to.deep.equal(expected)
+  })
+
+  it('creates call steps for blocking calls in a condition', () => {
+    const code = `function check_post_result() {
+      if (http.post("https://visit.dreamland.test/").code === 200) {
+        return "ok"
+      } else {
+        return "error"
+      }
+    }`
+    const observed = YAML.parse(transpile(code)) as unknown
+
+    const expected = YAML.parse(`
+    check_post_result:
+      steps:
+        - call_http_post_1:
+            call: http.post
+            args:
+              url: https://visit.dreamland.test/
+            result: __temp0
+        - switch1:
+            switch:
+              - condition: \${__temp0.code == 200}
+                steps:
+                  - return1:
+                      return: ok
+              - condition: true
+                steps:
+                  - return2:
+                      return: error
+    `) as unknown
+
+    expect(observed).to.deep.equal(expected)
+  })
+
+  it('creates call steps for blocking calls in a nested scopes', () => {
+    const code = `function scopes() {
+      result = {}
+      result.outer = http.get("https://visit.dreamland.test/outer.html")
+      if (result.outer.code === 200) {
+        try {
+          return http.get("https://visit.dreamland.test/inner.html")
+        } catch (e) {
+          return "exception"
+        }
+      } else {
+        return "error"
+      }
+    }`
+    const observed = YAML.parse(transpile(code)) as unknown
+
+    const expected = YAML.parse(`
+    scopes:
+      steps:
+        - call_http_get_1:
+            call: http.get
+            args:
+              url: https://visit.dreamland.test/outer.html
+            result: __temp0
+        - assign1:
+            assign:
+            - result: {}
+            - result.outer: \${__temp0}
+        - switch1:
+            switch:
+              - condition: \${result.outer.code == 200}
+                steps:
+                  - try1:
+                      try:
+                        steps:
+                          - call_http_get_2:
+                              call: http.get
+                              args:
+                                url: https://visit.dreamland.test/inner.html
+                              result: __temp0
+                          - return1:
+                              return: \${__temp0}
+                      except:
+                        as: e
+                        steps:
+                          - return2:
+                              return: exception
+              - condition: true
+                steps:
+                  - return3:
+                      return: error
+    `) as unknown
+
+    expect(observed).to.deep.equal(expected)
+  })
+
+  it('creates call steps for blocking calls in return expressions', () => {
+    const code = `function download() {
+      return http.get("https://visit.dreamland.test/")
+    }`
+    const observed = YAML.parse(transpile(code)) as unknown
+
+    const expected = YAML.parse(`
+    download:
+      steps:
+        - call_http_get_1:
+            call: http.get
+            args:
+              url: https://visit.dreamland.test/
+            result: __temp0
+        - return1:
+            return: \${__temp0}
+    `) as unknown
+
+    expect(observed).to.deep.equal(expected)
+  })
+
+  it('creates call steps for blocking calls in complex expressions', () => {
+    const code = `function location() {
+      return "response:" + \
+        map.get(http.get("https://visit.dreamland.test/elfo.html"), "body") + \
+        http.get("https://visit.dreamland.test/luci.html").body
+    }`
+    const observed = YAML.parse(transpile(code)) as unknown
+
+    const expected = YAML.parse(`
+    location:
+      steps:
+        - call_http_get_1:
+            call: http.get
+            args:
+              url: https://visit.dreamland.test/elfo.html
+            result: __temp0
+        - call_http_get_2:
+            call: http.get
+            args:
+              url: https://visit.dreamland.test/luci.html
+            result: __temp1
+        - return1:
+            return: \${"response:" + map.get(__temp0, "body") + __temp1.body}
+    `) as unknown
+
+    expect(observed).to.deep.equal(expected)
+  })
+
+  it('creates call steps for nested blocking calls', () => {
+    const code = `function nested() {
+      return http.get(http.get(http.get("https://example.com/redirected.json").body).body)
+    }`
+    const observed = YAML.parse(transpile(code)) as unknown
+
+    const expected = YAML.parse(`
+    nested:
+      steps:
+        - call_http_get_1:
+            call: http.get
+            args:
+              url: https://example.com/redirected.json
+            result: __temp0
+        - call_http_get_2:
+            call: http.get
+            args:
+              url: \${__temp0.body}
+            result: __temp1
+        - call_http_get_3:
+            call: http.get
+            args:
+              url: \${__temp1.body}
+            result: __temp2
+        - return1:
+            return: \${__temp2.body}
     `) as unknown
 
     expect(observed).to.deep.equal(expected)

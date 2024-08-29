@@ -49,6 +49,9 @@ export interface WorkflowStepAST {
   label: string | undefined
 
   withStepNames(generate: (prefix: string) => string): NamedWorkflowStep
+  transformEpressions(
+    transform: (ex: Expression) => [WorkflowStepAST[], Expression],
+  ): WorkflowStepAST[]
 }
 
 /**
@@ -110,6 +113,25 @@ export class AssignStepAST
   transformNestedSteps(): AssignStepAST {
     return this
   }
+
+  transformEpressions(
+    transform: (ex: Expression) => [WorkflowStepAST[], Expression],
+  ): WorkflowStepAST[] {
+    if (this.assignments) {
+      const newSteps: WorkflowStepAST[] = []
+      const newAssignments = this.assignments.map(([name, ex]) => {
+        const [steps2, ex2] = transform(ex)
+        newSteps.push(...steps2)
+        return [name, ex2] as const
+      })
+      const transformedAssign = new AssignStepAST(newAssignments)
+      transformedAssign.label = this.label
+      newSteps.push(transformedAssign)
+      return newSteps
+    } else {
+      return [this]
+    }
+  }
 }
 
 // https://cloud.google.com/workflows/docs/reference/syntax/calls
@@ -169,6 +191,27 @@ export class CallStepAST
   transformNestedSteps(): CallStepAST {
     return this
   }
+
+  transformEpressions(
+    transform: (ex: Expression) => [WorkflowStepAST[], Expression],
+  ): WorkflowStepAST[] {
+    if (this.args) {
+      const newSteps: WorkflowStepAST[] = []
+      const newArgs = Object.fromEntries(
+        Object.entries(this.args).map(([name, ex]) => {
+          const [steps2, ex2] = transform(ex)
+          newSteps.push(...steps2)
+          return [name, ex2] as const
+        }),
+      )
+      const transformedCall = new CallStepAST(this.call, newArgs, this.result)
+      transformedCall.label = this.label
+      newSteps.push(transformedCall)
+      return newSteps
+    } else {
+      return [this]
+    }
+  }
 }
 
 // https://cloud.google.com/workflows/docs/reference/syntax/iteration
@@ -210,6 +253,27 @@ export class ForStepAST implements WorkflowStepAST {
         this.loopVariableName,
         this.listExpression,
       ),
+    }
+  }
+
+  transformEpressions(
+    transform: (ex: Expression) => [WorkflowStepAST[], Expression],
+  ): WorkflowStepAST[] {
+    if (this.listExpression) {
+      const [newSteps, newListExpression] = transform(this.listExpression)
+      const newFor = new ForStepAST(
+        this.steps,
+        this.loopVariableName,
+        newListExpression,
+        this.indexVariableName,
+        this.rangeStart,
+        this.rangeEnd,
+      )
+      newFor.label = this.label
+      newSteps.push(newFor)
+      return newSteps
+    } else {
+      return [this]
     }
   }
 }
@@ -338,6 +402,10 @@ export class NextStepAST
   transformNestedSteps(): NextStepAST {
     return this
   }
+
+  transformEpressions(): WorkflowStepAST[] {
+    return [this]
+  }
 }
 
 // https://cloud.google.com/workflows/docs/reference/syntax/parallel-steps
@@ -389,6 +457,10 @@ export class ParallelStepAST implements WorkflowStepAST {
         this.exceptionPolicy,
       ),
     }
+  }
+
+  transformEpressions(): WorkflowStepAST[] {
+    return [this]
   }
 }
 
@@ -544,6 +616,20 @@ export class RaiseStepAST
   transformNestedSteps(): RaiseStepAST {
     return this
   }
+
+  transformEpressions(
+    transform: (ex: Expression) => [WorkflowStepAST[], Expression],
+  ): WorkflowStepAST[] {
+    if (this.value) {
+      const [newSteps, newEx] = transform(this.value)
+      const newRaise = new RaiseStepAST(newEx)
+      newRaise.label = this.label
+      newSteps.push(newRaise)
+      return newSteps
+    } else {
+      return [this]
+    }
+  }
 }
 
 // https://cloud.google.com/workflows/docs/reference/syntax/completing
@@ -588,6 +674,20 @@ export class ReturnStepAST
   transformNestedSteps(): ReturnStepAST {
     return this
   }
+
+  transformEpressions(
+    transform: (ex: Expression) => [WorkflowStepAST[], Expression],
+  ): WorkflowStepAST[] {
+    if (this.value) {
+      const [newSteps, newEx] = transform(this.value)
+      const newReturn = new ReturnStepAST(newEx)
+      newReturn.label = this.label
+      newSteps.push(newReturn)
+      return newSteps
+    } else {
+      return [this]
+    }
+  }
 }
 
 // https://cloud.google.com/workflows/docs/reference/syntax/steps#embedded-steps
@@ -609,6 +709,10 @@ export class StepsStepAST implements WorkflowStepAST {
       name: this.label ?? generate('steps'),
       step: new StepsStepASTNamed(namedSteps),
     }
+  }
+
+  transformEpressions(): WorkflowStepAST[] {
+    return [this]
   }
 }
 
@@ -691,6 +795,27 @@ export class SwitchStepAST implements WorkflowStepAST {
       name: this.label ?? generate('switch'),
       step: new SwitchStepASTNamed(namedBranches),
     }
+  }
+
+  transformEpressions(
+    transform: (ex: Expression) => [WorkflowStepAST[], Expression],
+  ): WorkflowStepAST[] {
+    const newSteps: WorkflowStepAST[] = []
+    const newBranches = this.branches.map((cond) => {
+      const [steps2, ex2] = transform(cond.condition)
+      newSteps.push(...steps2)
+
+      return {
+        condition: ex2,
+        steps: cond.steps,
+        next: cond.next,
+      }
+    })
+
+    const newStep = new SwitchStepAST(newBranches)
+    newStep.label = this.label
+    newSteps.push(newStep)
+    return newSteps
   }
 }
 
@@ -826,6 +951,10 @@ export class TryStepAST implements WorkflowStepAST {
         this.errorMap,
       ),
     }
+  }
+
+  transformEpressions(): WorkflowStepAST[] {
+    return [this]
   }
 }
 
@@ -969,5 +1098,9 @@ export class JumpTargetAST
       name: this.label,
       step: this,
     }
+  }
+
+  transformEpressions(): WorkflowStepAST[] {
+    return [this]
   }
 }

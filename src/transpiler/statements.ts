@@ -39,6 +39,7 @@ import {
   convertObjectExpression,
   convertObjectAsExpressionValues,
 } from './expressions.js'
+import { blockingFunctions } from './functionMetadata.js'
 
 const {
   ArrayExpression,
@@ -67,93 +68,6 @@ const {
   VariableDeclarator,
   WhileStatement,
 } = AST_NODE_TYPES
-
-// Blocking calls and their argument names. Blocking call must be run from a
-// call step (not inside an expression)
-const blockingFunctions = new Map([
-  ['events.await_callback', ['callback', 'timeout']],
-  [
-    'http.delete',
-    [
-      'url',
-      'timeout',
-      'body',
-      'headers',
-      'query',
-      'auth',
-      'private_service_name',
-      'ca_certificate',
-    ],
-  ],
-  [
-    'http.get',
-    [
-      'url',
-      'timeout',
-      'headers',
-      'query',
-      'auth',
-      'private_service_name',
-      'ca_certificate',
-    ],
-  ],
-  [
-    'http.patch',
-    [
-      'url',
-      'timeout',
-      'body',
-      'headers',
-      'query',
-      'auth',
-      'private_service_name',
-      'ca_certificate',
-    ],
-  ],
-  [
-    'http.post',
-    [
-      'url',
-      'timeout',
-      'body',
-      'headers',
-      'query',
-      'auth',
-      'private_service_name',
-      'ca_certificate',
-    ],
-  ],
-  [
-    'http.put',
-    [
-      'url',
-      'timeout',
-      'body',
-      'headers',
-      'query',
-      'auth',
-      'private_service_name',
-      'ca_certificate',
-    ],
-  ],
-  [
-    'http.request',
-    [
-      'method',
-      'url',
-      'timeout',
-      'body',
-      'headers',
-      'query',
-      'auth',
-      'private_service_name',
-      'ca_certificate',
-    ],
-  ],
-  ['sys.log', ['data', 'severity', 'text', 'json', 'timeout']],
-  ['sys.sleep', ['seconds']],
-  ['sys.sleep_until', ['time']],
-])
 
 export interface ParsingContext {
   // a jump target for an unlabeled break statement
@@ -257,6 +171,9 @@ function convertVariableDeclarations(declarations: any[]): WorkflowStepAST[] {
       const maybeBlockingcall = getBlockingCallParameters(decl.init)
 
       if (maybeBlockingcall.isBlockingCall) {
+        // This branch could be removed. The transform step for extracting
+        // blocking function would take care of this, but it creates an
+        // unnecessary temporary variable assignment step.
         return blockingFunctionCallStep(
           maybeBlockingcall.functionName,
           maybeBlockingcall.argumentNames,
@@ -330,60 +247,23 @@ function assignmentExpressionToSteps(node: any): WorkflowStepAST[] {
     )
   }
 
-  const steps: WorkflowStepAST[] = []
   const targetName = targetExpression.toString()
-  const maybeBlockingcall = getBlockingCallParameters(node.right)
+  let valueExpression: Expression = convertExpression(node.right)
 
-  if (maybeBlockingcall.isBlockingCall) {
-    // Convert a blocking call to a call step
-
-    // A temp variable is needed if the target is something else than a plain
-    // identifier or if this is a compound assignments
-    const useTemp = node.left.type !== Identifier || compoundOperator
-    const resultVariable = useTemp ? '__temp' : targetName
-    steps.push(
-      blockingFunctionCallStep(
-        maybeBlockingcall.functionName,
-        maybeBlockingcall.argumentNames,
-        node.right.arguments,
-        resultVariable,
-      ),
-    )
-
-    if (useTemp) {
-      const tempRef = new VariableReferenceTerm('__temp')
-      let ex: Expression
-      if (compoundOperator) {
-        ex = new Expression(new VariableReferenceTerm(targetName), [
-          { binaryOperator: compoundOperator, right: tempRef },
-        ])
-      } else {
-        ex = new Expression(tempRef)
-      }
-
-      steps.push(new AssignStepAST([[targetName, ex]]))
+  if (compoundOperator) {
+    let right: Term
+    if (valueExpression.isSingleValue()) {
+      right = valueExpression.left
+    } else {
+      right = new ParenthesizedTerm(valueExpression)
     }
 
-    return steps
-  } else {
-    // assignment of an expression value
-    let valueExpression: Expression = convertExpression(node.right)
-
-    if (compoundOperator) {
-      let right: Term
-      if (valueExpression.isSingleValue()) {
-        right = valueExpression.left
-      } else {
-        right = new ParenthesizedTerm(valueExpression)
-      }
-
-      valueExpression = new Expression(new VariableReferenceTerm(targetName), [
-        { binaryOperator: compoundOperator, right },
-      ])
-    }
-
-    return [new AssignStepAST([[targetName, valueExpression]])]
+    valueExpression = new Expression(new VariableReferenceTerm(targetName), [
+      { binaryOperator: compoundOperator, right },
+    ])
   }
+
+  return [new AssignStepAST([[targetName, valueExpression]])]
 }
 
 function getBlockingCallParameters(

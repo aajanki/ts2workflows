@@ -99,7 +99,7 @@ export function functionInvocationExpression(
 // (unaryOperator)? ( LITERAL | VARIABLE | LPAREN expr RPAREN | FUNCTION() )
 export class Term {
   // Potentially a unary operator: -, +, not
-  readonly unaryOperator?: string
+  readonly unaryOperator?: '-' | '+' | 'not'
 
   constructor(unaryOperator?: '-' | '+' | 'not') {
     this.unaryOperator = unaryOperator
@@ -294,7 +294,7 @@ export class ParenthesizedTerm extends Term {
   }
 }
 
-// Function invocation with anonymous parameters: http.get("http://example.com")
+// Function invocation with anonymous parameters: sys.get_env("GOOGLE_CLOUD_PROJECT_ID")
 export class FunctionInvocationTerm extends Term {
   readonly functionName: string
   readonly arguments: Expression[]
