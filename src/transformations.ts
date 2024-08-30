@@ -12,6 +12,7 @@ import { isRecord } from './utils.js'
 import {
   Expression,
   FunctionInvocationTerm,
+  MemberTerm,
   ParenthesizedTerm,
   Primitive,
   PrimitiveTerm,
@@ -281,6 +282,16 @@ function replaceBlockingCalls(
       } else {
         return Unmodified
       }
+    } else if (t instanceof MemberTerm) {
+      const replaced = replaceBlockingCalls(t.object, generateName)
+      callSteps.push(...replaced.callSteps)
+
+      return new MemberTerm(
+        replaced.transformedExpression,
+        t.property,
+        t.computed,
+        t.unaryOperator,
+      )
     } else {
       return Unmodified
     }
