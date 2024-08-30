@@ -340,10 +340,13 @@ function transformExpression(
     }
   }
 
+  // Call transformRecursively on left first to keep the correct order of
+  // execution of sub-expressions
+  const transformedLeft = transformRecursively(ex.left)
   const transformedRest = ex.rest.map((op) => ({
     binaryOperator: op.binaryOperator,
     right: transformRecursively(op.right),
   }))
 
-  return new Expression(transformRecursively(ex.left), transformedRest)
+  return new Expression(transformedLeft, transformedRest)
 }

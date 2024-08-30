@@ -417,7 +417,7 @@ describe('Call statement', () => {
               url: https://visit.dreamland.test/luci.html
             result: __temp1
         - return1:
-            return: \${"response:" + map.get(__temp0, "body") + __temp1.body}
+            return: \${("response:" + map.get(__temp0, "body")) + __temp1.body}
     `) as unknown
 
     expect(observed).to.deep.equal(expected)
