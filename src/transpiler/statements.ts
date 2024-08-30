@@ -353,7 +353,16 @@ function createCallStep(
   if (argumentsNode[0].type === Identifier) {
     functionName = argumentsNode[0].name as string
   } else if (argumentsNode[0].type === MemberExpression) {
-    functionName = convertMemberExpression(argumentsNode[0])
+    const memberExp = convertMemberExpression(argumentsNode[0])
+
+    if (!memberExp.isFullyQualifiedName()) {
+      throw new WorkflowSyntaxError(
+        'Function name must be a fully-qualified name',
+        argumentsNode[0].loc,
+      )
+    }
+
+    functionName = memberExp.toString()
   } else {
     throw new WorkflowSyntaxError(
       'Expected an identifier or a member expression',

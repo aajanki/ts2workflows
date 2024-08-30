@@ -86,6 +86,14 @@ export function variableReferenceExpression(
   return new Expression(new VariableReferenceTerm(variableName))
 }
 
+export function memberExpression(
+  object: Expression,
+  property: Expression,
+  computed: boolean,
+): Expression {
+  return new Expression(new MemberTerm(object, property, computed))
+}
+
 export function functionInvocationExpression(
   functionName: string,
   argumentExpressions: Expression[],
@@ -96,7 +104,7 @@ export function functionInvocationExpression(
 }
 
 // Term is an abstract base class for
-// (unaryOperator)? ( LITERAL | VARIABLE | LPAREN expr RPAREN | FUNCTION() )
+// (unaryOperator)? ( LITERAL | VARIABLE | LPAREN expr RPAREN | FUNCTION() | expr.property )
 export class Term {
   // Potentially a unary operator: -, +, not
   readonly unaryOperator?: '-' | '+' | 'not'
@@ -319,6 +327,43 @@ export class FunctionInvocationTerm extends Term {
   }
 }
 
+export class MemberTerm extends Term {
+  readonly object: Expression
+  readonly property: Expression
+  readonly computed: boolean
+
+  constructor(
+    object: Expression,
+    property: Expression,
+    computed: boolean,
+    unaryOperator?: '+' | '-' | 'not',
+  ) {
+    super(unaryOperator)
+    this.object = object
+    this.property = property
+    this.computed = computed
+  }
+
+  isFullyQualifiedName(): boolean {
+    return (
+      this.object.isFullyQualifiedName() &&
+      (this.computed || this.property.isFullyQualifiedName())
+    )
+  }
+
+  toString(): string {
+    if (this.computed) {
+      return `${super.unaryPrefix()}${this.object.toString()}[${this.property.toString()}]`
+    } else {
+      return `${super.unaryPrefix()}${this.object.toString()}.${this.property.toString()}`
+    }
+  }
+
+  toLiteralValueOrLiteralExpression(): LiteralValueOrLiteralExpression {
+    return `\${${this.toString()}}`
+  }
+}
+
 // expr: term (op term)*
 export class Expression {
   readonly left: Term
@@ -343,7 +388,11 @@ export class Expression {
   }
 
   isFullyQualifiedName(): boolean {
-    return this.rest.length === 0 && this.left instanceof VariableReferenceTerm
+    return (
+      this.rest.length === 0 &&
+      (this.left instanceof VariableReferenceTerm ||
+        (this.left instanceof MemberTerm && this.left.isFullyQualifiedName()))
+    )
   }
 
   // Does not add ${}.

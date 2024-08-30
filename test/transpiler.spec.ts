@@ -583,6 +583,38 @@ describe('Assignment statement', () => {
     expect(observed).to.deep.equal(expected)
   })
 
+  it('member expression with map literal body', () => {
+    const code = `function main() { const res = { "value": 111 }.value; }`
+    const observed = YAML.parse(transpile(code)) as unknown
+
+    const expected = YAML.parse(`
+    main:
+      steps:
+        - assign1:
+            assign:
+              - __temp0:
+                  value: 111
+              - res: __temp0.value
+    `) as unknown
+
+    expect(observed).to.deep.equal(expected)
+  })
+
+  it('member expression with function call body', () => {
+    const code = `function main() { const res = get_object().value; }`
+    const observed = YAML.parse(transpile(code)) as unknown
+
+    const expected = YAML.parse(`
+    main:
+      steps:
+        - assign1:
+            assign:
+              - res: \${get_object().value}
+    `) as unknown
+
+    expect(observed).to.deep.equal(expected)
+  })
+
   it('indexed assignment', () => {
     const code = 'function main() { values[3] = 10; }'
     const observed = YAML.parse(transpile(code)) as unknown

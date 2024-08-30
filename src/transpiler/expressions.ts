@@ -7,10 +7,10 @@ import {
   Primitive,
   PrimitiveTerm,
   Term,
-  VariableName,
   VariableReferenceTerm,
   binaryExpression,
   functionInvocationExpression,
+  memberExpression,
   primitiveExpression,
   variableReferenceExpression,
 } from '../ast/expressions.js'
@@ -125,7 +125,7 @@ function convertExpressionOrPrimitive(instance: any): Primitive | Expression {
       return convertBinaryExpression(instance)
 
     case MemberExpression:
-      return variableReferenceExpression(convertMemberExpression(instance))
+      return convertMemberExpression(instance)
 
     case CallExpression:
       return convertCallExpression(instance)
@@ -283,44 +283,15 @@ function convertUnaryExpression(instance: any): Expression {
   return new Expression(term)
 }
 
-export function convertMemberExpression(memberExpression: any): VariableName {
-  assertType(memberExpression, MemberExpression)
+export function convertMemberExpression(node: any): Expression {
+  assertType(node, MemberExpression)
 
-  let objectName: string
-  switch (memberExpression.object.type) {
-    case Identifier:
-      objectName = memberExpression.object.name as string
-      break
-
-    case MemberExpression:
-      objectName = convertMemberExpression(memberExpression.object)
-      break
-
-    case TSAsExpression:
-      if (memberExpression.object.expression.type === Identifier) {
-        objectName = memberExpression.object.expression.name as string
-      } else {
-        throw new WorkflowSyntaxError(
-          `Not implemented: only Identifier is implemented`,
-          memberExpression.object.expression.loc,
-        )
-      }
-      break
-
-    default:
-      throw new WorkflowSyntaxError(
-        `Unexpected type in member expression: ${memberExpression.object.type}`,
-        memberExpression.loc,
-      )
-  }
-
-  if (memberExpression.computed) {
-    const member = convertExpression(memberExpression.property).toString()
-
-    return `${objectName}[${member}]`
-  } else {
-    return `${objectName}.${memberExpression.property.name}`
-  }
+  const object = convertExpression(node.object)
+  return memberExpression(
+    object,
+    convertExpression(node.property),
+    node.computed,
+  )
 }
 
 function convertCallExpression(node: any): Expression {
