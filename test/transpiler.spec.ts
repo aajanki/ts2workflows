@@ -661,6 +661,25 @@ describe('Assignment statement', () => {
     expect(observed).to.deep.equal(expected)
   })
 
+  it('map literal in an assignment step', () => {
+    const code = `function main() {
+      const a = ({code: 56} as {code: number}).code
+    }`
+    const observed = YAML.parse(transpile(code)) as unknown
+
+    const expected = YAML.parse(`
+    main:
+      steps:
+        - assign1:
+            assign:
+              - __temp0:
+                  code: 56
+              - a: \${__temp0.code}
+    `) as unknown
+
+    expect(observed).to.deep.equal(expected)
+  })
+
   it('map literal as function argument', () => {
     const code = `function main() {
       return get_friends({"name": "Bean"});

@@ -30,10 +30,10 @@ import { blockingFunctions } from './functionMetadata.js'
  * called on each nesting level separately.
  */
 export function transformAST(steps: WorkflowStepAST[]): WorkflowStepAST[] {
-  return mapLiteralsAsAssignSteps(
-    blockingCallsAsCallSteps(
-      flattenPlainNextConditions(
-        combineRetryBlocksToTry(mergeAssignSteps(steps)),
+  return blockingCallsAsCallSteps(
+    flattenPlainNextConditions(
+      combineRetryBlocksToTry(
+        mergeAssignSteps(mapLiteralsAsAssignSteps(steps)),
       ),
     ),
   )
@@ -388,20 +388,58 @@ function mapLiteralsAsAssignSteps(steps: WorkflowStepAST[]): WorkflowStepAST[] {
   }
 
   return steps.reduce((acc: WorkflowStepAST[], current: WorkflowStepAST) => {
-    if (
-      current instanceof AssignStepAST ||
-      current instanceof RaiseStepAST ||
-      current instanceof CallStepAST
-    ) {
-      // Map literal are allowed in assign and raise steps and in call step arguments
-      acc.push(current)
-    } else {
+    let needsTransformation = true
+
+    // These steps are allowed to contain map literals if the map is the
+    // main expression
+    if (current instanceof AssignStepAST) {
+      // This does the transformation a bit too eagerly: If any of the
+      // assignments need map literal extraction, it is done on all of
+      // the variables.
+      needsTransformation = !current.assignments.every(([, value]) => {
+        return value.rest.length === 0 && value.left instanceof PrimitiveTerm
+      })
+    } else if (current instanceof RaiseStepAST) {
+      needsTransformation =
+        !current.value.isLiteral() && includesMapLiteral(current.value)
+    } else if (current instanceof CallStepAST) {
+      if (current.args) {
+        needsTransformation = Object.values(current.args).some(
+          (ex) => !ex.isLiteral() && includesMapLiteral(ex),
+        )
+      }
+    }
+
+    if (needsTransformation) {
       const transformedSteps = current.transformEpressions(transformer)
       acc.push(...transformedSteps)
+    } else {
+      acc.push(current)
     }
 
     return acc
   }, [])
+}
+
+function includesMapLiteral(expression: Expression): boolean {
+  return (
+    termIncludesMapLiteral(expression.left) ||
+    expression.rest.some((op) => termIncludesMapLiteral(op.right))
+  )
+}
+
+function termIncludesMapLiteral(term: Term): boolean {
+  if (term instanceof PrimitiveTerm) {
+    return isRecord(term.value)
+  } else if (term instanceof FunctionInvocationTerm) {
+    return term.arguments.some(includesMapLiteral)
+  } else if (term instanceof ParenthesizedTerm) {
+    return includesMapLiteral(term.value)
+  } else if (term instanceof MemberTerm) {
+    return includesMapLiteral(term.object) || includesMapLiteral(term.object)
+  } else {
+    return false
+  }
 }
 
 function replaceMapLiterals(
