@@ -259,20 +259,28 @@ function replaceBlockingCalls(
     t: Term,
   ): Term | typeof Unmodified {
     if (t instanceof FunctionInvocationTerm) {
+      const callStepsForArguments: CallStepAST[] = []
+      const replacedArguments = t.arguments.map((ex) => {
+        const replaced = replaceBlockingCalls(ex, generateName)
+        callStepsForArguments.push(...replaced.callSteps)
+        return replaced.transformedExpression
+      })
+
       const blockingCallArgumentNames = blockingFunctions.get(t.functionName)
       if (blockingCallArgumentNames) {
-        if (t.arguments.length > blockingCallArgumentNames.length) {
+        if (replacedArguments.length > blockingCallArgumentNames.length) {
           throw new InternalTranspilingError(
             'FunctionInvocationTerm has more arguments than metadata allows!',
           )
         }
 
-        const nameAndValue = t.arguments.map(
+        const nameAndValue = replacedArguments.map(
           (val, i) => [blockingCallArgumentNames[i], val] as const,
         )
         const args: WorkflowParameters = Object.fromEntries(nameAndValue)
         const tempCallResultVariable = generateName()
 
+        callSteps.push(...callStepsForArguments)
         callSteps.push(
           new CallStepAST(t.functionName, args, tempCallResultVariable),
         )
@@ -282,16 +290,6 @@ function replaceBlockingCalls(
       } else {
         return Unmodified
       }
-    } else if (t instanceof MemberTerm) {
-      const replaced = replaceBlockingCalls(t.object, generateName)
-      callSteps.push(...replaced.callSteps)
-
-      return new MemberTerm(
-        replaced.transformedExpression,
-        t.property,
-        t.computed,
-        t.unaryOperator,
-      )
     } else {
       return Unmodified
     }
@@ -331,6 +329,10 @@ function transformExpression(
           newArguments,
           term.unaryOperator,
         )
+      } else if (term instanceof MemberTerm) {
+        const newObject = transformExpression(term.object, transformTerm)
+        const newProperty = transformExpression(term.property, transformTerm)
+        return new MemberTerm(newObject, newProperty, term.computed)
       } else {
         return term
       }

@@ -410,14 +410,14 @@ describe('Call statement', () => {
             call: http.get
             args:
               url: https://visit.dreamland.test/elfo.html
-            result: __temp0
+            result: __temp1
         - call_http_get_2:
             call: http.get
             args:
               url: https://visit.dreamland.test/luci.html
-            result: __temp1
+            result: __temp2
         - return1:
-            return: \${("response:" + map.get(__temp0, "body")) + __temp1.body}
+            return: \${("response:" + map.get(__temp1, "body")) + __temp2.body}
     `) as unknown
 
     expect(observed).to.deep.equal(expected)
@@ -448,7 +448,28 @@ describe('Call statement', () => {
               url: \${__temp1.body}
             result: __temp2
         - return1:
-            return: \${__temp2.body}
+            return: \${__temp2}
+    `) as unknown
+
+    expect(observed).to.deep.equal(expected)
+  })
+
+  it('creates call steps for a nested blocking nested in non-blocking calls', () => {
+    const code = `function nested() {
+      return map.get(map.get(http.get("https://example.com/redirected.json"), "body"), "value")
+    }`
+    const observed = YAML.parse(transpile(code)) as unknown
+
+    const expected = YAML.parse(`
+    nested:
+      steps:
+        - call_http_get_1:
+            call: http.get
+            args:
+              url: https://example.com/redirected.json
+            result: __temp3
+        - return1:
+            return: \${map.get(map.get(__temp3, "body"), "value")}
     `) as unknown
 
     expect(observed).to.deep.equal(expected)
