@@ -31,7 +31,7 @@ import {
 } from '../ast/expressions.js'
 import { InternalTranspilingError, WorkflowSyntaxError } from '../errors.js'
 import { isRecord } from '../utils.js'
-import { transformAST } from '../transformations.js'
+import { transformAST } from './transformations.js'
 import { assertType } from './asserts.js'
 import {
   convertExpression,

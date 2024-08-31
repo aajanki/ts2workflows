@@ -7,9 +7,9 @@ import {
   TryStepAST,
   WorkflowParameters,
   WorkflowStepAST,
-} from './ast/steps.js'
-import { InternalTranspilingError } from './errors.js'
-import { isRecord } from './utils.js'
+} from '../ast/steps.js'
+import { InternalTranspilingError } from '../errors.js'
+import { isRecord } from '../utils.js'
 import {
   Expression,
   FunctionInvocationTerm,
@@ -20,8 +20,8 @@ import {
   Term,
   VariableReferenceTerm,
   primitiveExpression,
-} from './ast/expressions.js'
-import { blockingFunctions } from './transpiler/functionMetadata.js'
+} from '../ast/expressions.js'
+import { blockingFunctions } from './functionMetadata.js'
 
 /**
  * Performs various transformations on the AST.
