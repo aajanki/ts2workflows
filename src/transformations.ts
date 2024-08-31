@@ -2,6 +2,7 @@ import {
   AssignStepAST,
   CallStepAST,
   CustomRetryPolicy,
+  RaiseStepAST,
   SwitchStepAST,
   TryStepAST,
   WorkflowParameters,
@@ -18,6 +19,7 @@ import {
   PrimitiveTerm,
   Term,
   VariableReferenceTerm,
+  primitiveExpression,
 } from './ast/expressions.js'
 import { blockingFunctions } from './transpiler/functionMetadata.js'
 
@@ -28,9 +30,11 @@ import { blockingFunctions } from './transpiler/functionMetadata.js'
  * called on each nesting level separately.
  */
 export function transformAST(steps: WorkflowStepAST[]): WorkflowStepAST[] {
-  return blockingCallsAsCallSteps(
-    flattenPlainNextConditions(
-      combineRetryBlocksToTry(mergeAssignSteps(steps)),
+  return mapLiteralsAsAssignSteps(
+    blockingCallsAsCallSteps(
+      flattenPlainNextConditions(
+        combineRetryBlocksToTry(mergeAssignSteps(steps)),
+      ),
     ),
   )
 }
@@ -351,4 +355,77 @@ function transformExpression(
   }))
 
   return new Expression(transformedLeft, transformedRest)
+}
+
+/**
+ * Search for map literals in expressions and replace them with assign step + variable.
+ *
+ * Workflows does not support a map literal in expressions.
+ *
+ * For example, transforms this:
+ *
+ * - return1:
+ *     return: ${ {value: 5}.value }
+ *
+ * into this:
+ *
+ * - assign1:
+ *     assign:
+ *       - __temp0:
+ *         value: 5
+ * - return1:
+ *     return: ${__temp0.value}
+ */
+function mapLiteralsAsAssignSteps(steps: WorkflowStepAST[]): WorkflowStepAST[] {
+  const transformer = (ex: Expression): [WorkflowStepAST[], Expression] => {
+    const generateTemporaryVariableName = createTempVariableGenerator()
+    const { transformedExpression, assignSteps } = replaceMapLiterals(
+      ex,
+      generateTemporaryVariableName,
+    )
+
+    return [assignSteps, transformedExpression]
+  }
+
+  return steps.reduce((acc: WorkflowStepAST[], current: WorkflowStepAST) => {
+    if (
+      current instanceof AssignStepAST ||
+      current instanceof RaiseStepAST ||
+      current instanceof CallStepAST
+    ) {
+      // Map literal are allowed in assign and raise steps and in call step arguments
+      acc.push(current)
+    } else {
+      const transformedSteps = current.transformEpressions(transformer)
+      acc.push(...transformedSteps)
+    }
+
+    return acc
+  }, [])
+}
+
+function replaceMapLiterals(
+  expression: Expression,
+  generateName: () => string,
+): { transformedExpression: Expression; assignSteps: AssignStepAST[] } {
+  function replace(t: Term): Term | typeof Unmodified {
+    if (t instanceof PrimitiveTerm && isRecord(t.value)) {
+      const tempVariable = generateName()
+      assignSteps.push(
+        new AssignStepAST([[tempVariable, primitiveExpression(t.value)]]),
+      )
+
+      // replace the map literal with a reference to a temporary variable
+      return new VariableReferenceTerm(tempVariable)
+    } else {
+      return Unmodified
+    }
+  }
+
+  const assignSteps: AssignStepAST[] = []
+
+  return {
+    transformedExpression: transformExpression(expression, replace),
+    assignSteps,
+  }
 }

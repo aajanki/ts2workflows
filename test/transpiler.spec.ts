@@ -605,7 +605,9 @@ describe('Assignment statement', () => {
   })
 
   it('member expression with map literal body', () => {
-    const code = `function main() { const res = { "value": 111 }.value; }`
+    const code = `function main() {
+      return { "value": 111 }.value;
+    }`
     const observed = YAML.parse(transpile(code)) as unknown
 
     const expected = YAML.parse(`
@@ -615,7 +617,30 @@ describe('Assignment statement', () => {
             assign:
               - __temp0:
                   value: 111
-              - res: __temp0.value
+        - return1:
+            return: \${__temp0.value}
+    `) as unknown
+
+    expect(observed).to.deep.equal(expected)
+  })
+
+  it('deep member expression with map literal body', () => {
+    const code = `function main() {
+      return { temperature: { value: 18, unit: "Celsius" } }.temperature.value;
+    }`
+    const observed = YAML.parse(transpile(code)) as unknown
+
+    const expected = YAML.parse(`
+    main:
+      steps:
+        - assign1:
+            assign:
+              - __temp0:
+                  temperature:
+                    value: 18
+                    unit: Celsius
+        - return1:
+            return: \${__temp0.temperature.value}
     `) as unknown
 
     expect(observed).to.deep.equal(expected)
@@ -631,6 +656,72 @@ describe('Assignment statement', () => {
         - assign1:
             assign:
               - res: \${get_object().value}
+    `) as unknown
+
+    expect(observed).to.deep.equal(expected)
+  })
+
+  it('map literal as function argument', () => {
+    const code = `function main() {
+      return get_friends({"name": "Bean"});
+    }`
+    const observed = YAML.parse(transpile(code)) as unknown
+
+    const expected = YAML.parse(`
+    main:
+      steps:
+        - assign1:
+            assign:
+              - __temp0:
+                  name: Bean
+        - return1:
+            return: \${get_friends(__temp0)}
+    `) as unknown
+
+    expect(observed).to.deep.equal(expected)
+  })
+
+  it('map literal in complex expression', () => {
+    const code = `function complex() {
+      const codes = { success: "OK" }
+      try {
+        if (2*({value: 5}.value + 10) > 0) {
+          return codes[{status: "success"}.status]
+        }
+      } catch {
+        return "error"
+      }
+    }`
+    const observed = YAML.parse(transpile(code)) as unknown
+
+    const expected = YAML.parse(`
+    complex:
+      steps:
+        - assign1:
+            assign:
+              - codes:
+                  success: OK
+        - try1:
+            try:
+              steps:
+                - assign2:
+                    assign:
+                      - __temp0:
+                          value: 5
+                - switch1:
+                    switch:
+                      - condition: \${(2 * (__temp0.value + 10)) > 0}
+                        steps:
+                          - assign3:
+                              assign:
+                                - __temp0:
+                                    status: success
+                          - return1:
+                              return: \${codes[__temp0.status]}
+            except:
+              steps:
+                - return2:
+                    return: error
     `) as unknown
 
     expect(observed).to.deep.equal(expected)
