@@ -64,6 +64,8 @@ const {
   SwitchStatement,
   ThrowStatement,
   TryStatement,
+  TSTypeAliasDeclaration,
+  TSInterfaceDeclaration,
   VariableDeclaration,
   VariableDeclarator,
   WhileStatement,
@@ -144,6 +146,11 @@ function parseStep(node: any, ctx: ParsingContext): WorkflowStepAST[] {
         'Functions must be defined at the top level of a source file',
         node.loc,
       )
+
+    case TSInterfaceDeclaration:
+    case TSTypeAliasDeclaration:
+      // Ignore "type" and "interface" declarations
+      return []
 
     default:
       throw new WorkflowSyntaxError(

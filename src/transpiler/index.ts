@@ -19,6 +19,8 @@ const {
   ImportNamespaceSpecifier,
   Literal,
   Program,
+  TSTypeAliasDeclaration,
+  TSInterfaceDeclaration,
 } = AST_NODE_TYPES
 
 export function transpile(code: string): string {
@@ -66,9 +68,14 @@ function parseTopLevelStatement(node: any): SubworkflowAST[] {
         return []
       }
 
+    case TSInterfaceDeclaration:
+    case TSTypeAliasDeclaration:
+      // Ignore "type" and "interface" declarations at the top-level
+      return []
+
     default:
       throw new WorkflowSyntaxError(
-        `Only function declarations and imports allowed on the top level, encountered ${node?.type}`,
+        `Only function declarations, imports and type aliases allowed at the top level, encountered ${node?.type}`,
         node?.loc,
       )
   }
