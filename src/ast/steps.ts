@@ -35,8 +35,7 @@ export class SubworkflowAST {
   }
 
   withStepNames(generate: (prefix: string) => string): Subworkflow {
-    const steps = this.steps.map((step) => step.withStepNames(generate))
-
+    const steps = this.steps.map((step) => namedSteps(step, generate))
     return new Subworkflow(this.name, steps, this.params)
   }
 }
@@ -44,31 +43,34 @@ export class SubworkflowAST {
 /**
  * A workflow step before step names have been assigned.
  */
-export interface WorkflowStepAST {
-  readonly tag: string
-  label: string | undefined
-
-  withStepNames(generate: (prefix: string) => string): NamedWorkflowStep
-  transformEpressions(
-    transform: (ex: Expression) => [WorkflowStepAST[], Expression],
-  ): WorkflowStepAST[]
-}
+export type WorkflowStepAST =
+  | AssignStepAST
+  | CallStepAST
+  | ForStepAST
+  | NextStepAST
+  | ParallelStepAST
+  | RaiseStepAST
+  | ReturnStepAST
+  | StepsStepAST
+  | SwitchStepAST
+  | TryStepAST
+  | JumpTargetAST
 
 /**
  * A workflow step after names have been generated for the nested steps.
  */
-export interface WorkflowStepASTWithNamedNested {
-  readonly tag: string
-
-  render(): object
-  nestedSteps(): NamedWorkflowStep[][]
-  renameJumpTargets(
-    replaceLabels: Map<StepName, StepName>,
-  ): WorkflowStepASTWithNamedNested
-  transformNestedSteps(
-    transform: (steps: NamedWorkflowStep[]) => NamedWorkflowStep[],
-  ): WorkflowStepASTWithNamedNested
-}
+export type WorkflowStepASTWithNamedNested =
+  | AssignStepAST
+  | CallStepAST
+  | ForStepASTNamed
+  | NextStepAST
+  | ParallelStepASTNamed
+  | RaiseStepAST
+  | ReturnStepAST
+  | StepsStepASTNamed
+  | SwitchStepASTNamed
+  | TryStepASTNamed
+  | JumpTargetAST
 
 export interface NamedWorkflowStep {
   name: StepName
@@ -76,9 +78,7 @@ export interface NamedWorkflowStep {
 }
 
 // https://cloud.google.com/workflows/docs/reference/syntax/variables#assign-step
-export class AssignStepAST
-  implements WorkflowStepAST, WorkflowStepASTWithNamedNested
-{
+export class AssignStepAST {
   readonly tag = 'assign'
   readonly assignments: VariableAssignment[]
   label: string | undefined
@@ -86,58 +86,10 @@ export class AssignStepAST
   constructor(assignments: VariableAssignment[]) {
     this.assignments = assignments
   }
-
-  withStepNames(generate: (prefix: string) => string): NamedWorkflowStep {
-    return {
-      name: this.label ?? generate('assign'),
-      step: this,
-    }
-  }
-
-  render(): object {
-    return {
-      assign: this.assignments.map(([key, val]) => {
-        return { [key]: val.toLiteralValueOrLiteralExpression() }
-      }),
-    }
-  }
-
-  nestedSteps(): NamedWorkflowStep[][] {
-    return []
-  }
-
-  renameJumpTargets(): AssignStepAST {
-    return this
-  }
-
-  transformNestedSteps(): AssignStepAST {
-    return this
-  }
-
-  transformEpressions(
-    transform: (ex: Expression) => [WorkflowStepAST[], Expression],
-  ): WorkflowStepAST[] {
-    if (this.assignments) {
-      const newSteps: WorkflowStepAST[] = []
-      const newAssignments = this.assignments.map(([name, ex]) => {
-        const [steps2, ex2] = transform(ex)
-        newSteps.push(...steps2)
-        return [name, ex2] as const
-      })
-      const transformedAssign = new AssignStepAST(newAssignments)
-      transformedAssign.label = this.label
-      newSteps.push(transformedAssign)
-      return newSteps
-    } else {
-      return [this]
-    }
-  }
 }
 
 // https://cloud.google.com/workflows/docs/reference/syntax/calls
-export class CallStepAST
-  implements WorkflowStepAST, WorkflowStepASTWithNamedNested
-{
+export class CallStepAST {
   readonly tag = 'call'
   readonly call: string
   readonly args?: WorkflowParameters
@@ -150,72 +102,13 @@ export class CallStepAST
     this.result = result
   }
 
-  withStepNames(generate: (prefix: string) => string): NamedWorkflowStep {
-    return {
-      name: this.label ?? generate(this.labelPrefix()),
-      step: this,
-    }
-  }
-
   labelPrefix(): string {
     return 'call_' + this.call.replaceAll(/[^a-zA-Z0-9]/g, '_') + '_'
-  }
-
-  render(): object {
-    let args:
-      | Record<string, null | string | number | boolean | object>
-      | undefined = undefined
-    if (this.args) {
-      args = Object.fromEntries(
-        Object.entries(this.args).map(([k, v]) => {
-          return [k, v.toLiteralValueOrLiteralExpression()]
-        }),
-      )
-    }
-
-    return {
-      call: this.call,
-      ...(args && { args }),
-      ...(this.result && { result: this.result }),
-    }
-  }
-
-  nestedSteps(): NamedWorkflowStep[][] {
-    return []
-  }
-
-  renameJumpTargets(): CallStepAST {
-    return this
-  }
-
-  transformNestedSteps(): CallStepAST {
-    return this
-  }
-
-  transformEpressions(
-    transform: (ex: Expression) => [WorkflowStepAST[], Expression],
-  ): WorkflowStepAST[] {
-    if (this.args) {
-      const newSteps: WorkflowStepAST[] = []
-      const newArgs = Object.fromEntries(
-        Object.entries(this.args).map(([name, ex]) => {
-          const [steps2, ex2] = transform(ex)
-          newSteps.push(...steps2)
-          return [name, ex2] as const
-        }),
-      )
-      const transformedCall = new CallStepAST(this.call, newArgs, this.result)
-      transformedCall.label = this.label
-      newSteps.push(transformedCall)
-      return newSteps
-    } else {
-      return [this]
-    }
   }
 }
 
 // https://cloud.google.com/workflows/docs/reference/syntax/iteration
-export class ForStepAST implements WorkflowStepAST {
+export class ForStepAST {
   readonly tag = 'for'
   readonly steps: WorkflowStepAST[]
   readonly loopVariableName: VariableName
@@ -240,45 +133,9 @@ export class ForStepAST implements WorkflowStepAST {
     this.rangeStart = rangeStart
     this.rangeEnd = rangeEnd
   }
-
-  withStepNames(generate: (prefix: string) => string): NamedWorkflowStep {
-    const namedSteps = this.steps.map((astStep) =>
-      astStep.withStepNames(generate),
-    )
-
-    return {
-      name: this.label ?? generate('for'),
-      step: new ForStepASTNamed(
-        namedSteps,
-        this.loopVariableName,
-        this.listExpression,
-      ),
-    }
-  }
-
-  transformEpressions(
-    transform: (ex: Expression) => [WorkflowStepAST[], Expression],
-  ): WorkflowStepAST[] {
-    if (this.listExpression) {
-      const [newSteps, newListExpression] = transform(this.listExpression)
-      const newFor = new ForStepAST(
-        this.steps,
-        this.loopVariableName,
-        newListExpression,
-        this.indexVariableName,
-        this.rangeStart,
-        this.rangeEnd,
-      )
-      newFor.label = this.label
-      newSteps.push(newFor)
-      return newSteps
-    } else {
-      return [this]
-    }
-  }
 }
 
-export class ForStepASTNamed implements WorkflowStepASTWithNamedNested {
+export class ForStepASTNamed {
   readonly tag = 'for'
   readonly steps: NamedWorkflowStep[]
   readonly loopVariableName: VariableName
@@ -302,69 +159,9 @@ export class ForStepASTNamed implements WorkflowStepASTWithNamedNested {
     this.rangeStart = rangeStart
     this.rangeEnd = rangeEnd
   }
-
-  render(): object {
-    return {
-      for: this.renderBody(),
-    }
-  }
-
-  renderBody(): object {
-    let range: (number | undefined)[] | undefined
-    let inValue: null | string | number | boolean | object | undefined
-    if (typeof this.listExpression === 'undefined') {
-      range = [this.rangeStart, this.rangeEnd]
-      inValue = undefined
-    } else {
-      inValue = this.listExpression.toLiteralValueOrLiteralExpression()
-      range = undefined
-    }
-
-    return {
-      value: this.loopVariableName,
-      ...(this.indexVariableName && { index: this.indexVariableName }),
-      ...(inValue && { in: inValue }),
-      ...(range && { range }),
-      steps: renderSteps(this.steps),
-    }
-  }
-
-  nestedSteps(): NamedWorkflowStep[][] {
-    return [this.steps]
-  }
-
-  renameJumpTargets(replaceLabels: Map<StepName, StepName>): ForStepASTNamed {
-    const transformedSteps = this.steps.map(({ name, step }) => ({
-      name,
-      step: step.renameJumpTargets(replaceLabels),
-    }))
-    return new ForStepASTNamed(
-      transformedSteps,
-      this.loopVariableName,
-      this.listExpression,
-      this.indexVariableName,
-      this.rangeStart,
-      this.rangeEnd,
-    )
-  }
-
-  transformNestedSteps(
-    transform: (steps: NamedWorkflowStep[]) => NamedWorkflowStep[],
-  ): ForStepASTNamed {
-    return new ForStepASTNamed(
-      transform(this.steps),
-      this.loopVariableName,
-      this.listExpression,
-      this.indexVariableName,
-      this.rangeStart,
-      this.rangeEnd,
-    )
-  }
 }
 
-export class NextStepAST
-  implements WorkflowStepAST, WorkflowStepASTWithNamedNested
-{
+export class NextStepAST {
   readonly tag = 'next'
   readonly target: string
   label: string | undefined
@@ -372,44 +169,10 @@ export class NextStepAST
   constructor(target: string) {
     this.target = target
   }
-
-  withStepNames(generate: (prefix: string) => string): NamedWorkflowStep {
-    return {
-      name: this.label ?? generate('next'),
-      step: this,
-    }
-  }
-
-  render(): object {
-    return {
-      next: this.target,
-    }
-  }
-
-  nestedSteps(): NamedWorkflowStep[][] {
-    return []
-  }
-
-  renameJumpTargets(replaceLabels: Map<StepName, StepName>): NextStepAST {
-    const newLabel = replaceLabels.get(this.target)
-    if (newLabel) {
-      return new NextStepAST(newLabel)
-    } else {
-      return this
-    }
-  }
-
-  transformNestedSteps(): NextStepAST {
-    return this
-  }
-
-  transformEpressions(): WorkflowStepAST[] {
-    return [this]
-  }
 }
 
 // https://cloud.google.com/workflows/docs/reference/syntax/parallel-steps
-export class ParallelStepAST implements WorkflowStepAST {
+export class ParallelStepAST {
   readonly tag = 'parallel'
   readonly steps: Record<StepName, StepsStepAST> | ForStepAST
   readonly shared?: VariableName[]
@@ -428,43 +191,9 @@ export class ParallelStepAST implements WorkflowStepAST {
     this.concurrencyLimit = concurrencyLimit
     this.exceptionPolicy = exceptionPolicy
   }
-
-  withStepNames(generate: (prefix: string) => string): NamedWorkflowStep {
-    let steps: Record<StepName, StepsStepASTNamed> | ForStepASTNamed
-    if (this.steps instanceof ForStepAST) {
-      const forStep = this.steps.withStepNames(generate).step
-
-      if (!(forStep instanceof ForStepASTNamed)) {
-        throw new Error('Encountered an unexpected step')
-      }
-
-      steps = forStep
-    } else {
-      steps = Object.fromEntries(
-        Object.entries(this.steps).map(([name, astStep]) => {
-          const namedSteps = astStep.steps.map((x) => x.withStepNames(generate))
-          return [name, new StepsStepASTNamed(namedSteps)]
-        }),
-      )
-    }
-
-    return {
-      name: this.label ?? generate('parallel'),
-      step: new ParallelStepASTNamed(
-        steps,
-        this.shared,
-        this.concurrencyLimit,
-        this.exceptionPolicy,
-      ),
-    }
-  }
-
-  transformEpressions(): WorkflowStepAST[] {
-    return [this]
-  }
 }
 
-export class ParallelStepASTNamed implements WorkflowStepASTWithNamedNested {
+export class ParallelStepASTNamed {
   readonly tag = 'parallel'
   readonly branches?: NamedWorkflowStep[] // Either steps for each branch
   readonly forStep?: ForStepASTNamed // ... or a parallel for
@@ -490,100 +219,10 @@ export class ParallelStepASTNamed implements WorkflowStepASTWithNamedNested {
       })
     }
   }
-
-  render(): object {
-    return {
-      parallel: {
-        ...(this.shared && { shared: this.shared }),
-        ...(this.concurrenceLimit && {
-          concurrency_limit: this.concurrenceLimit,
-        }),
-        ...(this.exceptionPolicy && { exception_policy: this.exceptionPolicy }),
-        ...(this.branches && { branches: renderSteps(this.branches) }),
-        ...(this.forStep && { for: this.forStep.renderBody() }),
-      },
-    }
-  }
-
-  nestedSteps(): NamedWorkflowStep[][] {
-    const nested = []
-    if (this.branches && this.branches.length > 0) {
-      // return each branch as a separate child
-      nested.push(...this.branches.map((x) => [x]))
-    }
-    if (this.forStep?.steps && this.forStep.steps.length > 0) {
-      nested.push(this.forStep.steps)
-    }
-
-    return nested
-  }
-
-  renameJumpTargets(
-    replaceLabels: Map<StepName, StepName>,
-  ): ParallelStepASTNamed {
-    let transformedSteps: Record<StepName, StepsStepASTNamed> | ForStepASTNamed
-    if (this.branches) {
-      transformedSteps = Object.fromEntries(
-        this.branches.map(({ name, step }) => {
-          const nestedSteps = step
-            .nestedSteps()
-            .flat()
-            .map((x) => ({
-              name: x.name,
-              step: x.step.renameJumpTargets(replaceLabels),
-            }))
-
-          return [name, new StepsStepASTNamed(nestedSteps)]
-        }),
-      )
-    } else if (this.forStep) {
-      transformedSteps = this.forStep.renameJumpTargets(replaceLabels)
-    } else {
-      // should not be reached
-      transformedSteps = {}
-    }
-
-    return new ParallelStepASTNamed(
-      transformedSteps,
-      this.shared,
-      this.concurrenceLimit,
-      this.exceptionPolicy,
-    )
-  }
-
-  transformNestedSteps(
-    transform: (steps: NamedWorkflowStep[]) => NamedWorkflowStep[],
-  ): ParallelStepASTNamed {
-    let transformedSteps: Record<StepName, StepsStepASTNamed> | ForStepASTNamed
-    if (this.branches) {
-      transformedSteps = Object.fromEntries(
-        this.branches.map((x) => {
-          return [
-            x.name,
-            new StepsStepASTNamed(transform(x.step.nestedSteps().flat())),
-          ]
-        }),
-      )
-    } else if (this.forStep) {
-      transformedSteps = this.forStep.transformNestedSteps(transform)
-    } else {
-      // should not be reached
-      transformedSteps = {}
-    }
-
-    return new ParallelStepASTNamed(
-      transformedSteps,
-      this.shared,
-      this.concurrenceLimit,
-      this.exceptionPolicy,
-    )
-  }
 }
 
 // https://cloud.google.com/workflows/docs/reference/syntax/raising-errors
-export class RaiseStepAST
-  implements WorkflowStepAST, WorkflowStepASTWithNamedNested
-{
+export class RaiseStepAST {
   readonly tag = 'raise'
   readonly value: Expression
   label: string | undefined
@@ -591,51 +230,10 @@ export class RaiseStepAST
   constructor(value: Expression) {
     this.value = value
   }
-
-  withStepNames(generate: (prefix: string) => string): NamedWorkflowStep {
-    return {
-      name: this.label ?? generate('raise'),
-      step: this,
-    }
-  }
-
-  render(): object {
-    return {
-      raise: this.value.toLiteralValueOrLiteralExpression(),
-    }
-  }
-
-  nestedSteps(): NamedWorkflowStep[][] {
-    return []
-  }
-
-  renameJumpTargets(): RaiseStepAST {
-    return this
-  }
-
-  transformNestedSteps(): RaiseStepAST {
-    return this
-  }
-
-  transformEpressions(
-    transform: (ex: Expression) => [WorkflowStepAST[], Expression],
-  ): WorkflowStepAST[] {
-    if (this.value) {
-      const [newSteps, newEx] = transform(this.value)
-      const newRaise = new RaiseStepAST(newEx)
-      newRaise.label = this.label
-      newSteps.push(newRaise)
-      return newSteps
-    } else {
-      return [this]
-    }
-  }
 }
 
 // https://cloud.google.com/workflows/docs/reference/syntax/completing
-export class ReturnStepAST
-  implements WorkflowStepAST, WorkflowStepASTWithNamedNested
-{
+export class ReturnStepAST {
   readonly tag = 'return'
   readonly value: Expression | undefined
   label: string | undefined
@@ -643,55 +241,10 @@ export class ReturnStepAST
   constructor(value: Expression | undefined) {
     this.value = value
   }
-
-  withStepNames(generate: (prefix: string) => string): NamedWorkflowStep {
-    return {
-      name: this.label ?? generate('return'),
-      step: this,
-    }
-  }
-
-  render(): object {
-    if (this.value) {
-      return {
-        return: this.value.toLiteralValueOrLiteralExpression(),
-      }
-    } else {
-      return {
-        next: 'end',
-      }
-    }
-  }
-
-  nestedSteps(): NamedWorkflowStep[][] {
-    return []
-  }
-
-  renameJumpTargets(): ReturnStepAST {
-    return this
-  }
-
-  transformNestedSteps(): ReturnStepAST {
-    return this
-  }
-
-  transformEpressions(
-    transform: (ex: Expression) => [WorkflowStepAST[], Expression],
-  ): WorkflowStepAST[] {
-    if (this.value) {
-      const [newSteps, newEx] = transform(this.value)
-      const newReturn = new ReturnStepAST(newEx)
-      newReturn.label = this.label
-      newSteps.push(newReturn)
-      return newSteps
-    } else {
-      return [this]
-    }
-  }
 }
 
 // https://cloud.google.com/workflows/docs/reference/syntax/steps#embedded-steps
-export class StepsStepAST implements WorkflowStepAST {
+export class StepsStepAST {
   readonly tag = 'steps'
   readonly steps: WorkflowStepAST[]
   label: string | undefined
@@ -699,59 +252,19 @@ export class StepsStepAST implements WorkflowStepAST {
   constructor(steps: WorkflowStepAST[]) {
     this.steps = steps
   }
-
-  withStepNames(generate: (prefix: string) => string): NamedWorkflowStep {
-    const namedSteps = this.steps.map((astStep) =>
-      astStep.withStepNames(generate),
-    )
-
-    return {
-      name: this.label ?? generate('steps'),
-      step: new StepsStepASTNamed(namedSteps),
-    }
-  }
-
-  transformEpressions(): WorkflowStepAST[] {
-    return [this]
-  }
 }
 
-export class StepsStepASTNamed implements WorkflowStepASTWithNamedNested {
+export class StepsStepASTNamed {
   readonly tag = 'steps'
   readonly steps: NamedWorkflowStep[]
 
   constructor(steps: NamedWorkflowStep[]) {
     this.steps = steps
   }
-
-  render(): object {
-    return {
-      steps: renderSteps(this.steps),
-    }
-  }
-
-  nestedSteps(): NamedWorkflowStep[][] {
-    return [this.steps]
-  }
-
-  renameJumpTargets(replaceLabels: Map<StepName, StepName>): StepsStepASTNamed {
-    const transformedSteps = this.steps.map(({ name, step }) => ({
-      name,
-      step: step.renameJumpTargets(replaceLabels),
-    }))
-
-    return new StepsStepASTNamed(transformedSteps)
-  }
-
-  transformNestedSteps(
-    transform: (steps: NamedWorkflowStep[]) => NamedWorkflowStep[],
-  ): StepsStepASTNamed {
-    return new StepsStepASTNamed(transform(this.steps))
-  }
 }
 
 // https://cloud.google.com/workflows/docs/reference/syntax/conditions
-export class SwitchStepAST implements WorkflowStepAST {
+export class SwitchStepAST {
   readonly tag = 'switch'
   readonly branches: SwitchConditionAST[]
   label: string | undefined
@@ -780,46 +293,9 @@ export class SwitchStepAST implements WorkflowStepAST {
 
     return new SwitchStepAST(transformedBranches)
   }
-
-  withStepNames(generate: (prefix: string) => string): NamedWorkflowStep {
-    const namedBranches = this.branches.map(
-      (branch) =>
-        new SwitchConditionASTNamed(
-          branch.condition,
-          branch.steps.map((astStep) => astStep.withStepNames(generate)),
-          branch.next,
-        ),
-    )
-
-    return {
-      name: this.label ?? generate('switch'),
-      step: new SwitchStepASTNamed(namedBranches),
-    }
-  }
-
-  transformEpressions(
-    transform: (ex: Expression) => [WorkflowStepAST[], Expression],
-  ): WorkflowStepAST[] {
-    const newSteps: WorkflowStepAST[] = []
-    const newBranches = this.branches.map((cond) => {
-      const [steps2, ex2] = transform(cond.condition)
-      newSteps.push(...steps2)
-
-      return {
-        condition: ex2,
-        steps: cond.steps,
-        next: cond.next,
-      }
-    })
-
-    const newStep = new SwitchStepAST(newBranches)
-    newStep.label = this.label
-    newSteps.push(newStep)
-    return newSteps
-  }
 }
 
-export class SwitchStepASTNamed implements WorkflowStepASTWithNamedNested {
+export class SwitchStepASTNamed {
   readonly tag = 'switch'
   readonly conditions: SwitchConditionASTNamed[]
   readonly next?: StepName
@@ -827,59 +303,6 @@ export class SwitchStepASTNamed implements WorkflowStepASTWithNamedNested {
   constructor(conditions: SwitchConditionASTNamed[], next?: StepName) {
     this.conditions = conditions
     this.next = next
-  }
-
-  render(): object {
-    return {
-      switch: this.conditions.map((cond) => cond.render()),
-      ...(this.next && { next: this.next }),
-    }
-  }
-
-  nestedSteps(): NamedWorkflowStep[][] {
-    return this.conditions.map((x) => x.steps)
-  }
-
-  renameJumpTargets(
-    replaceLabels: Map<StepName, StepName>,
-  ): SwitchStepASTNamed {
-    let updatedNext: StepName | undefined = undefined
-    if (this.next) {
-      updatedNext = replaceLabels.get(this.next) ?? this.next
-    }
-
-    const updatedConditions = this.conditions.map((cond) => {
-      let updatedCondNext: StepName | undefined = undefined
-      if (cond.next) {
-        updatedCondNext = replaceLabels.get(cond.next) ?? cond.next
-      }
-
-      const updatedCondSteps = cond.steps.map((step) => ({
-        name: step.name,
-        step: step.step.renameJumpTargets(replaceLabels),
-      }))
-
-      return new SwitchConditionASTNamed(
-        cond.condition,
-        updatedCondSteps,
-        updatedCondNext,
-      )
-    })
-
-    return new SwitchStepASTNamed(updatedConditions, updatedNext)
-  }
-
-  transformNestedSteps(
-    transform: (steps: NamedWorkflowStep[]) => NamedWorkflowStep[],
-  ): SwitchStepASTNamed {
-    const transformedConditions = this.conditions.map((cond) => {
-      return new SwitchConditionASTNamed(
-        cond.condition,
-        transform(cond.steps),
-        cond.next,
-      )
-    })
-    return new SwitchStepASTNamed(transformedConditions, this.next)
   }
 }
 
@@ -903,18 +326,10 @@ export class SwitchConditionASTNamed {
     this.steps = steps
     this.next = next
   }
-
-  render(): object {
-    return {
-      condition: this.condition.toLiteralValueOrLiteralExpression(),
-      ...(this.steps.length > 0 && { steps: renderSteps(this.steps) }),
-      ...(this.next && { next: this.next }),
-    }
-  }
 }
 
 // https://cloud.google.com/workflows/docs/reference/syntax/catching-errors
-export class TryStepAST implements WorkflowStepAST {
+export class TryStepAST {
   readonly tag = 'try'
   readonly trySteps: WorkflowStepAST[]
   readonly exceptSteps: WorkflowStepAST[]
@@ -933,32 +348,9 @@ export class TryStepAST implements WorkflowStepAST {
     this.retryPolicy = retryPolicy
     this.errorMap = errorMap
   }
-
-  withStepNames(generate: (prefix: string) => string): NamedWorkflowStep {
-    const namedTrySteps = this.trySteps.map((astStep) =>
-      astStep.withStepNames(generate),
-    )
-    const namedExceptSteps = this.exceptSteps.map((astStep) =>
-      astStep.withStepNames(generate),
-    )
-
-    return {
-      name: this.label ?? generate('try'),
-      step: new TryStepASTNamed(
-        namedTrySteps,
-        namedExceptSteps,
-        this.retryPolicy,
-        this.errorMap,
-      ),
-    }
-  }
-
-  transformEpressions(): WorkflowStepAST[] {
-    return [this]
-  }
 }
 
-export class TryStepASTNamed implements WorkflowStepASTWithNamedNested {
+export class TryStepASTNamed {
   readonly tag = 'try'
   readonly retryPolicy?: string | CustomRetryPolicy
   readonly errorMap?: VariableName
@@ -978,129 +370,807 @@ export class TryStepASTNamed implements WorkflowStepASTWithNamedNested {
     this.errorMap = errorMap
     this.exceptSteps = exceptSteps
   }
-
-  render(): object {
-    let retry
-    if (typeof this.retryPolicy === 'undefined') {
-      retry = undefined
-    } else if (typeof this.retryPolicy === 'string') {
-      retry = `\${${this.retryPolicy}}`
-    } else {
-      const predicateName = this.retryPolicy.predicate
-      retry = {
-        predicate: `\${${predicateName}}`,
-        max_retries: this.retryPolicy.maxRetries,
-        backoff: {
-          initial_delay: this.retryPolicy.backoff.initialDelay,
-          max_delay: this.retryPolicy.backoff.maxDelay,
-          multiplier: this.retryPolicy.backoff.multiplier,
-        },
-      }
-    }
-
-    let except
-    if (this.exceptSteps.length > 0) {
-      except = {
-        as: this.errorMap,
-        steps: renderSteps(this.exceptSteps),
-      }
-    } else {
-      except = undefined
-    }
-
-    return {
-      try: {
-        steps: renderSteps(this.trySteps),
-      },
-      ...(retry && { retry }),
-      ...(except && { except }),
-    }
-  }
-
-  nestedSteps(): NamedWorkflowStep[][] {
-    const nested = []
-    if (this.trySteps.length > 0) {
-      nested.push(this.trySteps)
-    }
-    if (this.exceptSteps.length > 0) {
-      nested.push(this.exceptSteps)
-    }
-    return nested
-  }
-
-  renameJumpTargets(replaceLabels: Map<StepName, StepName>): TryStepASTNamed {
-    const transformedTrySteps = this.trySteps.map(({ name, step }) => ({
-      name,
-      step: step.renameJumpTargets(replaceLabels),
-    }))
-    const transformedExceptSteps = this.exceptSteps.map(({ name, step }) => ({
-      name,
-      step: step.renameJumpTargets(replaceLabels),
-    }))
-
-    return new TryStepASTNamed(
-      transformedTrySteps,
-      transformedExceptSteps,
-      this.retryPolicy,
-      this.errorMap,
-    )
-  }
-
-  transformNestedSteps(
-    transform: (steps: NamedWorkflowStep[]) => NamedWorkflowStep[],
-  ): TryStepASTNamed {
-    return new TryStepASTNamed(
-      transform(this.trySteps),
-      transform(this.exceptSteps),
-      this.retryPolicy,
-      this.errorMap,
-    )
-  }
-}
-
-function renderSteps(steps: NamedWorkflowStep[]) {
-  return steps.map((x) => {
-    return { [x.name]: x.step.render() }
-  })
 }
 
 // Internal step that represents a potential jump target.
 // This can be ued as a placeholder when the actual target step is not yet known.
 // JumpTargetAST is removed before transpiling to workflows YAML.
-export class JumpTargetAST
-  implements WorkflowStepAST, WorkflowStepASTWithNamedNested
-{
-  readonly tag: string = 'jumptarget'
-  readonly label: string
+export class JumpTargetAST {
+  readonly tag = 'jumptarget'
+  label: string
 
   constructor() {
     this.label = `jumptarget_${Math.floor(Math.random() * 2 ** 32).toString(16)}`
   }
+}
 
-  render(): object {
-    return {}
+/**
+ * Assign a name for this step and its child steps.
+ *
+ * The name is generated by calling generateName with a prefix identifying the step type.
+ */
+export function namedSteps(
+  step: WorkflowStepAST,
+  generateName: (prefix: string) => string,
+): NamedWorkflowStep {
+  switch (step.tag) {
+    case 'assign':
+    case 'next':
+    case 'raise':
+    case 'return':
+      return {
+        name: step.label ?? generateName(step.tag),
+        step,
+      }
+
+    case 'call':
+      return {
+        name: step.label ?? generateName(step.labelPrefix()),
+        step,
+      }
+
+    case 'for':
+      return namedStepsFor(step, generateName)
+
+    case 'parallel':
+      return namedStepsParallel(step, generateName)
+
+    case 'steps':
+      return namedStepsSteps(step, generateName)
+
+    case 'switch':
+      return namedStepsSwitch(step, generateName)
+
+    case 'try':
+      return namedStepsTry(step, generateName)
+
+    case 'jumptarget':
+      return {
+        name: step.label,
+        step: step,
+      }
+  }
+}
+
+function namedStepsFor(
+  step: ForStepAST,
+  generateName: (prefix: string) => string,
+): NamedWorkflowStep {
+  return {
+    name: step.label ?? generateName('for'),
+    step: new ForStepASTNamed(
+      step.steps.map((nestedStep) => namedSteps(nestedStep, generateName)),
+      step.loopVariableName,
+      step.listExpression,
+    ),
+  }
+}
+
+function namedStepsParallel(
+  step: ParallelStepAST,
+  generateName: (prefix: string) => string,
+) {
+  let steps: Record<StepName, StepsStepASTNamed> | ForStepASTNamed
+  if (step.steps instanceof ForStepAST) {
+    const forStep = namedSteps(step.steps, generateName).step
+
+    if (!(forStep instanceof ForStepASTNamed)) {
+      throw new Error('Encountered an unexpected step')
+    }
+
+    steps = forStep
+  } else {
+    steps = Object.fromEntries(
+      Object.entries(step.steps).map(([name, nested]) => {
+        const named = nested.steps.map((x) => namedSteps(x, generateName))
+        return [name, new StepsStepASTNamed(named)]
+      }),
+    )
   }
 
-  nestedSteps(): NamedWorkflowStep[][] {
-    return []
+  return {
+    name: step.label ?? generateName('parallel'),
+    step: new ParallelStepASTNamed(
+      steps,
+      step.shared,
+      step.concurrencyLimit,
+      step.exceptionPolicy,
+    ),
   }
+}
 
-  renameJumpTargets(): JumpTargetAST {
-    return this
+function namedStepsSteps(
+  step: StepsStepAST,
+  generateName: (prefix: string) => string,
+): NamedWorkflowStep {
+  return {
+    name: step.label ?? generateName('steps'),
+    step: new StepsStepASTNamed(
+      step.steps.map((nested) => namedSteps(nested, generateName)),
+    ),
   }
+}
 
-  transformNestedSteps(): JumpTargetAST {
-    return this
+function namedStepsSwitch(
+  step: SwitchStepAST,
+  generateName: (prefix: string) => string,
+): NamedWorkflowStep {
+  const namedBranches = step.branches.map(
+    (branch) =>
+      new SwitchConditionASTNamed(
+        branch.condition,
+        branch.steps.map((nested) => namedSteps(nested, generateName)),
+        branch.next,
+      ),
+  )
+
+  return {
+    name: step.label ?? generateName('switch'),
+    step: new SwitchStepASTNamed(namedBranches),
   }
+}
 
-  withStepNames(): NamedWorkflowStep {
+function namedStepsTry(
+  step: TryStepAST,
+  generateName: (prefix: string) => string,
+) {
+  const namedTrySteps = step.trySteps.map((nested) =>
+    namedSteps(nested, generateName),
+  )
+  const namedExceptSteps = step.exceptSteps.map((nested) =>
+    namedSteps(nested, generateName),
+  )
+
+  return {
+    name: step.label ?? generateName('try'),
+    step: new TryStepASTNamed(
+      namedTrySteps,
+      namedExceptSteps,
+      step.retryPolicy,
+      step.errorMap,
+    ),
+  }
+}
+
+/**
+ * Transform expressions in a step by appyling transform.
+ *
+ * Returns an array of steps. The array includes the transformed step and possibly
+ * additional steps constructed during the transformation. For example, a
+ * transformation might extract blocking call expressions into call steps.
+ */
+export function transformExpressions(
+  step: WorkflowStepAST,
+  transform: (ex: Expression) => [WorkflowStepAST[], Expression],
+): WorkflowStepAST[] {
+  switch (step.tag) {
+    case 'assign':
+      return transformExpressionsAssign(step, transform)
+
+    case 'call':
+      return transformExpressionsCall(step, transform)
+
+    case 'for':
+      return transformExpressionsFor(step, transform)
+
+    case 'raise':
+      return transformExpressionsRaise(step, transform)
+
+    case 'return':
+      return transformExpressionsReturn(step, transform)
+
+    case 'switch':
+      return transformExpressionsSwitch(step, transform)
+
+    case 'next':
+    case 'parallel':
+    case 'steps':
+    case 'try':
+    case 'jumptarget':
+      return [step]
+  }
+}
+
+function transformExpressionsAssign(
+  step: AssignStepAST,
+  transform: (ex: Expression) => [WorkflowStepAST[], Expression],
+): WorkflowStepAST[] {
+  if (step.assignments) {
+    const newSteps: WorkflowStepAST[] = []
+    const newAssignments = step.assignments.map(([name, ex]) => {
+      const [steps2, ex2] = transform(ex)
+      newSteps.push(...steps2)
+      return [name, ex2] as const
+    })
+    const transformedAssign = new AssignStepAST(newAssignments)
+    transformedAssign.label = step.label
+    newSteps.push(transformedAssign)
+    return newSteps
+  } else {
+    return [step]
+  }
+}
+
+function transformExpressionsCall(
+  step: CallStepAST,
+  transform: (ex: Expression) => [WorkflowStepAST[], Expression],
+): WorkflowStepAST[] {
+  if (step.args) {
+    const newSteps: WorkflowStepAST[] = []
+    const newArgs = Object.fromEntries(
+      Object.entries(step.args).map(([name, ex]) => {
+        const [steps2, ex2] = transform(ex)
+        newSteps.push(...steps2)
+        return [name, ex2] as const
+      }),
+    )
+    const transformedCall = new CallStepAST(step.call, newArgs, step.result)
+    transformedCall.label = step.label
+    newSteps.push(transformedCall)
+    return newSteps
+  } else {
+    return [step]
+  }
+}
+
+function transformExpressionsFor(
+  step: ForStepAST,
+  transform: (ex: Expression) => [WorkflowStepAST[], Expression],
+): WorkflowStepAST[] {
+  if (step.listExpression) {
+    const [newSteps, newListExpression] = transform(step.listExpression)
+    const newFor = new ForStepAST(
+      step.steps,
+      step.loopVariableName,
+      newListExpression,
+      step.indexVariableName,
+      step.rangeStart,
+      step.rangeEnd,
+    )
+    newFor.label = step.label
+    newSteps.push(newFor)
+    return newSteps
+  } else {
+    return [step]
+  }
+}
+
+function transformExpressionsRaise(
+  step: RaiseStepAST,
+  transform: (ex: Expression) => [WorkflowStepAST[], Expression],
+): WorkflowStepAST[] {
+  if (step.value) {
+    const [newSteps, newEx] = transform(step.value)
+    const newRaise = new RaiseStepAST(newEx)
+    newRaise.label = step.label
+    newSteps.push(newRaise)
+    return newSteps
+  } else {
+    return [step]
+  }
+}
+
+function transformExpressionsReturn(
+  step: ReturnStepAST,
+  transform: (ex: Expression) => [WorkflowStepAST[], Expression],
+): WorkflowStepAST[] {
+  if (step.value) {
+    const [newSteps, newEx] = transform(step.value)
+    const newReturn = new ReturnStepAST(newEx)
+    newReturn.label = step.label
+    newSteps.push(newReturn)
+    return newSteps
+  } else {
+    return [step]
+  }
+}
+
+function transformExpressionsSwitch(
+  step: SwitchStepAST,
+  transform: (ex: Expression) => [WorkflowStepAST[], Expression],
+): WorkflowStepAST[] {
+  const newSteps: WorkflowStepAST[] = []
+  const newBranches = step.branches.map((cond) => {
+    const [steps2, ex2] = transform(cond.condition)
+    newSteps.push(...steps2)
+
     return {
-      name: this.label,
-      step: this,
+      condition: ex2,
+      steps: cond.steps,
+      next: cond.next,
+    }
+  })
+
+  const newStep = new SwitchStepAST(newBranches)
+  newStep.label = step.label
+  newSteps.push(newStep)
+  return newSteps
+}
+
+/**
+ * Returns the nested steps in contained in this step.
+ *
+ * Used in iterating the AST tree.
+ */
+export function nestedSteps(
+  step: WorkflowStepASTWithNamedNested,
+): NamedWorkflowStep[][] {
+  switch (step.tag) {
+    case 'assign':
+    case 'call':
+    case 'next':
+    case 'raise':
+    case 'return':
+    case 'jumptarget':
+      return []
+
+    case 'for':
+    case 'steps':
+      return [step.steps]
+
+    case 'parallel':
+      return nestedStepsParallel(step)
+
+    case 'switch':
+      return step.conditions.map((x) => x.steps)
+
+    case 'try':
+      return nestedStepsTry(step)
+  }
+}
+
+function nestedStepsParallel(
+  step: ParallelStepASTNamed,
+): NamedWorkflowStep[][] {
+  const nested = []
+  if (step.branches && step.branches.length > 0) {
+    // return each branch as a separate child
+    nested.push(...step.branches.map((x) => [x]))
+  }
+  if (step.forStep?.steps && step.forStep.steps.length > 0) {
+    nested.push(step.forStep.steps)
+  }
+
+  return nested
+}
+
+function nestedStepsTry(step: TryStepASTNamed): NamedWorkflowStep[][] {
+  const nested = []
+  if (step.trySteps.length > 0) {
+    nested.push(step.trySteps)
+  }
+  if (step.exceptSteps.length > 0) {
+    nested.push(step.exceptSteps)
+  }
+
+  return nested
+}
+
+/**
+ * Renames a copy of a step with jump targets renamed according to replaceLabels map.
+ */
+export function renameJumpTargets(
+  step: WorkflowStepASTWithNamedNested,
+  replaceLabels: Map<StepName, StepName>,
+): WorkflowStepASTWithNamedNested {
+  switch (step.tag) {
+    case 'assign':
+    case 'call':
+    case 'raise':
+    case 'return':
+    case 'jumptarget':
+      return step
+
+    case 'next':
+      return renameJumpTargetsNext(step, replaceLabels)
+
+    case 'for':
+      return renameJumpTargetsFor(step, replaceLabels)
+
+    case 'parallel':
+      return renameJumpTargetsParallel(step, replaceLabels)
+
+    case 'steps':
+      return renameJumpTargetsSteps(step, replaceLabels)
+
+    case 'switch':
+      return renameJumpTargetsSwitch(step, replaceLabels)
+
+    case 'try':
+      return renameJumpTargetsTry(step, replaceLabels)
+  }
+}
+
+function renameJumpTargetsFor(
+  step: ForStepASTNamed,
+  replaceLabels: Map<StepName, StepName>,
+): ForStepASTNamed {
+  const transformedSteps = step.steps.map(({ name, step: nested }) => ({
+    name,
+    step: renameJumpTargets(nested, replaceLabels),
+  }))
+
+  return new ForStepASTNamed(
+    transformedSteps,
+    step.loopVariableName,
+    step.listExpression,
+    step.indexVariableName,
+    step.rangeStart,
+    step.rangeEnd,
+  )
+}
+
+function renameJumpTargetsNext(
+  step: NextStepAST,
+  replaceLabels: Map<StepName, StepName>,
+): NextStepAST {
+  const newLabel = replaceLabels.get(step.target)
+  if (newLabel) {
+    return new NextStepAST(newLabel)
+  } else {
+    return step
+  }
+}
+
+function renameJumpTargetsParallel(
+  step: ParallelStepASTNamed,
+  replaceLabels: Map<StepName, StepName>,
+): ParallelStepASTNamed {
+  let transformedSteps: Record<StepName, StepsStepASTNamed> | ForStepASTNamed
+  if (step.branches) {
+    transformedSteps = Object.fromEntries(
+      step.branches.map(({ name, step: nested }) => {
+        const renamedNested = nestedSteps(nested)
+          .flat()
+          .map((x) => ({
+            name: x.name,
+            step: renameJumpTargets(x.step, replaceLabels),
+          }))
+
+        return [name, new StepsStepASTNamed(renamedNested)]
+      }),
+    )
+  } else if (step.forStep) {
+    transformedSteps = renameJumpTargetsFor(step.forStep, replaceLabels)
+  } else {
+    // should not be reached
+    transformedSteps = {}
+  }
+
+  return new ParallelStepASTNamed(
+    transformedSteps,
+    step.shared,
+    step.concurrenceLimit,
+    step.exceptionPolicy,
+  )
+}
+
+function renameJumpTargetsSteps(
+  step: StepsStepASTNamed,
+  replaceLabels: Map<StepName, StepName>,
+): StepsStepASTNamed {
+  const transformedSteps = step.steps.map(({ name, step: nested }) => ({
+    name,
+    step: renameJumpTargets(nested, replaceLabels),
+  }))
+
+  return new StepsStepASTNamed(transformedSteps)
+}
+
+function renameJumpTargetsSwitch(
+  step: SwitchStepASTNamed,
+  replaceLabels: Map<StepName, StepName>,
+): SwitchStepASTNamed {
+  let updatedNext: StepName | undefined = undefined
+  if (step.next) {
+    updatedNext = replaceLabels.get(step.next) ?? step.next
+  }
+
+  const updatedConditions = step.conditions.map((cond) => {
+    let updatedCondNext: StepName | undefined = undefined
+    if (cond.next) {
+      updatedCondNext = replaceLabels.get(cond.next) ?? cond.next
+    }
+
+    const updatedCondSteps = cond.steps.map((nested) => ({
+      name: nested.name,
+      step: renameJumpTargets(nested.step, replaceLabels),
+    }))
+
+    return new SwitchConditionASTNamed(
+      cond.condition,
+      updatedCondSteps,
+      updatedCondNext,
+    )
+  })
+
+  return new SwitchStepASTNamed(updatedConditions, updatedNext)
+}
+
+function renameJumpTargetsTry(
+  step: TryStepASTNamed,
+  replaceLabels: Map<StepName, StepName>,
+): TryStepASTNamed {
+  const transformedTrySteps = step.trySteps.map(({ name, step: nested }) => ({
+    name,
+    step: renameJumpTargets(nested, replaceLabels),
+  }))
+  const transformedExceptSteps = step.exceptSteps.map(
+    ({ name, step: nested }) => ({
+      name,
+      step: renameJumpTargets(nested, replaceLabels),
+    }),
+  )
+
+  return new TryStepASTNamed(
+    transformedTrySteps,
+    transformedExceptSteps,
+    step.retryPolicy,
+    step.errorMap,
+  )
+}
+
+/**
+ * Returns a copy of a step with a transformation applied to the child steps.
+ */
+export function transformNestedSteps(
+  step: WorkflowStepASTWithNamedNested,
+  transform: (steps: NamedWorkflowStep[]) => NamedWorkflowStep[],
+): WorkflowStepASTWithNamedNested {
+  switch (step.tag) {
+    case 'assign':
+    case 'call':
+    case 'next':
+    case 'raise':
+    case 'return':
+    case 'jumptarget':
+      return step
+
+    case 'for':
+      return transformNestedStepsFor(step, transform)
+
+    case 'parallel':
+      return transformNestedStepsParallel(step, transform)
+
+    case 'steps':
+      return new StepsStepASTNamed(transform(step.steps))
+
+    case 'switch':
+      return transformNestedStepsSwitch(step, transform)
+
+    case 'try':
+      return new TryStepASTNamed(
+        transform(step.trySteps),
+        transform(step.exceptSteps),
+        step.retryPolicy,
+        step.errorMap,
+      )
+  }
+}
+
+function transformNestedStepsFor(
+  step: ForStepASTNamed,
+  transform: (steps: NamedWorkflowStep[]) => NamedWorkflowStep[],
+): ForStepASTNamed {
+  return new ForStepASTNamed(
+    transform(step.steps),
+    step.loopVariableName,
+    step.listExpression,
+    step.indexVariableName,
+    step.rangeStart,
+    step.rangeEnd,
+  )
+}
+
+function transformNestedStepsParallel(
+  step: ParallelStepASTNamed,
+  transform: (steps: NamedWorkflowStep[]) => NamedWorkflowStep[],
+): ParallelStepASTNamed {
+  let transformedSteps: Record<StepName, StepsStepASTNamed> | ForStepASTNamed
+  if (step.branches) {
+    transformedSteps = Object.fromEntries(
+      step.branches.map((x) => {
+        return [
+          x.name,
+          new StepsStepASTNamed(transform(nestedSteps(x.step).flat())),
+        ]
+      }),
+    )
+  } else if (step.forStep) {
+    transformedSteps = transformNestedStepsFor(step.forStep, transform)
+  } else {
+    // should not be reached
+    transformedSteps = {}
+  }
+
+  return new ParallelStepASTNamed(
+    transformedSteps,
+    step.shared,
+    step.concurrenceLimit,
+    step.exceptionPolicy,
+  )
+}
+
+function transformNestedStepsSwitch(
+  step: SwitchStepASTNamed,
+  transform: (steps: NamedWorkflowStep[]) => NamedWorkflowStep[],
+): SwitchStepASTNamed {
+  const transformedConditions = step.conditions.map((cond) => {
+    return new SwitchConditionASTNamed(
+      cond.condition,
+      transform(cond.steps),
+      cond.next,
+    )
+  })
+  return new SwitchStepASTNamed(transformedConditions, step.next)
+}
+
+/**
+ * Returns an GCP Workflows object representation of a step.
+ */
+export function renderStep(step: WorkflowStepASTWithNamedNested): object {
+  switch (step.tag) {
+    case 'assign':
+      return {
+        assign: step.assignments.map(([key, val]) => {
+          return { [key]: val.toLiteralValueOrLiteralExpression() }
+        }),
+      }
+
+    case 'call':
+      return renderCallStep(step)
+
+    case 'for':
+      return {
+        for: renderForBody(step),
+      }
+
+    case 'parallel':
+      return {
+        parallel: {
+          ...(step.shared && { shared: step.shared }),
+          ...(step.concurrenceLimit && {
+            concurrency_limit: step.concurrenceLimit,
+          }),
+          ...(step.exceptionPolicy && {
+            exception_policy: step.exceptionPolicy,
+          }),
+          ...(step.branches && { branches: renderSteps(step.branches) }),
+          ...(step.forStep && { for: renderForBody(step.forStep) }),
+        },
+      }
+
+    case 'next':
+      return {
+        next: step.target,
+      }
+
+    case 'raise':
+      return {
+        raise: step.value.toLiteralValueOrLiteralExpression(),
+      }
+
+    case 'return':
+      return renderReturnStep(step)
+
+    case 'steps':
+      return {
+        steps: renderSteps(step.steps),
+      }
+
+    case 'switch':
+      return {
+        switch: step.conditions.map(renderSwitchCondition),
+        ...(step.next && { next: step.next }),
+      }
+
+    case 'try':
+      return renderTryStep(step)
+
+    case 'jumptarget':
+      return {}
+  }
+}
+
+function renderSwitchCondition(cond: SwitchConditionASTNamed): object {
+  return {
+    condition: cond.condition.toLiteralValueOrLiteralExpression(),
+    ...(cond.steps.length > 0 && { steps: renderSteps(cond.steps) }),
+    ...(cond.next && { next: cond.next }),
+  }
+}
+
+function renderCallStep(step: CallStepAST): object {
+  let args:
+    | Record<string, null | string | number | boolean | object>
+    | undefined = undefined
+  if (step.args) {
+    args = Object.fromEntries(
+      Object.entries(step.args).map(([k, v]) => {
+        return [k, v.toLiteralValueOrLiteralExpression()]
+      }),
+    )
+  }
+
+  return {
+    call: step.call,
+    ...(args && { args }),
+    ...(step.result && { result: step.result }),
+  }
+}
+
+function renderForBody(step: ForStepASTNamed): object {
+  let range: (number | undefined)[] | undefined
+  let inValue: null | string | number | boolean | object | undefined
+  if (typeof step.listExpression === 'undefined') {
+    range = [step.rangeStart, step.rangeEnd]
+    inValue = undefined
+  } else {
+    inValue = step.listExpression.toLiteralValueOrLiteralExpression()
+    range = undefined
+  }
+
+  return {
+    value: step.loopVariableName,
+    ...(step.indexVariableName && { index: step.indexVariableName }),
+    ...(inValue && { in: inValue }),
+    ...(range && { range }),
+    steps: renderSteps(step.steps),
+  }
+}
+
+function renderReturnStep(step: ReturnStepAST): object {
+  if (step.value) {
+    return {
+      return: step.value.toLiteralValueOrLiteralExpression(),
+    }
+  } else {
+    return {
+      next: 'end',
+    }
+  }
+}
+
+function renderTryStep(step: TryStepASTNamed): object {
+  let retry
+  if (typeof step.retryPolicy === 'undefined') {
+    retry = undefined
+  } else if (typeof step.retryPolicy === 'string') {
+    retry = `\${${step.retryPolicy}}`
+  } else {
+    const predicateName = step.retryPolicy.predicate
+    retry = {
+      predicate: `\${${predicateName}}`,
+      max_retries: step.retryPolicy.maxRetries,
+      backoff: {
+        initial_delay: step.retryPolicy.backoff.initialDelay,
+        max_delay: step.retryPolicy.backoff.maxDelay,
+        multiplier: step.retryPolicy.backoff.multiplier,
+      },
     }
   }
 
-  transformEpressions(): WorkflowStepAST[] {
-    return [this]
+  let except
+  if (step.exceptSteps.length > 0) {
+    except = {
+      as: step.errorMap,
+      steps: renderSteps(step.exceptSteps),
+    }
+  } else {
+    except = undefined
   }
+
+  return {
+    try: {
+      steps: renderSteps(step.trySteps),
+    },
+    ...(retry && { retry }),
+    ...(except && { except }),
+  }
+}
+
+function renderSteps(steps: NamedWorkflowStep[]) {
+  return steps.map((x) => {
+    return { [x.name]: renderStep(x.step) }
+  })
 }

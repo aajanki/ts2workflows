@@ -1,7 +1,7 @@
 import * as YAML from 'yaml'
 
 import { VariableName, LiteralValueOrLiteralExpression } from './expressions.js'
-import { NamedWorkflowStep } from './steps.js'
+import { NamedWorkflowStep, nestedSteps, renderStep } from './steps.js'
 
 export interface WorkflowParameter {
   name: VariableName
@@ -63,7 +63,7 @@ export class Subworkflow {
 
     Object.assign(body, {
       steps: this.steps.map(({ name, step }) => {
-        return { [name]: step.render() }
+        return { [name]: renderStep(step) }
       }),
     })
 
@@ -81,7 +81,7 @@ export class Subworkflow {
 
         yield step
 
-        for (const x of step.step.nestedSteps().flat()) {
+        for (const x of nestedSteps(step.step).flat()) {
           yield* visitPreOrder(x)
         }
       }

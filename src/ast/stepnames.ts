@@ -3,6 +3,9 @@ import {
   NamedWorkflowStep,
   StepName,
   WorkflowAST,
+  nestedSteps,
+  renameJumpTargets,
+  transformNestedSteps,
 } from './steps.js'
 import { Subworkflow, WorkflowApp } from './workflows.js'
 
@@ -84,9 +87,9 @@ function collectActualJumpTargets(
     // current element from the stack.
     stack.pop()
 
-    const children = namedStep.step
-      .nestedSteps()
-      .map((x) => stepsToJumpStackElements(x, nestingLevel + 1))
+    const children = nestedSteps(namedStep.step).map((x) =>
+      stepsToJumpStackElements(x, nestingLevel + 1),
+    )
     children.reverse()
     children.forEach((children) => {
       stack.push(...children)
@@ -158,7 +161,7 @@ function removeJumpTargetNodesSteps(
     .map((namedStep) => {
       return {
         name: namedStep.name,
-        step: namedStep.step.transformNestedSteps(removeJumpTargetNodesSteps),
+        step: transformNestedSteps(namedStep.step, removeJumpTargetNodesSteps),
       }
     })
 }
@@ -169,6 +172,6 @@ function relabelNextLabels(
 ): NamedWorkflowStep[] {
   return steps.map((step) => ({
     name: step.name,
-    step: step.step.renameJumpTargets(replacements),
+    step: renameJumpTargets(step.step, replacements),
   }))
 }

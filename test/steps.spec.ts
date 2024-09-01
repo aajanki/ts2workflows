@@ -14,6 +14,7 @@ import {
   SwitchConditionASTNamed,
   SwitchStepASTNamed,
   TryStepASTNamed,
+  renderStep,
 } from '../src/ast/steps.js'
 import { primitiveExpression } from '../src/ast/expressions.js'
 
@@ -30,7 +31,7 @@ describe('workflow step AST', () => {
       - value: \${1 + 2}
     `)
 
-    expect(step.render()).to.deep.equal(expected)
+    expect(renderStep(step)).to.deep.equal(expected)
   })
 
   it('assigns variables with index notation', () => {
@@ -51,7 +52,7 @@ describe('workflow step AST', () => {
       - my_list[len(my_list) - 1]: "LastValue"
     `)
 
-    expect(step.render()).to.deep.equal(expected)
+    expect(renderStep(step)).to.deep.equal(expected)
   })
 
   it('renders a simple call step', () => {
@@ -61,7 +62,7 @@ describe('workflow step AST', () => {
     call: destination_step
     `)
 
-    expect(step.render()).to.deep.equal(expected)
+    expect(renderStep(step)).to.deep.equal(expected)
   })
 
   it('renders a call step with arguments and result', () => {
@@ -82,7 +83,7 @@ describe('workflow step AST', () => {
     result: deliveryResult
     `)
 
-    expect(step.render()).to.deep.equal(expected)
+    expect(renderStep(step)).to.deep.equal(expected)
   })
 
   it('renders a call step with an expression as an argument', () => {
@@ -96,7 +97,7 @@ describe('workflow step AST', () => {
         destination: \${destinations[i]}
     `)
 
-    expect(step.render()).to.deep.equal(expected)
+    expect(renderStep(step)).to.deep.equal(expected)
   })
 
   it('renders a switch step', () => {
@@ -140,7 +141,7 @@ describe('workflow step AST', () => {
     next: end
     `)
 
-    expect(step.render()).to.deep.equal(expected2)
+    expect(renderStep(step)).to.deep.equal(expected2)
   })
 
   it('renders a try step', () => {
@@ -197,7 +198,7 @@ describe('workflow step AST', () => {
               raise: \${e}
     `)
 
-    expect(step.render()).to.deep.equal(expected)
+    expect(renderStep(step)).to.deep.equal(expected)
   })
 
   it('renders a try step with a default retry policy', () => {
@@ -255,7 +256,7 @@ describe('workflow step AST', () => {
               raise: \${e}
     `)
 
-    expect(step.render()).to.deep.equal(expected)
+    expect(renderStep(step)).to.deep.equal(expected)
   })
 
   it('renders a try step with a custom retry policy', () => {
@@ -327,7 +328,7 @@ describe('workflow step AST', () => {
               raise: \${e}
     `)
 
-    expect(step.render()).to.deep.equal(expected)
+    expect(renderStep(step)).to.deep.equal(expected)
   })
 
   it('renders a try step with a subworkflow as a retry predicate', () => {
@@ -405,7 +406,7 @@ describe('workflow step AST', () => {
               raise: \${e}
     `)
 
-    expect(step.render()).to.deep.equal(expected)
+    expect(renderStep(step)).to.deep.equal(expected)
   })
 
   it('renders a for step', () => {
@@ -430,7 +431,7 @@ describe('workflow step AST', () => {
                 - sum: \${sum + v}
     `)
 
-    expect(step.render()).to.deep.equal(expected)
+    expect(renderStep(step)).to.deep.equal(expected)
   })
 
   it('renders an index-based for step', () => {
@@ -457,7 +458,7 @@ describe('workflow step AST', () => {
                 - sum: \${sum + (i * v)}
     `)
 
-    expect(step.render()).to.deep.equal(expected)
+    expect(renderStep(step)).to.deep.equal(expected)
   })
 
   it('renders a for-range step', () => {
@@ -485,7 +486,7 @@ describe('workflow step AST', () => {
                 - sum: \${sum + v}
     `)
 
-    expect(step.render()).to.deep.equal(expected)
+    expect(renderStep(step)).to.deep.equal(expected)
   })
 
   it('renders parallel branches', () => {
@@ -525,7 +526,7 @@ describe('workflow step AST', () => {
                         text: Hello from branch 2
     `)
 
-    expect(step.render()).to.deep.equal(expected)
+    expect(renderStep(step)).to.deep.equal(expected)
   })
 
   it('renders parallel branches with shared variables and concurrency limit', () => {
@@ -569,7 +570,7 @@ describe('workflow step AST', () => {
                       - myVariable[1]: 'Set in branch 2'
     `)
 
-    expect(step.render()).to.deep.equal(expected)
+    expect(renderStep(step)).to.deep.equal(expected)
   })
 
   it('renders a parallel for step', () => {
@@ -614,6 +615,6 @@ describe('workflow step AST', () => {
                     - total: \${total + balance}
     `)
 
-    expect(step.render()).to.deep.equal(expected)
+    expect(renderStep(step)).to.deep.equal(expected)
   })
 })

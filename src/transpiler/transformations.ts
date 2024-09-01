@@ -7,6 +7,7 @@ import {
   TryStepAST,
   WorkflowParameters,
   WorkflowStepAST,
+  transformExpressions,
 } from '../ast/steps.js'
 import { InternalTranspilingError } from '../errors.js'
 import { isRecord } from '../utils.js'
@@ -240,7 +241,7 @@ function blockingCallsAsCallSteps(steps: WorkflowStepAST[]): WorkflowStepAST[] {
   }
 
   return steps.reduce((acc: WorkflowStepAST[], current: WorkflowStepAST) => {
-    const transformedSteps = current.transformEpressions(transformer)
+    const transformedSteps = transformExpressions(current, transformer)
     acc.push(...transformedSteps)
 
     return acc
@@ -411,7 +412,7 @@ function mapLiteralsAsAssignSteps(steps: WorkflowStepAST[]): WorkflowStepAST[] {
     }
 
     if (needsTransformation) {
-      const transformedSteps = current.transformEpressions(transformer)
+      const transformedSteps = transformExpressions(current, transformer)
       acc.push(...transformedSteps)
     } else {
       acc.push(current)
