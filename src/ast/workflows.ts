@@ -18,7 +18,7 @@ export class WorkflowApp {
     this.subworkflows = subworkflows
   }
 
-  render(): object {
+  render(): Record<string, unknown> {
     return Object.fromEntries(
       new Map(this.subworkflows.map((wf) => [wf.name, wf.renderBody()])),
     )
@@ -41,13 +41,13 @@ export class Subworkflow {
     this.params = params
   }
 
-  render(): object {
+  render(): Record<string, unknown> {
     return {
       [this.name]: this.renderBody(),
     }
   }
 
-  renderBody(): object {
+  renderBody(): Record<string, unknown> {
     const body = {}
     if (this.params && this.params.length > 0) {
       Object.assign(body, {

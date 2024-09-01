@@ -1008,7 +1008,7 @@ function transformNestedStepsSwitch(
 /**
  * Returns an GCP Workflows object representation of a step.
  */
-export function renderStep(step: WorkflowStepASTWithNamedNested): object {
+export function renderStep(step: WorkflowStepASTWithNamedNested): Record<string, unknown> {
   switch (step.tag) {
     case 'assign':
       return {
@@ -1080,7 +1080,7 @@ function renderSwitchCondition(cond: SwitchConditionASTNamed): object {
   }
 }
 
-function renderCallStep(step: CallStepAST): object {
+function renderCallStep(step: CallStepAST): Record<string, unknown> {
   let args:
     | Record<string, null | string | number | boolean | object>
     | undefined = undefined
@@ -1119,7 +1119,7 @@ function renderForBody(step: ForStepASTNamed): object {
   }
 }
 
-function renderReturnStep(step: ReturnStepAST): object {
+function renderReturnStep(step: ReturnStepAST): Record<string, unknown> {
   if (step.value) {
     return {
       return: step.value.toLiteralValueOrLiteralExpression(),
@@ -1131,7 +1131,7 @@ function renderReturnStep(step: ReturnStepAST): object {
   }
 }
 
-function renderTryStep(step: TryStepASTNamed): object {
+function renderTryStep(step: TryStepASTNamed): Record<string, unknown> {
   let retry
   if (typeof step.retryPolicy === 'undefined') {
     retry = undefined
