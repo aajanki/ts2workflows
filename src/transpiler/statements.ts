@@ -595,7 +595,7 @@ function ifStatementToSwitchStep(
 function flattenIfBranches(
   ifStatement: any,
   ctx: ParsingContext,
-): SwitchConditionAST[] {
+): SwitchConditionAST<WorkflowStepAST>[] {
   assertType(ifStatement, IfStatement)
   assertType(ifStatement.consequent, BlockStatement)
 
@@ -634,7 +634,7 @@ function switchStatementToSteps(
   const switchCtx = Object.assign({}, ctx, { breakTarget: endOfSwitch.label })
 
   const steps: WorkflowStepAST[] = []
-  const branches: SwitchConditionAST[] = []
+  const branches: SwitchConditionAST<WorkflowStepAST>[] = []
   const discriminant = convertExpression(node.discriminant)
   const cases = node.cases as any[]
 

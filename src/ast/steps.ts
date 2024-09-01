@@ -266,10 +266,10 @@ export class StepsStepASTNamed {
 // https://cloud.google.com/workflows/docs/reference/syntax/conditions
 export class SwitchStepAST {
   readonly tag = 'switch'
-  readonly branches: SwitchConditionAST[]
+  readonly branches: SwitchConditionAST<WorkflowStepAST>[]
   label: string | undefined
 
-  constructor(branches: SwitchConditionAST[]) {
+  constructor(branches: SwitchConditionAST<WorkflowStepAST>[]) {
     this.branches = branches
   }
 
@@ -297,24 +297,23 @@ export class SwitchStepAST {
 
 export class SwitchStepASTNamed {
   readonly tag = 'switch'
-  readonly conditions: SwitchConditionASTNamed[]
+  readonly conditions: SwitchConditionAST<NamedWorkflowStep>[]
   readonly next?: StepName
 
-  constructor(conditions: SwitchConditionASTNamed[], next?: StepName) {
+  constructor(
+    conditions: SwitchConditionAST<NamedWorkflowStep>[],
+    next?: StepName,
+  ) {
     this.conditions = conditions
     this.next = next
   }
 }
 
-export interface SwitchConditionAST {
+export interface SwitchConditionAST<
+  T extends WorkflowStepAST | NamedWorkflowStep,
+> {
   readonly condition: Expression
-  readonly steps: WorkflowStepAST[]
-  readonly next?: StepName
-}
-
-export interface SwitchConditionASTNamed {
-  readonly condition: Expression
-  readonly steps: NamedWorkflowStep[]
+  readonly steps: T[]
   readonly next?: StepName
 }
 
@@ -1061,7 +1060,9 @@ export function renderStep(
   }
 }
 
-function renderSwitchCondition(cond: SwitchConditionASTNamed): object {
+function renderSwitchCondition(
+  cond: SwitchConditionAST<NamedWorkflowStep>,
+): object {
   return {
     condition: cond.condition.toLiteralValueOrLiteralExpression(),
     ...(cond.steps.length > 0 && { steps: renderSteps(cond.steps) }),
