@@ -11,7 +11,6 @@ import {
   RaiseStepAST,
   ReturnStepAST,
   StepsStepASTNamed,
-  SwitchConditionASTNamed,
   SwitchStepASTNamed,
   TryStepASTNamed,
   renderStep,
@@ -113,15 +112,15 @@ describe('workflow step AST', () => {
       'step1',
       new SwitchStepASTNamed(
         [
-          new SwitchConditionASTNamed(
-            parseExpression('city == "New New York"'),
-            [],
-            'destination_new_new_york',
-          ),
-          new SwitchConditionASTNamed(parseExpression('city == "Mars Vegas"'), [
-            assign1,
-            return1,
-          ]),
+          {
+            condition: parseExpression('city == "New New York"'),
+            steps: [],
+            next: 'destination_new_new_york',
+          },
+          {
+            condition: parseExpression('city == "Mars Vegas"'),
+            steps: [assign1, return1],
+          },
         ],
         'end',
       ),
@@ -158,12 +157,15 @@ describe('workflow step AST', () => {
     const knownErrors = namedStep(
       'known_errors',
       new SwitchStepASTNamed([
-        new SwitchConditionASTNamed(parseExpression('e.code == 404'), [
-          namedStep(
-            'return_error',
-            new ReturnStepAST(primitiveExpression('Not found')),
-          ),
-        ]),
+        {
+          condition: parseExpression('e.code == 404'),
+          steps: [
+            namedStep(
+              'return_error',
+              new ReturnStepAST(primitiveExpression('Not found')),
+            ),
+          ],
+        },
       ]),
     )
     const unknownErrors = namedStep(
@@ -215,12 +217,15 @@ describe('workflow step AST', () => {
     const knownErrors = namedStep(
       'known_errors',
       new SwitchStepASTNamed([
-        new SwitchConditionASTNamed(parseExpression('e.code == 404'), [
-          namedStep(
-            'return_error',
-            new ReturnStepAST(primitiveExpression('Not found')),
-          ),
-        ]),
+        {
+          condition: parseExpression('e.code == 404'),
+          steps: [
+            namedStep(
+              'return_error',
+              new ReturnStepAST(primitiveExpression('Not found')),
+            ),
+          ],
+        },
       ]),
     )
     const unknownErrors = namedStep(
@@ -273,12 +278,15 @@ describe('workflow step AST', () => {
     const knownErrors = namedStep(
       'known_errors',
       new SwitchStepASTNamed([
-        new SwitchConditionASTNamed(parseExpression('e.code == 404'), [
-          namedStep(
-            'return_error',
-            new ReturnStepAST(primitiveExpression('Not found')),
-          ),
-        ]),
+        {
+          condition: parseExpression('e.code == 404'),
+          steps: [
+            namedStep(
+              'return_error',
+              new ReturnStepAST(primitiveExpression('Not found')),
+            ),
+          ],
+        },
       ]),
     )
     const unknownErrors = namedStep(
@@ -351,12 +359,15 @@ describe('workflow step AST', () => {
     const knownErrors = namedStep(
       'known_errors',
       new SwitchStepASTNamed([
-        new SwitchConditionASTNamed(parseExpression('e.code == 404'), [
-          namedStep(
-            'return_error',
-            new ReturnStepAST(primitiveExpression('Not found')),
-          ),
-        ]),
+        {
+          condition: parseExpression('e.code == 404'),
+          steps: [
+            namedStep(
+              'return_error',
+              new ReturnStepAST(primitiveExpression('Not found')),
+            ),
+          ],
+        },
       ]),
     )
     const unknownErrors = namedStep(

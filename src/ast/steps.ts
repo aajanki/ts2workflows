@@ -312,20 +312,10 @@ export interface SwitchConditionAST {
   readonly next?: StepName
 }
 
-export class SwitchConditionASTNamed {
+export interface SwitchConditionASTNamed {
   readonly condition: Expression
   readonly steps: NamedWorkflowStep[]
   readonly next?: StepName
-
-  constructor(
-    condition: Expression,
-    steps: NamedWorkflowStep[],
-    next?: StepName,
-  ) {
-    this.condition = condition
-    this.steps = steps
-    this.next = next
-  }
 }
 
 // https://cloud.google.com/workflows/docs/reference/syntax/catching-errors
@@ -495,14 +485,11 @@ function namedStepsSwitch(
   step: SwitchStepAST,
   generateName: (prefix: string) => string,
 ): NamedWorkflowStep {
-  const namedBranches = step.branches.map(
-    (branch) =>
-      new SwitchConditionASTNamed(
-        branch.condition,
-        branch.steps.map((nested) => namedSteps(nested, generateName)),
-        branch.next,
-      ),
-  )
+  const namedBranches = step.branches.map((branch) => ({
+    condition: branch.condition,
+    steps: branch.steps.map((nested) => namedSteps(nested, generateName)),
+    next: branch.next,
+  }))
 
   return {
     name: step.label ?? generateName('switch'),
@@ -877,11 +864,11 @@ function renameJumpTargetsSwitch(
       step: renameJumpTargets(nested.step, replaceLabels),
     }))
 
-    return new SwitchConditionASTNamed(
-      cond.condition,
-      updatedCondSteps,
-      updatedCondNext,
-    )
+    return {
+      condition: cond.condition,
+      steps: updatedCondSteps,
+      next: updatedCondNext,
+    }
   })
 
   return new SwitchStepASTNamed(updatedConditions, updatedNext)
@@ -996,11 +983,11 @@ function transformNestedStepsSwitch(
   transform: (steps: NamedWorkflowStep[]) => NamedWorkflowStep[],
 ): SwitchStepASTNamed {
   const transformedConditions = step.conditions.map((cond) => {
-    return new SwitchConditionASTNamed(
-      cond.condition,
-      transform(cond.steps),
-      cond.next,
-    )
+    return {
+      condition: cond.condition,
+      steps: transform(cond.steps),
+      next: cond.next,
+    }
   })
   return new SwitchStepASTNamed(transformedConditions, step.next)
 }
@@ -1008,7 +995,9 @@ function transformNestedStepsSwitch(
 /**
  * Returns an GCP Workflows object representation of a step.
  */
-export function renderStep(step: WorkflowStepASTWithNamedNested): Record<string, unknown> {
+export function renderStep(
+  step: WorkflowStepASTWithNamedNested,
+): Record<string, unknown> {
   switch (step.tag) {
     case 'assign':
       return {
