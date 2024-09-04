@@ -8,9 +8,9 @@ import {
   ParenthesizedExpression,
   Primitive,
   PrimitiveExpression,
+  UnaryExpression,
   VariableReferenceExpression,
   createBinaryExpression,
-  expressionWithUnary,
   isExpression,
   isFullyQualifiedName,
   needsParenthesis,
@@ -29,7 +29,6 @@ const {
   ObjectExpression,
   TemplateLiteral,
   TSAsExpression,
-  UnaryExpression,
 } = AST_NODE_TYPES
 
 export function convertExpression(instance: any): Expression {
@@ -116,7 +115,7 @@ function convertExpressionOrPrimitive(instance: any): Primitive | Expression {
         return new VariableReferenceExpression(instance.name as string)
       }
 
-    case UnaryExpression:
+    case AST_NODE_TYPES.UnaryExpression:
       return convertUnaryExpression(instance)
 
     case AST_NODE_TYPES.BinaryExpression:
@@ -212,7 +211,7 @@ function nullishCoalescingExpression(left: any, right: any): Expression {
 }
 
 function convertUnaryExpression(instance: any): Expression {
-  assertType(instance, UnaryExpression)
+  assertType(instance, AST_NODE_TYPES.UnaryExpression)
 
   if (instance.prefix === false) {
     throw new WorkflowSyntaxError(
@@ -253,11 +252,7 @@ function convertUnaryExpression(instance: any): Expression {
   }
 
   const ex = convertExpression(instance.argument)
-  if (op) {
-    return expressionWithUnary(ex, op)
-  } else {
-    return ex
-  }
+  return op ? new UnaryExpression(op, ex) : ex
 }
 
 export function convertMemberExpression(node: any): Expression {

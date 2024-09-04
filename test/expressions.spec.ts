@@ -150,7 +150,7 @@ describe('Expressions', () => {
       '!(status in ["OK", "success"])',
       '${not status in ["OK", "success"]}',
     )
-    assertExpression('(y >= 0) && !(x >= 0)', '${(y >= 0) and (not x >= 0)}')
+    assertExpression('(y >= 0) && !(x >= 0)', '${(y >= 0) and not x >= 0}')
   })
 
   it('parses remaider divisions', () => {
@@ -179,7 +179,7 @@ describe('Expressions', () => {
     assertExpression('isEven || isPositive', '${isEven or isPositive}')
     assertExpression(
       '(x > 15) && !(x % 3 == 0)',
-      '${(x > 15) and (not (x % 3) == 0)}',
+      '${(x > 15) and not (x % 3) == 0}',
     )
   })
 

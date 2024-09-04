@@ -26,37 +26,34 @@ export type Expression =
   | ParenthesizedExpression
   | FunctionInvocationExpression
   | MemberExpression
+  | UnaryExpression
 
 // A primitive (string, number, list, etc) value
 // TODO: Is this needed? Use unboxed Primitive instead?
 export class PrimitiveExpression {
   readonly expressionType = 'primitive'
   readonly value: Primitive
-  // Potentially a unary operator
-  readonly unaryOperator?: UnaryOperator
 
-  constructor(value: Primitive, unaryOperator?: UnaryOperator) {
+  constructor(value: Primitive) {
     this.value = value
-    this.unaryOperator = unaryOperator
   }
 
   // Return the string representation of this expression.
   // Not enclosed in ${}.
   toString(): string {
-    const opString = unaryOperatorToString(this.unaryOperator)
     const val = this.value
     if (Array.isArray(val)) {
       const elements = val.map((v) => {
         return isExpression(v) ? v.toString() : primitiveToString(v)
       })
-      return `${opString}[${elements.join(', ')}]`
+      return `[${elements.join(', ')}]`
     } else if (isRecord(val)) {
       const elements = Object.entries(val).map(([k, v]) => {
         return `"${k}": ${isExpression(v) ? v.toString() : primitiveToString(v)}`
       })
-      return `${opString}{${elements.join(', ')}}`
+      return `{${elements.join(', ')}}`
     } else {
-      return `${opString}${JSON.stringify(val)}`
+      return `${JSON.stringify(val)}`
     }
   }
 }
@@ -66,16 +63,10 @@ export class BinaryExpression {
   readonly expressionType = 'binary'
   readonly left: Expression
   readonly rest: BinaryOperation[]
-  readonly unaryOperator?: UnaryOperator
 
-  constructor(
-    left: Expression,
-    rest: BinaryOperation[] = [],
-    unaryOperator?: UnaryOperator,
-  ) {
+  constructor(left: Expression, rest: BinaryOperation[] = []) {
     this.left = left
     this.rest = rest
-    this.unaryOperator = unaryOperator
   }
 
   toString(): string {
@@ -85,7 +76,7 @@ export class BinaryExpression {
     )
     parts.unshift(left)
 
-    return `${unaryOperatorToString(this.unaryOperator)}${parts.join(' ')}`
+    return parts.join(' ')
   }
 }
 
@@ -109,6 +100,7 @@ export function createBinaryExpression(
         case 'variableReference':
         case 'functionInvocation':
         case 'member':
+        case 'unary':
           return x
 
         case 'binary':
@@ -129,15 +121,13 @@ export function createBinaryExpression(
 export class VariableReferenceExpression {
   readonly expressionType = 'variableReference'
   readonly variableName: VariableName
-  readonly unaryOperator?: UnaryOperator
 
-  constructor(variableName: VariableName, unaryOperator?: UnaryOperator) {
+  constructor(variableName: VariableName) {
     this.variableName = variableName
-    this.unaryOperator = unaryOperator
   }
 
   toString(): string {
-    return `${unaryOperatorToString(this.unaryOperator)}${this.variableName.toString()}`
+    return this.variableName
   }
 }
 
@@ -145,15 +135,13 @@ export class VariableReferenceExpression {
 export class ParenthesizedExpression {
   readonly expressionType = 'parenthesized'
   readonly value: Expression
-  readonly unaryOperator?: UnaryOperator
 
-  constructor(value: Expression, unaryOperator?: UnaryOperator) {
+  constructor(value: Expression) {
     this.value = value
-    this.unaryOperator = unaryOperator
   }
 
   toString(): string {
-    return `${unaryOperatorToString(this.unaryOperator)}(${this.value.toString()})`
+    return `(${this.value.toString()})`
   }
 }
 
@@ -162,21 +150,15 @@ export class FunctionInvocationExpression {
   readonly expressionType = 'functionInvocation'
   readonly functionName: string
   readonly arguments: Expression[]
-  readonly unaryOperator?: UnaryOperator
 
-  constructor(
-    functionName: string,
-    argumentExpressions: Expression[],
-    unaryOperator?: UnaryOperator,
-  ) {
+  constructor(functionName: string, argumentExpressions: Expression[]) {
     this.functionName = functionName
     this.arguments = argumentExpressions
-    this.unaryOperator = unaryOperator
   }
 
   toString(): string {
     const argumentStrings = this.arguments.map((x) => x.toString())
-    return `${unaryOperatorToString(this.unaryOperator)}${this.functionName}(${argumentStrings.join(', ')})`
+    return `${this.functionName}(${argumentStrings.join(', ')})`
   }
 }
 
@@ -186,36 +168,36 @@ export class MemberExpression {
   readonly object: Expression
   readonly property: Expression
   readonly computed: boolean
-  readonly unaryOperator?: UnaryOperator
 
-  constructor(
-    object: Expression,
-    property: Expression,
-    computed: boolean,
-    unaryOperator?: UnaryOperator,
-  ) {
+  constructor(object: Expression, property: Expression, computed: boolean) {
     this.object = object
     this.property = property
     this.computed = computed
-    this.unaryOperator = unaryOperator
   }
 
   toString(): string {
     if (this.computed) {
-      return `${unaryOperatorToString(this.unaryOperator)}${this.object.toString()}[${this.property.toString()}]`
+      return `${this.object.toString()}[${this.property.toString()}]`
     } else {
-      return `${unaryOperatorToString(this.unaryOperator)}${this.object.toString()}.${this.property.toString()}`
+      return `${this.object.toString()}.${this.property.toString()}`
     }
   }
 }
 
-function unaryOperatorToString(unaryOperator?: UnaryOperator): string {
-  let opString = unaryOperator ?? ''
-  if (opString && !['-', '+'].includes(opString)) {
-    opString += ' '
+export class UnaryExpression {
+  readonly expressionType = 'unary'
+  readonly operator: UnaryOperator
+  readonly value: Expression
+
+  constructor(operator: UnaryOperator, value: Expression) {
+    this.operator = operator
+    this.value = value
   }
 
-  return opString
+  toString(): string {
+    const separator = this.operator === 'not' ? ' ' : ''
+    return `${this.operator}${separator}${this.value.toString()}`
+  }
 }
 
 // Convert a Primitive to a string representation.
@@ -271,23 +253,34 @@ export function expressionToLiteralValueOrLiteralExpression(
     case 'functionInvocation':
     case 'member':
       return `\${${ex.toString()}}`
+
+    case 'unary':
+      if (
+        ex.value.expressionType === 'primitive' &&
+        typeof ex.value.value === 'number'
+      ) {
+        if (ex.operator === '+') {
+          return ex.value.value
+        } else if (ex.operator === '-') {
+          return -ex.value.value
+        } else {
+          return `\${${ex.toString()}}`
+        }
+      } else {
+        return `\${${ex.toString()}}`
+      }
   }
 }
 
 function primitiveExpressionToLiteralValueOrLiteralExpression(
   ex: PrimitiveExpression,
 ): LiteralValueOrLiteralExpression {
-  if (typeof ex.value === 'number') {
-    if (ex.unaryOperator === '-') {
-      return -ex.value
-    } else {
-      return ex.value
-    }
-  } else if (typeof ex.value === 'string' && !ex.unaryOperator) {
-    return ex.value
-  } else if (typeof ex.value === 'boolean' && !ex.unaryOperator) {
-    return ex.value
-  } else if (ex.value === null) {
+  if (
+    typeof ex.value === 'number' ||
+    typeof ex.value === 'string' ||
+    typeof ex.value === 'boolean' ||
+    ex.value === null
+  ) {
     return ex.value
   } else if (Array.isArray(ex.value)) {
     return ex.value.map((x) => {
@@ -347,6 +340,9 @@ export function isLiteral(ex: Expression): boolean {
 
     case 'binary':
       return ex.rest.length === 0 && isLiteral(ex.left)
+
+    case 'unary':
+      return isLiteral(ex.value)
 
     case 'variableReference':
     case 'parenthesized':
@@ -411,35 +407,13 @@ export function isFullyQualifiedName(ex: Expression): boolean {
         isFullyQualifiedName(ex.object) &&
         (ex.computed || isFullyQualifiedName(ex.property))
       )
+
+    case 'unary':
+      return isFullyQualifiedName(ex.value)
   }
 }
 
 // Returns true if the expression needs to be enclosed in parentheses when part of a larger expression
 export function needsParenthesis(ex: Expression): boolean {
   return ex.expressionType === 'binary' && ex.rest.length > 0
-}
-
-export function expressionWithUnary(
-  ex: Expression,
-  op: UnaryOperator,
-): Expression {
-  switch (ex.expressionType) {
-    case 'primitive':
-      return new PrimitiveExpression(ex.value, op)
-
-    case 'binary':
-      return new BinaryExpression(ex.left, ex.rest, op)
-
-    case 'variableReference':
-      return new VariableReferenceExpression(ex.variableName, op)
-
-    case 'parenthesized':
-      return new ParenthesizedExpression(ex.value, op)
-
-    case 'functionInvocation':
-      return new FunctionInvocationExpression(ex.functionName, ex.arguments, op)
-
-    case 'member':
-      return new MemberExpression(ex.object, ex.property, ex.computed, op)
-  }
 }

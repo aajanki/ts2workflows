@@ -18,6 +18,7 @@ import {
   ParenthesizedExpression,
   Primitive,
   PrimitiveExpression,
+  UnaryExpression,
   VariableName,
   VariableReferenceExpression,
   expressionToLiteralValueOrLiteralExpression,
@@ -344,7 +345,6 @@ function transformExpression(
       case 'parenthesized':
         return new ParenthesizedExpression(
           transformExpression(ex.value, transformer),
-          ex.unaryOperator,
         )
 
       case 'functionInvocation':
@@ -355,7 +355,12 @@ function transformExpression(
           transformExpression(ex.object, transformer),
           transformExpression(ex.property, transformer),
           ex.computed,
-          ex.unaryOperator,
+        )
+
+      case 'unary':
+        return new UnaryExpression(
+          ex.operator,
+          transformExpression(ex.value, transformer),
         )
     }
   }
@@ -371,7 +376,7 @@ function transformBinaryExpression(
     binaryOperator: op.binaryOperator,
     right: transformExpression(op.right, transformer),
   }))
-  return new BinaryExpression(newLeft, newRest, ex.unaryOperator)
+  return new BinaryExpression(newLeft, newRest)
 }
 
 function transformFunctionInvocationExpression(
@@ -381,11 +386,7 @@ function transformFunctionInvocationExpression(
   const newArguments = ex.arguments.map((x) =>
     transformExpression(x, transformer),
   )
-  return new FunctionInvocationExpression(
-    ex.functionName,
-    newArguments,
-    ex.unaryOperator,
-  )
+  return new FunctionInvocationExpression(ex.functionName, newArguments)
 }
 
 /**
@@ -467,6 +468,7 @@ function includesMapLiteral(ex: Expression): boolean {
       return false
 
     case 'parenthesized':
+    case 'unary':
       return includesMapLiteral(ex.value)
 
     case 'functionInvocation':
