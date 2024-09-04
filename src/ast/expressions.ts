@@ -94,17 +94,10 @@ export function createBinaryExpression(
 ): Expression {
   function asExpression(x: Primitive | Expression): Expression {
     if (isExpression(x)) {
-      switch (x.expressionType) {
-        case 'primitive':
-        case 'parenthesized':
-        case 'variableReference':
-        case 'functionInvocation':
-        case 'member':
-        case 'unary':
-          return x
-
-        case 'binary':
-          return x.rest.length === 0 ? x.left : new ParenthesizedExpression(x)
+      if (x.expressionType === 'binary') {
+        return x.rest.length === 0 ? x.left : new ParenthesizedExpression(x)
+      } else {
+        return x
       }
     } else {
       return new PrimitiveExpression(x)
