@@ -2,7 +2,6 @@ import {
   AssignStepAST,
   CallStepAST,
   CustomRetryPolicy,
-  RaiseStepAST,
   SwitchStepAST,
   TryStepAST,
   WorkflowParameters,
@@ -12,15 +11,19 @@ import {
 import { InternalTranspilingError } from '../errors.js'
 import { isRecord } from '../utils.js'
 import {
+  BinaryExpression,
   Expression,
-  FunctionInvocationTerm,
-  MemberTerm,
-  ParenthesizedTerm,
+  FunctionInvocationExpression,
+  MemberExpression,
+  ParenthesizedExpression,
   Primitive,
-  PrimitiveTerm,
-  Term,
-  VariableReferenceTerm,
-  primitiveExpression,
+  PrimitiveExpression,
+  VariableName,
+  VariableReferenceExpression,
+  expressionToLiteralValueOrLiteralExpression,
+  isExpression,
+  isFullyQualifiedName,
+  isLiteral,
 } from '../ast/expressions.js'
 import { blockingFunctions } from './functionMetadata.js'
 
@@ -76,11 +79,13 @@ function combineRetryBlocksToTry(steps: WorkflowStepAST[]): WorkflowStepAST[] {
         }
 
         let retryPolicy: string | CustomRetryPolicy | undefined = undefined
-        const retryParameters = current.args
+        const retryParameters = current.args as
+          | Record<VariableName, Expression | undefined>
+          | undefined
 
         if (retryParameters) {
           const retryPolicyEx = retryParameters.policy
-          if (retryPolicyEx?.isFullyQualifiedName()) {
+          if (retryPolicyEx && isFullyQualifiedName(retryPolicyEx)) {
             retryPolicy = retryPolicyEx.toString()
           }
 
@@ -88,7 +93,7 @@ function combineRetryBlocksToTry(steps: WorkflowStepAST[]): WorkflowStepAST[] {
             let predicate = ''
             const predicateEx = retryParameters.predicate
             if (predicateEx) {
-              if (predicateEx.isFullyQualifiedName()) {
+              if (isFullyQualifiedName(predicateEx)) {
                 predicate = predicateEx.toString()
               } else {
                 throw new InternalTranspilingError(
@@ -108,10 +113,11 @@ function combineRetryBlocksToTry(steps: WorkflowStepAST[]): WorkflowStepAST[] {
 
             const backoffEx = retryParameters.backoff
             if (
-              backoffEx?.isLiteral() &&
-              backoffEx.left instanceof PrimitiveTerm
+              backoffEx &&
+              isLiteral(backoffEx) &&
+              backoffEx.expressionType === 'primitive'
             ) {
-              const backoffLit = backoffEx.left.value
+              const backoffLit = backoffEx.value
 
               if (isRecord(backoffLit)) {
                 initialDelay = parseRetryPolicyNumber(
@@ -155,21 +161,25 @@ function combineRetryBlocksToTry(steps: WorkflowStepAST[]): WorkflowStepAST[] {
 }
 
 function parseRetryPolicyNumber(
-  record: Record<string, Expression | Primitive>,
+  record: Record<string, Expression | Primitive | undefined>,
   keyName: string,
 ): number {
   let primitiveValue: Primitive
   const primitiveOrExpression = record[keyName]
-  if (primitiveOrExpression instanceof Expression) {
-    if (primitiveOrExpression.isLiteral()) {
-      primitiveValue = primitiveOrExpression.toLiteralValueOrLiteralExpression()
+  if (primitiveOrExpression && isExpression(primitiveOrExpression)) {
+    if (isLiteral(primitiveOrExpression)) {
+      primitiveValue = expressionToLiteralValueOrLiteralExpression(
+        primitiveOrExpression,
+      )
     } else {
       throw new InternalTranspilingError(
         `Support for non-literal "${keyName}" values not yet implemented`,
       )
     }
-  } else {
+  } else if (primitiveOrExpression) {
     primitiveValue = primitiveOrExpression
+  } else {
+    throw new InternalTranspilingError(`"${keyName}" expected`)
   }
 
   if (typeof primitiveValue !== 'number') {
@@ -212,7 +222,7 @@ export function flattenPlainNextConditions(
 /**
  * Search for blocking calls in expressions and replace them with call step + variable.
  *
- * Workflows specify that blocking calls must be executed by call steps.
+ * The Workflows runtime requires that blocking calls must be executed by call steps.
  *
  * For example, transforms this:
  *
@@ -255,23 +265,24 @@ function createTempVariableGenerator(): () => string {
 }
 
 const Unmodified = Symbol()
+type Unmodified = typeof Unmodified
 
 function replaceBlockingCalls(
   expression: Expression,
   generateName: () => string,
 ): { transformedExpression: Expression; callSteps: CallStepAST[] } {
   function replaceBlockingFunctionInvocations(
-    t: Term,
-  ): Term | typeof Unmodified {
-    if (t instanceof FunctionInvocationTerm) {
+    ex: Expression,
+  ): Expression | Unmodified {
+    if (ex.expressionType === 'functionInvocation') {
       const callStepsForArguments: CallStepAST[] = []
-      const replacedArguments = t.arguments.map((ex) => {
+      const replacedArguments = ex.arguments.map((ex) => {
         const replaced = replaceBlockingCalls(ex, generateName)
         callStepsForArguments.push(...replaced.callSteps)
         return replaced.transformedExpression
       })
 
-      const blockingCallArgumentNames = blockingFunctions.get(t.functionName)
+      const blockingCallArgumentNames = blockingFunctions.get(ex.functionName)
       if (blockingCallArgumentNames) {
         if (replacedArguments.length > blockingCallArgumentNames.length) {
           throw new InternalTranspilingError(
@@ -287,11 +298,11 @@ function replaceBlockingCalls(
 
         callSteps.push(...callStepsForArguments)
         callSteps.push(
-          new CallStepAST(t.functionName, args, tempCallResultVariable),
+          new CallStepAST(ex.functionName, args, tempCallResultVariable),
         )
 
-        // replace function invocation with a reference to a temporary variable
-        return new VariableReferenceTerm(tempCallResultVariable)
+        // replace function invocation with a reference to the temporary variable
+        return new VariableReferenceExpression(tempCallResultVariable)
       } else {
         return Unmodified
       }
@@ -313,49 +324,68 @@ function replaceBlockingCalls(
 
 function transformExpression(
   ex: Expression,
-  transformTerm: (t: Term) => Term | typeof Unmodified,
+  transformer: (x: Expression) => Expression | Unmodified,
 ): Expression {
-  function transformRecursively(term: Term): Term {
-    const transformedTerm = transformTerm(term)
+  const transformed = transformer(ex)
 
-    if (transformedTerm === Unmodified) {
-      // Keep term but recurse into nested expressions
-      if (term instanceof ParenthesizedTerm) {
-        return new ParenthesizedTerm(
-          transformExpression(term.value, transformTerm),
-          term.unaryOperator,
+  if (transformed !== Unmodified) {
+    // Use the transformed version of this term
+    return transformed
+  } else {
+    // Otherwise, recurse into the nested expression
+    switch (ex.expressionType) {
+      case 'primitive':
+      case 'variableReference':
+        return ex
+
+      case 'binary':
+        return transformBinaryExpression(ex, transformer)
+
+      case 'parenthesized':
+        return new ParenthesizedExpression(
+          transformExpression(ex.value, transformer),
+          ex.unaryOperator,
         )
-      } else if (term instanceof FunctionInvocationTerm) {
-        const newArguments = term.arguments.map((x) =>
-          transformExpression(x, transformTerm),
+
+      case 'functionInvocation':
+        return transformFunctionInvocationExpression(ex, transformer)
+
+      case 'member':
+        return new MemberExpression(
+          transformExpression(ex.object, transformer),
+          transformExpression(ex.property, transformer),
+          ex.computed,
+          ex.unaryOperator,
         )
-        return new FunctionInvocationTerm(
-          term.functionName,
-          newArguments,
-          term.unaryOperator,
-        )
-      } else if (term instanceof MemberTerm) {
-        const newObject = transformExpression(term.object, transformTerm)
-        const newProperty = transformExpression(term.property, transformTerm)
-        return new MemberTerm(newObject, newProperty, term.computed)
-      } else {
-        return term
-      }
-    } else {
-      // Use the transformed version of this term
-      return transformedTerm
     }
   }
+}
 
-  // Call transformRecursively on left first to keep the correct order of
-  // execution of sub-expressions
-  const transformedLeft = transformRecursively(ex.left)
-  const transformedRest = ex.rest.map((op) => ({
+function transformBinaryExpression(
+  ex: BinaryExpression,
+  transformer: (x: Expression) => Expression | Unmodified,
+): BinaryExpression {
+  // Transform left first to keep the correct order of execution of sub-expressions
+  const newLeft = transformExpression(ex.left, transformer)
+  const newRest = ex.rest.map((op) => ({
     binaryOperator: op.binaryOperator,
-    right: transformRecursively(op.right),
+    right: transformExpression(op.right, transformer),
   }))
+  return new BinaryExpression(newLeft, newRest, ex.unaryOperator)
+}
 
-  return new Expression(transformedLeft, transformedRest)
+function transformFunctionInvocationExpression(
+  ex: FunctionInvocationExpression,
+  transformer: (x: Expression) => Expression | Unmodified,
+): FunctionInvocationExpression {
+  const newArguments = ex.arguments.map((x) =>
+    transformExpression(x, transformer),
+  )
+  return new FunctionInvocationExpression(
+    ex.functionName,
+    newArguments,
+    ex.unaryOperator,
+  )
 }
 
 /**
@@ -378,7 +408,7 @@ function transformExpression(
  *     return: ${__temp0.value}
  */
 function mapLiteralsAsAssignSteps(steps: WorkflowStepAST[]): WorkflowStepAST[] {
-  const transformer = (ex: Expression): [WorkflowStepAST[], Expression] => {
+  function transformer(ex: Expression): [WorkflowStepAST[], Expression] {
     const generateTemporaryVariableName = createTempVariableGenerator()
     const { transformedExpression, assignSteps } = replaceMapLiterals(
       ex,
@@ -393,20 +423,20 @@ function mapLiteralsAsAssignSteps(steps: WorkflowStepAST[]): WorkflowStepAST[] {
 
     // These steps are allowed to contain map literals if the map is the
     // main expression
-    if (current instanceof AssignStepAST) {
+    if (current.tag === 'assign') {
       // This does the transformation a bit too eagerly: If any of the
-      // assignments need map literal extraction, it is done on all of
+      // assignments need the map literal extraction, it is done on all of
       // the variables.
       needsTransformation = !current.assignments.every(([, value]) => {
-        return value.rest.length === 0 && value.left instanceof PrimitiveTerm
+        return value.expressionType === 'primitive'
       })
-    } else if (current instanceof RaiseStepAST) {
+    } else if (current.tag === 'raise') {
       needsTransformation =
-        !current.value.isLiteral() && includesMapLiteral(current.value)
-    } else if (current instanceof CallStepAST) {
+        !isLiteral(current.value) && includesMapLiteral(current.value)
+    } else if (current.tag === 'call') {
       if (current.args) {
         needsTransformation = Object.values(current.args).some(
-          (ex) => !ex.isLiteral() && includesMapLiteral(ex),
+          (ex) => !isLiteral(ex) && includesMapLiteral(ex),
         )
       }
     }
@@ -422,24 +452,28 @@ function mapLiteralsAsAssignSteps(steps: WorkflowStepAST[]): WorkflowStepAST[] {
   }, [])
 }
 
-function includesMapLiteral(expression: Expression): boolean {
-  return (
-    termIncludesMapLiteral(expression.left) ||
-    expression.rest.some((op) => termIncludesMapLiteral(op.right))
-  )
-}
+function includesMapLiteral(ex: Expression): boolean {
+  switch (ex.expressionType) {
+    case 'primitive':
+      return isRecord(ex.value)
 
-function termIncludesMapLiteral(term: Term): boolean {
-  if (term instanceof PrimitiveTerm) {
-    return isRecord(term.value)
-  } else if (term instanceof FunctionInvocationTerm) {
-    return term.arguments.some(includesMapLiteral)
-  } else if (term instanceof ParenthesizedTerm) {
-    return includesMapLiteral(term.value)
-  } else if (term instanceof MemberTerm) {
-    return includesMapLiteral(term.object) || includesMapLiteral(term.object)
-  } else {
-    return false
+    case 'binary':
+      return (
+        includesMapLiteral(ex.left) ||
+        ex.rest.some((x) => includesMapLiteral(x.right))
+      )
+
+    case 'variableReference':
+      return false
+
+    case 'parenthesized':
+      return includesMapLiteral(ex.value)
+
+    case 'functionInvocation':
+      return ex.arguments.some(includesMapLiteral)
+
+    case 'member':
+      return includesMapLiteral(ex.object) || includesMapLiteral(ex.property)
   }
 }
 
@@ -447,15 +481,15 @@ function replaceMapLiterals(
   expression: Expression,
   generateName: () => string,
 ): { transformedExpression: Expression; assignSteps: AssignStepAST[] } {
-  function replace(t: Term): Term | typeof Unmodified {
-    if (t instanceof PrimitiveTerm && isRecord(t.value)) {
+  function replace(ex: Expression): Expression | Unmodified {
+    if (ex.expressionType === 'primitive' && isRecord(ex.value)) {
       const tempVariable = generateName()
       assignSteps.push(
-        new AssignStepAST([[tempVariable, primitiveExpression(t.value)]]),
+        new AssignStepAST([[tempVariable, new PrimitiveExpression(ex.value)]]),
       )
 
-      // replace the map literal with a reference to a temporary variable
-      return new VariableReferenceTerm(tempVariable)
+      // replace the map literal with a reference to the temporary variable
+      return new VariableReferenceExpression(tempVariable)
     } else {
       return Unmodified
     }

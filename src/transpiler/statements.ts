@@ -20,14 +20,16 @@ import {
 } from '../ast/steps.js'
 import {
   Expression,
-  ParenthesizedTerm,
-  PrimitiveTerm,
-  Term,
+  FunctionInvocationExpression,
+  ParenthesizedExpression,
+  PrimitiveExpression,
   VariableName,
-  VariableReferenceTerm,
-  binaryExpression,
-  functionInvocationExpression,
-  primitiveExpression,
+  VariableReferenceExpression,
+  createBinaryExpression,
+  isExpression,
+  isFullyQualifiedName,
+  isLiteral,
+  needsParenthesis,
 } from '../ast/expressions.js'
 import { InternalTranspilingError, WorkflowSyntaxError } from '../errors.js'
 import { isRecord } from '../utils.js'
@@ -173,7 +175,7 @@ function convertVariableDeclarations(declarations: any[]): WorkflowStepAST[] {
     const targetName = decl.id.name as string
 
     if (!decl.init) {
-      return new AssignStepAST([[targetName, primitiveExpression(null)]])
+      return new AssignStepAST([[targetName, new PrimitiveExpression(null)]])
     } else if (decl.init.type === CallExpression) {
       const maybeBlockingcall = getBlockingCallParameters(decl.init)
 
@@ -247,7 +249,7 @@ function assignmentExpressionToSteps(node: any): WorkflowStepAST[] {
 
   const targetExpression = convertExpression(node.left)
 
-  if (!targetExpression.isFullyQualifiedName()) {
+  if (!isFullyQualifiedName(targetExpression)) {
     throw new WorkflowSyntaxError(
       'The left-hand side of an assignment must be an identifier or a property access',
       node.loc,
@@ -258,16 +260,15 @@ function assignmentExpressionToSteps(node: any): WorkflowStepAST[] {
   let valueExpression: Expression = convertExpression(node.right)
 
   if (compoundOperator) {
-    let right: Term
-    if (valueExpression.isSingleValue()) {
-      right = valueExpression.left
-    } else {
-      right = new ParenthesizedTerm(valueExpression)
-    }
+    const right: Expression = needsParenthesis(valueExpression)
+      ? new ParenthesizedExpression(valueExpression)
+      : valueExpression
 
-    valueExpression = new Expression(new VariableReferenceTerm(targetName), [
-      { binaryOperator: compoundOperator, right },
-    ])
+    valueExpression = createBinaryExpression(
+      new VariableReferenceExpression(targetName),
+      compoundOperator,
+      right,
+    )
   }
 
   return [new AssignStepAST([[targetName, valueExpression]])]
@@ -293,8 +294,8 @@ function callExpressionToStep(node: any, ctx: ParsingContext): WorkflowStepAST {
   assertType(node, CallExpression)
 
   const calleeExpression = convertExpression(node.callee)
-  if (calleeExpression.isFullyQualifiedName()) {
-    const calleeName = calleeExpression.left.toString()
+  if (isFullyQualifiedName(calleeExpression)) {
+    const calleeName = calleeExpression.toString()
 
     if (calleeName === 'parallel') {
       // A custom implementation for "parallel"
@@ -323,7 +324,7 @@ function callExpressionAssignStep(
 ): AssignStepAST {
   const argumentExpressions: Expression[] = argumentsNode.map(convertExpression)
   const assignments: VariableAssignment[] = [
-    ['', functionInvocationExpression(functionName, argumentExpressions)],
+    ['', new FunctionInvocationExpression(functionName, argumentExpressions)],
   ]
 
   return new AssignStepAST(assignments)
@@ -362,7 +363,7 @@ function createCallStep(
   } else if (argumentsNode[0].type === MemberExpression) {
     const memberExp = convertMemberExpression(argumentsNode[0])
 
-    if (!memberExp.isFullyQualifiedName()) {
+    if (!isFullyQualifiedName(memberExp)) {
       throw new WorkflowSyntaxError(
         'Function name must be a fully-qualified name',
         argumentsNode[0].loc,
@@ -523,7 +524,7 @@ function parseParallelOptions(node: any) {
   }
 
   const shared = sharedExpression.map((x) => {
-    if (x instanceof Expression || typeof x !== 'string') {
+    if (isExpression(x) || typeof x !== 'string') {
       throw new WorkflowSyntaxError(
         '"shared" must be an array of strings',
         node.loc,
@@ -609,7 +610,7 @@ function flattenIfBranches(
   if (ifStatement.alternate) {
     if (ifStatement.alternate.type === BlockStatement) {
       branches.push({
-        condition: primitiveExpression(true),
+        condition: new PrimitiveExpression(true),
         steps: parseBlockStatement(ifStatement.alternate, ctx),
       })
     } else if (ifStatement.alternate.type === IfStatement) {
@@ -644,9 +645,9 @@ function switchStatementToSteps(
     let condition: Expression
     if (caseNode.test) {
       const test = convertExpression(caseNode.test)
-      condition = binaryExpression(discriminant, '==', test)
+      condition = createBinaryExpression(discriminant, '==', test)
     } else {
-      condition = primitiveExpression(true)
+      condition = new PrimitiveExpression(true)
     }
 
     const jumpTarget = new JumpTargetAST()
@@ -712,15 +713,15 @@ function forOfStatementToForStep(node: any, ctx: ParsingContext): ForStepAST {
   const listExpression = convertExpression(node.right)
 
   if (
-    listExpression.isLiteral() &&
-    listExpression.left instanceof PrimitiveTerm &&
-    (isRecord(listExpression.left.value) ||
-      typeof listExpression.left.value === 'number' ||
-      typeof listExpression.left.value === 'string' ||
-      typeof listExpression.left.value === 'boolean' ||
-      listExpression.left.value === null)
+    isLiteral(listExpression) &&
+    listExpression.expressionType === 'primitive' &&
+    (isRecord(listExpression.value) ||
+      typeof listExpression.value === 'number' ||
+      typeof listExpression.value === 'string' ||
+      typeof listExpression.value === 'boolean' ||
+      listExpression.value === null)
   ) {
-    throw new WorkflowSyntaxError('Must be list expression', node.right.loc)
+    throw new WorkflowSyntaxError('Must be a list expression', node.right.loc)
   }
 
   return new ForStepAST(steps, loopVariableName, listExpression)

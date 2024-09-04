@@ -1,18 +1,19 @@
 /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-argument */
 import { AST_NODE_TYPES } from '@typescript-eslint/utils'
 import {
+  BinaryExpression,
   Expression,
-  FunctionInvocationTerm,
-  ParenthesizedTerm,
+  FunctionInvocationExpression,
+  MemberExpression,
+  ParenthesizedExpression,
   Primitive,
-  PrimitiveTerm,
-  Term,
-  VariableReferenceTerm,
-  binaryExpression,
-  functionInvocationExpression,
-  memberExpression,
-  primitiveExpression,
-  variableReferenceExpression,
+  PrimitiveExpression,
+  VariableReferenceExpression,
+  createBinaryExpression,
+  expressionWithUnary,
+  isExpression,
+  isFullyQualifiedName,
+  needsParenthesis,
 } from '../ast/expressions.js'
 import { WorkflowSyntaxError } from '../errors.js'
 import { assertOneOfManyTypes, assertType } from './asserts.js'
@@ -20,13 +21,11 @@ import { assertOneOfManyTypes, assertType } from './asserts.js'
 const {
   ArrayExpression,
   AwaitExpression,
-  BinaryExpression,
   CallExpression,
   ConditionalExpression,
   Identifier,
   Literal,
   LogicalExpression,
-  MemberExpression,
   ObjectExpression,
   TemplateLiteral,
   TSAsExpression,
@@ -35,10 +34,10 @@ const {
 
 export function convertExpression(instance: any): Expression {
   const expOrPrimitive = convertExpressionOrPrimitive(instance)
-  if (expOrPrimitive instanceof Expression) {
+  if (isExpression(expOrPrimitive)) {
     return expOrPrimitive
   } else {
-    return primitiveExpression(expOrPrimitive)
+    return new PrimitiveExpression(expOrPrimitive)
   }
 }
 
@@ -83,10 +82,10 @@ export function convertObjectAsExpressionValues(
 ): Record<string, Expression> {
   const primitiveOrExpArguments = convertObjectExpression(node)
 
-  // Convert Primitive values to Expressions
+  // Convert Primitive values to PrimitiveExpressions
   return Object.fromEntries(
     Object.entries(primitiveOrExpArguments).map(([key, val]) => {
-      const valEx = val instanceof Expression ? val : primitiveExpression(val)
+      const valEx = isExpression(val) ? val : new PrimitiveExpression(val)
       return [key, valEx]
     }),
   )
@@ -114,17 +113,17 @@ function convertExpressionOrPrimitive(instance: any): Primitive | Expression {
       } else if (instance.name === 'False' || instance.name === 'FALSE') {
         return false
       } else {
-        return variableReferenceExpression(instance.name as string)
+        return new VariableReferenceExpression(instance.name as string)
       }
 
     case UnaryExpression:
       return convertUnaryExpression(instance)
 
-    case BinaryExpression:
+    case AST_NODE_TYPES.BinaryExpression:
     case LogicalExpression:
       return convertBinaryExpression(instance)
 
-    case MemberExpression:
+    case AST_NODE_TYPES.MemberExpression:
       return convertMemberExpression(instance)
 
     case CallExpression:
@@ -148,7 +147,10 @@ function convertExpressionOrPrimitive(instance: any): Primitive | Expression {
 }
 
 function convertBinaryExpression(instance: any): Expression {
-  assertOneOfManyTypes(instance, [BinaryExpression, LogicalExpression])
+  assertOneOfManyTypes(instance, [
+    AST_NODE_TYPES.BinaryExpression,
+    LogicalExpression,
+  ])
 
   // Special case for nullish coalescing becuase the result is a function call
   // expression, not a binary expression
@@ -199,11 +201,11 @@ function convertBinaryExpression(instance: any): Expression {
   const left = convertExpressionOrPrimitive(instance.left)
   const right = convertExpressionOrPrimitive(instance.right)
 
-  return binaryExpression(left, op, right)
+  return createBinaryExpression(left, op, right)
 }
 
 function nullishCoalescingExpression(left: any, right: any): Expression {
-  return functionInvocationExpression('default', [
+  return new FunctionInvocationExpression('default', [
     convertExpression(left),
     convertExpression(right),
   ])
@@ -250,44 +252,19 @@ function convertUnaryExpression(instance: any): Expression {
       )
   }
 
-  const ex = convertExpressionOrPrimitive(instance.argument)
-  let term: Term
-  if (
-    ex instanceof Expression &&
-    ex.isLiteral() &&
-    ex.left instanceof PrimitiveTerm
-  ) {
-    term = new PrimitiveTerm(ex.left.value, op)
-  } else if (
-    ex instanceof Expression &&
-    ex.isSingleValue() &&
-    ex.left instanceof VariableReferenceTerm
-  ) {
-    term = new VariableReferenceTerm(ex.left.variableName, op)
-  } else if (
-    ex instanceof Expression &&
-    ex.isSingleValue() &&
-    ex.left instanceof FunctionInvocationTerm
-  ) {
-    term = new FunctionInvocationTerm(
-      ex.left.functionName,
-      ex.left.arguments,
-      op,
-    )
-  } else if (ex instanceof Expression) {
-    term = new ParenthesizedTerm(ex, op)
+  const ex = convertExpression(instance.argument)
+  if (op) {
+    return expressionWithUnary(ex, op)
   } else {
-    term = new PrimitiveTerm(ex, op)
+    return ex
   }
-
-  return new Expression(term)
 }
 
 export function convertMemberExpression(node: any): Expression {
-  assertType(node, MemberExpression)
+  assertType(node, AST_NODE_TYPES.MemberExpression)
 
   const object = convertExpression(node.object)
-  return memberExpression(
+  return new MemberExpression(
     object,
     convertExpression(node.property),
     node.computed,
@@ -298,11 +275,11 @@ function convertCallExpression(node: any): Expression {
   assertType(node, CallExpression)
 
   const calleeExpression = convertExpression(node.callee)
-  if (calleeExpression.isFullyQualifiedName()) {
+  if (isFullyQualifiedName(calleeExpression)) {
     const nodeArguments = node.arguments as any[]
     const argumentExpressions = nodeArguments.map(convertExpression)
-    return functionInvocationExpression(
-      calleeExpression.left.toString(),
+    return new FunctionInvocationExpression(
+      calleeExpression.toString(),
       argumentExpressions,
     )
   } else {
@@ -317,7 +294,7 @@ function convertConditionalExpression(node: any): Expression {
   const consequent = convertExpression(node.consequent)
   const alternate = convertExpression(node.alternate)
 
-  return functionInvocationExpression('if', [test, consequent, alternate])
+  return new FunctionInvocationExpression('if', [test, consequent, alternate])
 }
 
 function convertTemplateLiteralToExpression(node: any): Expression {
@@ -326,22 +303,18 @@ function convertTemplateLiteralToExpression(node: any): Expression {
   const elements = node.quasis as { value: { cooked: string } }[]
   const stringTerms = elements
     .map((x) => x.value.cooked)
-    .map((x) => new PrimitiveTerm(x))
+    .map((x) => new PrimitiveExpression(x))
 
   const expressionNodes = node.expressions as any[]
-  const templateTerms = expressionNodes.map(convertExpression).map((ex) => {
-    if (ex.isSingleValue()) {
-      return ex.left
-    } else {
-      return new ParenthesizedTerm(ex)
-    }
-  })
+  const templateTerms = expressionNodes
+    .map(convertExpression)
+    .map((ex) => (needsParenthesis(ex) ? new ParenthesizedExpression(ex) : ex))
 
   // interleave string parts and the expression parts starting with strings
-  const interleavedTerms: Term[] = stringTerms
+  const interleavedTerms: Expression[] = stringTerms
     .slice(0, stringTerms.length - 1)
     .flatMap((stringTerm, i) => {
-      const combined: Term[] = [stringTerm]
+      const combined: Expression[] = [stringTerm]
       if (i < templateTerms.length) {
         combined.push(templateTerms[i])
       }
@@ -359,8 +332,8 @@ function convertTemplateLiteralToExpression(node: any): Expression {
       right: term,
     }))
 
-    return new Expression(head, rest)
+    return new BinaryExpression(head, rest)
   } else {
-    return primitiveExpression('')
+    return new PrimitiveExpression('')
   }
 }

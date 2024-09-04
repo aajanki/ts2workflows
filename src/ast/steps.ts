@@ -1,4 +1,8 @@
-import { Expression, VariableName } from './expressions.js'
+import {
+  Expression,
+  VariableName,
+  expressionToLiteralValueOrLiteralExpression,
+} from './expressions.js'
 import { Subworkflow, WorkflowParameter } from './workflows.js'
 
 export type StepName = string
@@ -1001,7 +1005,7 @@ export function renderStep(
     case 'assign':
       return {
         assign: step.assignments.map(([key, val]) => {
-          return { [key]: val.toLiteralValueOrLiteralExpression() }
+          return { [key]: expressionToLiteralValueOrLiteralExpression(val) }
         }),
       }
 
@@ -1035,7 +1039,7 @@ export function renderStep(
 
     case 'raise':
       return {
-        raise: step.value.toLiteralValueOrLiteralExpression(),
+        raise: expressionToLiteralValueOrLiteralExpression(step.value),
       }
 
     case 'return':
@@ -1064,7 +1068,7 @@ function renderSwitchCondition(
   cond: SwitchConditionAST<NamedWorkflowStep>,
 ): object {
   return {
-    condition: cond.condition.toLiteralValueOrLiteralExpression(),
+    condition: expressionToLiteralValueOrLiteralExpression(cond.condition),
     ...(cond.steps.length > 0 && { steps: renderSteps(cond.steps) }),
     ...(cond.next && { next: cond.next }),
   }
@@ -1077,7 +1081,7 @@ function renderCallStep(step: CallStepAST): Record<string, unknown> {
   if (step.args) {
     args = Object.fromEntries(
       Object.entries(step.args).map(([k, v]) => {
-        return [k, v.toLiteralValueOrLiteralExpression()]
+        return [k, expressionToLiteralValueOrLiteralExpression(v)]
       }),
     )
   }
@@ -1096,7 +1100,7 @@ function renderForBody(step: ForStepASTNamed): object {
     range = [step.rangeStart, step.rangeEnd]
     inValue = undefined
   } else {
-    inValue = step.listExpression.toLiteralValueOrLiteralExpression()
+    inValue = expressionToLiteralValueOrLiteralExpression(step.listExpression)
     range = undefined
   }
 
@@ -1112,7 +1116,7 @@ function renderForBody(step: ForStepASTNamed): object {
 function renderReturnStep(step: ReturnStepAST): Record<string, unknown> {
   if (step.value) {
     return {
-      return: step.value.toLiteralValueOrLiteralExpression(),
+      return: expressionToLiteralValueOrLiteralExpression(step.value),
     }
   } else {
     return {
