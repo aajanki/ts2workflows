@@ -102,6 +102,24 @@ describe('Literals', () => {
     expect(YAML.parse(ast)).to.deep.equal(YAML.parse(expected))
   })
 
+  it('parses maps with special characters in keys', () => {
+    const ast = transpile(
+      'function test() { const x = {"special!": 1, "\'quotes\\"in keys": 2, "...": 3} }',
+    )
+    const expected = `
+    test:
+      steps:
+        - assign1:
+            assign:
+              - x:
+                  "special!": 1
+                  "'quotes\\"in keys": 2
+                  ...: 3
+    `
+
+    expect(YAML.parse(ast)).to.deep.equal(YAML.parse(expected))
+  })
+
   it('parses nested maps', () => {
     assertExpression(
       '{"address": {"building": "The Dreamland Castle", "kingdom": "Dreamland"}}',
