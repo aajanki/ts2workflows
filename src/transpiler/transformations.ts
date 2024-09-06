@@ -372,11 +372,8 @@ function transformBinaryExpression(
 ): BinaryExpression {
   // Transform left first to keep the correct order of execution of sub-expressions
   const newLeft = transformExpression(ex.left, transformer)
-  const newRest = ex.rest.map((op) => ({
-    binaryOperator: op.binaryOperator,
-    right: transformExpression(op.right, transformer),
-  }))
-  return new BinaryExpression(newLeft, newRest)
+  const newRight = transformExpression(ex.right, transformer)
+  return new BinaryExpression(newLeft, ex.binaryOperator, newRight)
 }
 
 function transformFunctionInvocationExpression(
@@ -459,10 +456,7 @@ function includesMapLiteral(ex: Expression): boolean {
       return isRecord(ex.value)
 
     case 'binary':
-      return (
-        includesMapLiteral(ex.left) ||
-        ex.rest.some((x) => includesMapLiteral(x.right))
-      )
+      return includesMapLiteral(ex.left) || includesMapLiteral(ex.right)
 
     case 'variableReference':
       return false

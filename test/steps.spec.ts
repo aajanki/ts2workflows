@@ -471,7 +471,7 @@ describe('workflow step AST', () => {
         steps:
           - addStep:
               assign:
-                - sum: \${sum + (i * v)}
+                - sum: \${sum + i * v}
     `)
 
     expect(renderStep(step)).to.deep.equal(expected)

@@ -3,6 +3,31 @@ import { isRecord } from '../utils.js'
 export type VariableName = string
 export type UnaryOperator = '-' | '+' | 'not'
 
+// Operator precendence for unary and binary operators in the Workflows language.
+// Note that these differ somewhat from Javascript.
+// https://cloud.google.com/workflows/docs/reference/syntax/datatypes
+const operatorPrecedenceValue: Map<string, number> = new Map<string, number>([
+  ['not', 7],
+  // ['-', 6], // unary minus, commented out to avoid confusion with binary minus
+  ['*', 5],
+  ['/', 5],
+  ['//', 5],
+  ['%', 5],
+  ['+', 4],
+  ['-', 4],
+  ['<=', 3],
+  ['>=', 3],
+  ['<', 3],
+  ['>', 3],
+  ['==', 3],
+  ['===', 3],
+  ['!=', 3],
+  ['!==', 3],
+  ['in', 3],
+  ['and', 2],
+  ['or', 1],
+])
+
 export type Primitive =
   | null
   | string
@@ -58,55 +83,44 @@ export class PrimitiveExpression {
   }
 }
 
-// expr (OPERATOR expr)*
+// expr OPERATOR expr
 export class BinaryExpression {
   readonly expressionType = 'binary'
+  // Operator such as: +, -, <, ==
+  readonly binaryOperator: string
   readonly left: Expression
-  readonly rest: BinaryOperation[]
+  readonly right: Expression
 
-  constructor(left: Expression, rest: BinaryOperation[] = []) {
+  constructor(left: Expression, binaryOperator: string, right: Expression) {
+    this.binaryOperator = binaryOperator
     this.left = left
-    this.rest = rest
+    this.right = right
   }
 
   toString(): string {
-    const left = this.left.toString()
-    const parts = this.rest.map(
-      (x) => `${x.binaryOperator} ${x.right.toString()}`,
-    )
-    parts.unshift(left)
+    let leftString: string = this.left.toString()
+    let rightString: string = this.right.toString()
 
-    return parts.join(' ')
-  }
-}
-
-// The operator and right-hand side expression of a binary operation
-interface BinaryOperation {
-  // Operator such as: +, -, <, ==
-  binaryOperator: string
-  right: Expression
-}
-
-export function createBinaryExpression(
-  left: Primitive | Expression,
-  operator: string,
-  right: Primitive | Expression,
-): Expression {
-  function asExpression(x: Primitive | Expression): Expression {
-    if (isExpression(x)) {
-      if (x.expressionType === 'binary') {
-        return x.rest.length === 0 ? x.left : new ParenthesizedExpression(x)
-      } else {
-        return x
+    if (this.left.expressionType === 'binary') {
+      const leftOpValue =
+        operatorPrecedenceValue.get(this.left.binaryOperator) ?? 0
+      const thisOpValue = operatorPrecedenceValue.get(this.binaryOperator) ?? 0
+      if (leftOpValue < thisOpValue) {
+        leftString = `(${leftString})`
       }
-    } else {
-      return new PrimitiveExpression(x)
     }
-  }
 
-  return new BinaryExpression(asExpression(left), [
-    { binaryOperator: operator, right: asExpression(right) },
-  ])
+    if (this.right.expressionType === 'binary') {
+      const rightOpValue =
+        operatorPrecedenceValue.get(this.right.binaryOperator) ?? 0
+      const thisOpValue = operatorPrecedenceValue.get(this.binaryOperator) ?? 0
+      if (rightOpValue < thisOpValue) {
+        rightString = `(${rightString})`
+      }
+    }
+
+    return `${leftString} ${this.binaryOperator} ${rightString}`
+  }
 }
 
 // Variable name: a plain identifier (y, year) or a list
@@ -189,7 +203,11 @@ export class UnaryExpression {
 
   toString(): string {
     const separator = this.operator === 'not' ? ' ' : ''
-    return `${this.operator}${separator}${this.value.toString()}`
+    let valueString = this.value.toString()
+    if (this.value.expressionType === 'binary') {
+      valueString = `(${valueString})`
+    }
+    return `${this.operator}${separator}${valueString}`
   }
 }
 
@@ -235,12 +253,6 @@ export function expressionToLiteralValueOrLiteralExpression(
       return primitiveExpressionToLiteralValueOrLiteralExpression(ex)
 
     case 'binary':
-      if (ex.rest.length === 0) {
-        return expressionToLiteralValueOrLiteralExpression(ex.left)
-      } else {
-        return `\${${ex.toString()}}`
-      }
-
     case 'variableReference':
     case 'parenthesized':
     case 'functionInvocation':
@@ -331,12 +343,10 @@ export function isLiteral(ex: Expression): boolean {
     case 'primitive':
       return primitiveIsLiteral(ex)
 
-    case 'binary':
-      return ex.rest.length === 0 && isLiteral(ex.left)
-
     case 'unary':
       return isLiteral(ex.value)
 
+    case 'binary':
     case 'variableReference':
     case 'parenthesized':
     case 'functionInvocation':
@@ -385,15 +395,13 @@ function primitiveIsLiteral(ex: PrimitiveExpression): boolean {
 export function isFullyQualifiedName(ex: Expression): boolean {
   switch (ex.expressionType) {
     case 'primitive':
+    case 'binary':
     case 'parenthesized':
     case 'functionInvocation':
       return false
 
     case 'variableReference':
       return true
-
-    case 'binary':
-      return ex.rest.length === 0 && isFullyQualifiedName(ex.left)
 
     case 'member':
       return (
@@ -404,9 +412,4 @@ export function isFullyQualifiedName(ex: Expression): boolean {
     case 'unary':
       return isFullyQualifiedName(ex.value)
   }
-}
-
-// Returns true if the expression needs to be enclosed in parentheses when part of a larger expression
-export function needsParenthesis(ex: Expression): boolean {
-  return ex.expressionType === 'binary' && ex.rest.length > 0
 }

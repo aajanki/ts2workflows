@@ -19,17 +19,15 @@ import {
   WorkflowStepAST,
 } from '../ast/steps.js'
 import {
+  BinaryExpression,
   Expression,
   FunctionInvocationExpression,
-  ParenthesizedExpression,
   PrimitiveExpression,
   VariableName,
   VariableReferenceExpression,
-  createBinaryExpression,
   isExpression,
   isFullyQualifiedName,
   isLiteral,
-  needsParenthesis,
 } from '../ast/expressions.js'
 import { InternalTranspilingError, WorkflowSyntaxError } from '../errors.js'
 import { isRecord } from '../utils.js'
@@ -260,14 +258,10 @@ function assignmentExpressionToSteps(node: any): WorkflowStepAST[] {
   let valueExpression: Expression = convertExpression(node.right)
 
   if (compoundOperator) {
-    const right: Expression = needsParenthesis(valueExpression)
-      ? new ParenthesizedExpression(valueExpression)
-      : valueExpression
-
-    valueExpression = createBinaryExpression(
+    valueExpression = new BinaryExpression(
       new VariableReferenceExpression(targetName),
       compoundOperator,
-      right,
+      valueExpression,
     )
   }
 
@@ -645,7 +639,7 @@ function switchStatementToSteps(
     let condition: Expression
     if (caseNode.test) {
       const test = convertExpression(caseNode.test)
-      condition = createBinaryExpression(discriminant, '==', test)
+      condition = new BinaryExpression(discriminant, '==', test)
     } else {
       condition = new PrimitiveExpression(true)
     }

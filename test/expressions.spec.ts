@@ -139,7 +139,7 @@ describe('Literals', () => {
       '${"Value of " + name + " is " + value + "."}',
     )
     assertExpression('`${a}${b}`', '${"" + a + "" + b}')
-    assertExpression('`The sum is ${x + y}`', '${"The sum is " + (x + y)}')
+    assertExpression('`The sum is ${x + y}`', '${"The sum is " + x + y}')
     assertExpression(
       '`Logarithm of 4 is ${log(4)}`',
       '${"Logarithm of 4 is " + log(4)}',
@@ -152,7 +152,7 @@ describe('Expressions', () => {
   it('parses binary operators', () => {
     assertExpression('0', 0)
     assertExpression('1 + 2', '${1 + 2}')
-    assertExpression('5 + 1/3', '${5 + (1 / 3)}')
+    assertExpression('5 + 1/3', '${5 + 1 / 3}')
     assertExpression('"Queen" + " Dagmar"', '${"Queen" + " Dagmar"}')
   })
 
@@ -166,19 +166,19 @@ describe('Expressions', () => {
   it('parses logical expressions', () => {
     assertExpression(
       '!(status in ["OK", "success"])',
-      '${not status in ["OK", "success"]}',
+      '${not (status in ["OK", "success"])}',
     )
-    assertExpression('(y >= 0) && !(x >= 0)', '${(y >= 0) and not x >= 0}')
+    assertExpression('(y >= 0) && !(x >= 0)', '${y >= 0 and not (x >= 0)}')
   })
 
   it('parses remaider divisions', () => {
     assertExpression('x % 3', '${x % 3}')
-    assertExpression('x % t == 0', '${(x % t) == 0}')
+    assertExpression('x % t == 0', '${x % t == 0}')
   })
 
   it('parses variable references', () => {
     assertExpression('a - 1', '${a - 1}')
-    assertExpression('100 + 2*x', '${100 + (2 * x)}')
+    assertExpression('100 + 2*x', '${100 + 2 * x}')
     assertExpression('host.ip_address', '${host.ip_address}')
   })
 
@@ -197,7 +197,7 @@ describe('Expressions', () => {
     assertExpression('isEven || isPositive', '${isEven or isPositive}')
     assertExpression(
       '(x > 15) && !(x % 3 == 0)',
-      '${(x > 15) and not (x % 3) == 0}',
+      '${x > 15 and not (x % 3 == 0)}',
     )
   })
 
@@ -212,18 +212,15 @@ describe('Expressions', () => {
   it('parses parenthesized expressions', () => {
     assertExpression('(1)', 1)
     assertExpression('2*(x + 5)', '${2 * (x + 5)}')
-    assertExpression('2*(3*(4 + x))', '${2 * (3 * (4 + x))}')
+    assertExpression('2*(3*(4 + x))', '${2 * 3 * (4 + x)}')
     assertExpression(
       '("Status: " + statusMessage)',
       '${"Status: " + statusMessage}',
     )
-    assertExpression(
-      '(age >= 18) && (age < 100)',
-      '${(age >= 18) and (age < 100)}',
-    )
+    assertExpression('(age >= 18) && (age < 100)', '${age >= 18 and age < 100}')
     assertExpression(
       '(name in ["Bean", "Derek", "Jasper"]) || (affiliation == "Dreamland")',
-      '${(name in ["Bean", "Derek", "Jasper"]) or (affiliation == "Dreamland")}',
+      '${name in ["Bean", "Derek", "Jasper"] or affiliation == "Dreamland"}',
     )
   })
 
@@ -348,7 +345,7 @@ describe('Expressions', () => {
     assertExpression('time.format(sys.now())', '${time.format(sys.now())}')
     assertExpression(
       'time.format(sys.now()) + " " + text.decode(base64.decode("VGlhYmVhbmll"))',
-      '${(time.format(sys.now()) + " ") + text.decode(base64.decode("VGlhYmVhbmll"))}',
+      '${time.format(sys.now()) + " " + text.decode(base64.decode("VGlhYmVhbmll"))}',
     )
   })
 

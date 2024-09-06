@@ -5,15 +5,12 @@ import {
   Expression,
   FunctionInvocationExpression,
   MemberExpression,
-  ParenthesizedExpression,
   Primitive,
   PrimitiveExpression,
   UnaryExpression,
   VariableReferenceExpression,
-  createBinaryExpression,
   isExpression,
   isFullyQualifiedName,
-  needsParenthesis,
 } from '../ast/expressions.js'
 import { WorkflowSyntaxError } from '../errors.js'
 import { assertOneOfManyTypes, assertType } from './asserts.js'
@@ -197,10 +194,11 @@ function convertBinaryExpression(instance: any): Expression {
       )
   }
 
-  const left = convertExpressionOrPrimitive(instance.left)
-  const right = convertExpressionOrPrimitive(instance.right)
-
-  return createBinaryExpression(left, op, right)
+  return new BinaryExpression(
+    convertExpression(instance.left),
+    op,
+    convertExpression(instance.right),
+  )
 }
 
 function nullishCoalescingExpression(left: any, right: any): Expression {
@@ -301,9 +299,7 @@ function convertTemplateLiteralToExpression(node: any): Expression {
     .map((x) => new PrimitiveExpression(x))
 
   const expressionNodes = node.expressions as any[]
-  const templateTerms = expressionNodes
-    .map(convertExpression)
-    .map((ex) => (needsParenthesis(ex) ? new ParenthesizedExpression(ex) : ex))
+  const templateTerms = expressionNodes.map(convertExpression)
 
   // interleave string parts and the expression parts starting with strings
   const interleavedTerms: Expression[] = stringTerms
@@ -320,15 +316,13 @@ function convertTemplateLiteralToExpression(node: any): Expression {
     interleavedTerms.push(stringTerms[stringTerms.length - 1])
   }
 
-  const head = interleavedTerms.shift()
-  if (head !== undefined) {
-    const rest = interleavedTerms.map((term) => ({
-      binaryOperator: '+',
-      right: term,
-    }))
-
-    return new BinaryExpression(head, rest)
-  } else {
+  if (interleavedTerms.length === 0) {
     return new PrimitiveExpression('')
+  } else if (interleavedTerms.length === 1) {
+    return interleavedTerms[0]
+  } else {
+    return interleavedTerms.reduce((previous, current) => {
+      return new BinaryExpression(previous, '+', current)
+    })
   }
 }

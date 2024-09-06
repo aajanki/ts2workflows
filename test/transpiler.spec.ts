@@ -417,7 +417,7 @@ describe('Call statement', () => {
               url: https://visit.dreamland.test/luci.html
             result: __temp2
         - return1:
-            return: \${("response:" + map.get(__temp1, "body")) + __temp2.body}
+            return: \${"response:" + map.get(__temp1, "body") + __temp2.body}
     `) as unknown
 
     expect(observed).to.deep.equal(expected)
@@ -729,7 +729,7 @@ describe('Assignment statement', () => {
                           value: 5
                 - switch1:
                     switch:
-                      - condition: \${(2 * (__temp0.value + 10)) > 0}
+                      - condition: \${2 * (__temp0.value + 10) > 0}
                         steps:
                           - assign3:
                               assign:
@@ -811,7 +811,7 @@ describe('Assignment statement', () => {
       steps:
         - assign1:
             assign:
-              - x: \${x + ((2 * y) + 10)}
+              - x: \${x + 2 * y + 10}
     `) as unknown
 
     expect(observed).to.deep.equal(expected)
@@ -1908,7 +1908,7 @@ describe('Loops', () => {
               steps:
                 - switch1:
                     switch:
-                      - condition: \${(x % 2) == 0}
+                      - condition: \${x % 2 == 0}
                         next: continue
                 - assign2:
                     assign:
@@ -1952,7 +1952,7 @@ describe('Loops', () => {
               steps:
                 - switch1:
                     switch:
-                      - condition: \${(x % 2) == 0}
+                      - condition: \${x % 2 == 0}
                         next: loop
                 - assign2:
                     assign:
