@@ -48,7 +48,6 @@ export type Expression =
   | PrimitiveExpression
   | BinaryExpression
   | VariableReferenceExpression
-  | ParenthesizedExpression
   | FunctionInvocationExpression
   | MemberExpression
   | UnaryExpression
@@ -135,20 +134,6 @@ export class VariableReferenceExpression {
 
   toString(): string {
     return this.variableName
-  }
-}
-
-// LPAREN expr RPAREN
-export class ParenthesizedExpression {
-  readonly expressionType = 'parenthesized'
-  readonly value: Expression
-
-  constructor(value: Expression) {
-    this.value = value
-  }
-
-  toString(): string {
-    return `(${this.value.toString()})`
   }
 }
 
@@ -254,7 +239,6 @@ export function expressionToLiteralValueOrLiteralExpression(
 
     case 'binary':
     case 'variableReference':
-    case 'parenthesized':
     case 'functionInvocation':
     case 'member':
       return `\${${ex.toString()}}`
@@ -348,7 +332,6 @@ export function isLiteral(ex: Expression): boolean {
 
     case 'binary':
     case 'variableReference':
-    case 'parenthesized':
     case 'functionInvocation':
     case 'member':
       return false
@@ -396,7 +379,6 @@ export function isFullyQualifiedName(ex: Expression): boolean {
   switch (ex.expressionType) {
     case 'primitive':
     case 'binary':
-    case 'parenthesized':
     case 'functionInvocation':
       return false
 

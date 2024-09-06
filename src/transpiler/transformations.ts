@@ -15,7 +15,6 @@ import {
   Expression,
   FunctionInvocationExpression,
   MemberExpression,
-  ParenthesizedExpression,
   Primitive,
   PrimitiveExpression,
   UnaryExpression,
@@ -342,11 +341,6 @@ function transformExpression(
       case 'binary':
         return transformBinaryExpression(ex, transformer)
 
-      case 'parenthesized':
-        return new ParenthesizedExpression(
-          transformExpression(ex.value, transformer),
-        )
-
       case 'functionInvocation':
         return transformFunctionInvocationExpression(ex, transformer)
 
@@ -461,7 +455,6 @@ function includesMapLiteral(ex: Expression): boolean {
     case 'variableReference':
       return false
 
-    case 'parenthesized':
     case 'unary':
       return includesMapLiteral(ex.value)
 
