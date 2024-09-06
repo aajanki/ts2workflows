@@ -237,15 +237,7 @@ function primitiveToString(val: Primitive): string {
 }
 
 export function isExpression(val: Primitive | Expression): val is Expression {
-  return !(
-    val === null ||
-    val === undefined ||
-    typeof val === 'string' ||
-    typeof val === 'number' ||
-    typeof val === 'boolean' ||
-    Array.isArray(val) ||
-    isRecord(val)
-  )
+  return val instanceof Object && 'expressionType' in val && !isRecord(val)
 }
 
 // Returns a literal for simple terms and a literal expression enclosed in ${} for complex terms.
