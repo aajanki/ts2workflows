@@ -20,6 +20,7 @@ import {
 } from '../ast/steps.js'
 import {
   BinaryExpression,
+  BinaryOperator,
   Expression,
   FunctionInvocationExpression,
   PrimitiveExpression,
@@ -204,7 +205,7 @@ function convertVariableDeclarations(declarations: any[]): WorkflowStepAST[] {
 function assignmentExpressionToSteps(node: any): WorkflowStepAST[] {
   assertType(node, AssignmentExpression)
 
-  let compoundOperator: string | undefined = undefined
+  let compoundOperator: BinaryOperator | undefined = undefined
   switch (node.operator) {
     case '=':
       compoundOperator = undefined

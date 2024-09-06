@@ -2,6 +2,7 @@
 import { AST_NODE_TYPES } from '@typescript-eslint/utils'
 import {
   BinaryExpression,
+  BinaryOperator,
   Expression,
   FunctionInvocationExpression,
   MemberExpression,
@@ -154,7 +155,7 @@ function convertBinaryExpression(instance: any): Expression {
     return nullishCoalescingExpression(instance.left, instance.right)
   }
 
-  let op: string
+  let op: BinaryOperator
   switch (instance.operator) {
     case '+':
     case '-':
@@ -168,7 +169,7 @@ function convertBinaryExpression(instance: any): Expression {
     case '<':
     case '<=':
     case 'in':
-      op = instance.operator as string
+      op = instance.operator as BinaryOperator
       break
 
     case '===':

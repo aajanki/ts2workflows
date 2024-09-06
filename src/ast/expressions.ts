@@ -1,6 +1,22 @@
 import { isRecord } from '../utils.js'
 
 export type VariableName = string
+export type BinaryOperator =
+  | '+'
+  | '-'
+  | '*'
+  | '/'
+  | '//'
+  | '%'
+  | '=='
+  | '!='
+  | '>'
+  | '>='
+  | '<'
+  | '<='
+  | 'in'
+  | 'and'
+  | 'or'
 export type UnaryOperator = '-' | '+' | 'not'
 
 // Operator precendence for unary and binary operators in the Workflows language.
@@ -85,12 +101,15 @@ export class PrimitiveExpression {
 // expr OPERATOR expr
 export class BinaryExpression {
   readonly expressionType = 'binary'
-  // Operator such as: +, -, <, ==
-  readonly binaryOperator: string
+  readonly binaryOperator: BinaryOperator
   readonly left: Expression
   readonly right: Expression
 
-  constructor(left: Expression, binaryOperator: string, right: Expression) {
+  constructor(
+    left: Expression,
+    binaryOperator: BinaryOperator,
+    right: Expression,
+  ) {
     this.binaryOperator = binaryOperator
     this.left = left
     this.right = right
