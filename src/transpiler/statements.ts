@@ -17,6 +17,7 @@ import {
   VariableAssignment,
   WorkflowParameters,
   WorkflowStepAST,
+  stepWithLabel,
 } from '../ast/steps.js'
 import {
   BinaryExpression,
@@ -849,7 +850,8 @@ function labeledStep(node: any, ctx: ParsingContext): WorkflowStepAST[] {
 
   const steps = parseStep(node.body, ctx)
   if (steps.length > 0) {
-    steps[0].label = node.label.name as string
+    steps[0] = stepWithLabel(steps[0], node.label.name as string)
+    return steps
   }
 
   return steps
