@@ -15,8 +15,9 @@
     "node": ">=18"
   },
   "scripts": {
-    "build": "rimraf dist && tsc",
-    "lint": "eslint src test",
+    "build": "rimraf dist && npm run build:functionmetadata && tsc",
+    "build:functionmetadata": "tsx scripts/generateBlockingFunctionMetadata.ts",
+    "lint": "eslint src test scripts",
     "format": "prettier . --write",
     "test": "mocha"
   },

@@ -41,7 +41,7 @@ import {
   convertObjectExpression,
   convertObjectAsExpressionValues,
 } from './expressions.js'
-import { blockingFunctions } from './functionMetadata.js'
+import { blockingFunctions } from './generated/functionMetadata.js'
 
 const {
   ArrayExpression,

@@ -25,7 +25,7 @@ import {
   isFullyQualifiedName,
   isLiteral,
 } from '../ast/expressions.js'
-import { blockingFunctions } from './functionMetadata.js'
+import { blockingFunctions } from './generated/functionMetadata.js'
 
 /**
  * Performs various transformations on the AST.

@@ -25,7 +25,6 @@ const {
 
 export function transpile(code: string): string {
   const parserOptions = {
-    comment: true,
     loggerFn: false as const,
     loc: true,
     range: true,
