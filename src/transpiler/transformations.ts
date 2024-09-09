@@ -45,12 +45,18 @@ export function transformAST(steps: WorkflowStepAST[]): WorkflowStepAST[] {
 
 /**
  * Merge consecutive assign steps into one assign step
+ *
+ * An assign step can contain up to 50 assignments.
  */
 function mergeAssignSteps(steps: WorkflowStepAST[]): WorkflowStepAST[] {
   return steps.reduce((acc: WorkflowStepAST[], current: WorkflowStepAST) => {
     const prev = acc.length > 0 ? acc[acc.length - 1] : null
 
-    if (current.tag === 'assign' && prev?.tag === 'assign') {
+    if (
+      current.tag === 'assign' &&
+      prev?.tag === 'assign' &&
+      prev.assignments.length < 50
+    ) {
       const merged = new AssignStepAST(
         prev.assignments.concat(current.assignments),
       )
