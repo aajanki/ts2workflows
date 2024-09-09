@@ -1,11 +1,15 @@
 import {
-  JumpTargetAST,
+  ForStepASTNamed,
   NamedWorkflowStep,
+  NextStepAST,
+  ParallelStepASTNamed,
   StepName,
+  StepsStepASTNamed,
+  SwitchStepASTNamed,
+  TryStepASTNamed,
   WorkflowAST,
+  WorkflowStepASTWithNamedNested,
   nestedSteps,
-  renameJumpTargets,
-  transformNestedSteps,
 } from './steps.js'
 import { Subworkflow, WorkflowApp } from './workflows.js'
 
@@ -174,4 +178,263 @@ function relabelNextLabels(
     name: step.name,
     step: renameJumpTargets(step.step, replacements),
   }))
+}
+
+/**
+ * Renames a copy of a step with jump targets renamed according to replaceLabels map.
+ */
+function renameJumpTargets(
+  step: WorkflowStepASTWithNamedNested,
+  replaceLabels: Map<StepName, StepName>,
+): WorkflowStepASTWithNamedNested {
+  switch (step.tag) {
+    case 'assign':
+    case 'call':
+    case 'raise':
+    case 'return':
+    case 'jumptarget':
+      return step
+
+    case 'next':
+      return renameJumpTargetsNext(step, replaceLabels)
+
+    case 'for':
+      return renameJumpTargetsFor(step, replaceLabels)
+
+    case 'parallel':
+      return renameJumpTargetsParallel(step, replaceLabels)
+
+    case 'steps':
+      return renameJumpTargetsSteps(step, replaceLabels)
+
+    case 'switch':
+      return renameJumpTargetsSwitch(step, replaceLabels)
+
+    case 'try':
+      return renameJumpTargetsTry(step, replaceLabels)
+  }
+}
+
+function renameJumpTargetsFor(
+  step: ForStepASTNamed,
+  replaceLabels: Map<StepName, StepName>,
+): ForStepASTNamed {
+  const transformedSteps = step.steps.map(({ name, step: nested }) => ({
+    name,
+    step: renameJumpTargets(nested, replaceLabels),
+  }))
+
+  return new ForStepASTNamed(
+    transformedSteps,
+    step.loopVariableName,
+    step.listExpression,
+    step.indexVariableName,
+    step.rangeStart,
+    step.rangeEnd,
+  )
+}
+
+function renameJumpTargetsNext(
+  step: NextStepAST,
+  replaceLabels: Map<StepName, StepName>,
+): NextStepAST {
+  const newLabel = replaceLabels.get(step.target)
+  if (newLabel) {
+    return new NextStepAST(newLabel)
+  } else {
+    return step
+  }
+}
+
+function renameJumpTargetsParallel(
+  step: ParallelStepASTNamed,
+  replaceLabels: Map<StepName, StepName>,
+): ParallelStepASTNamed {
+  let transformedSteps: Record<StepName, StepsStepASTNamed> | ForStepASTNamed
+  if (step.branches) {
+    transformedSteps = Object.fromEntries(
+      step.branches.map(({ name, step: nested }) => {
+        const renamedNested = nestedSteps(nested)
+          .flat()
+          .map((x) => ({
+            name: x.name,
+            step: renameJumpTargets(x.step, replaceLabels),
+          }))
+
+        return [name, new StepsStepASTNamed(renamedNested)]
+      }),
+    )
+  } else if (step.forStep) {
+    transformedSteps = renameJumpTargetsFor(step.forStep, replaceLabels)
+  } else {
+    // should not be reached
+    transformedSteps = {}
+  }
+
+  return new ParallelStepASTNamed(
+    transformedSteps,
+    step.shared,
+    step.concurrenceLimit,
+    step.exceptionPolicy,
+  )
+}
+
+function renameJumpTargetsSteps(
+  step: StepsStepASTNamed,
+  replaceLabels: Map<StepName, StepName>,
+): StepsStepASTNamed {
+  const transformedSteps = step.steps.map(({ name, step: nested }) => ({
+    name,
+    step: renameJumpTargets(nested, replaceLabels),
+  }))
+
+  return new StepsStepASTNamed(transformedSteps)
+}
+
+function renameJumpTargetsSwitch(
+  step: SwitchStepASTNamed,
+  replaceLabels: Map<StepName, StepName>,
+): SwitchStepASTNamed {
+  let updatedNext: StepName | undefined = undefined
+  if (step.next) {
+    updatedNext = replaceLabels.get(step.next) ?? step.next
+  }
+
+  const updatedConditions = step.conditions.map((cond) => {
+    let updatedCondNext: StepName | undefined = undefined
+    if (cond.next) {
+      updatedCondNext = replaceLabels.get(cond.next) ?? cond.next
+    }
+
+    const updatedCondSteps = cond.steps.map((nested) => ({
+      name: nested.name,
+      step: renameJumpTargets(nested.step, replaceLabels),
+    }))
+
+    return {
+      condition: cond.condition,
+      steps: updatedCondSteps,
+      next: updatedCondNext,
+    }
+  })
+
+  return new SwitchStepASTNamed(updatedConditions, updatedNext)
+}
+
+function renameJumpTargetsTry(
+  step: TryStepASTNamed,
+  replaceLabels: Map<StepName, StepName>,
+): TryStepASTNamed {
+  const transformedTrySteps = step.trySteps.map(({ name, step: nested }) => ({
+    name,
+    step: renameJumpTargets(nested, replaceLabels),
+  }))
+  const transformedExceptSteps = step.exceptSteps.map(
+    ({ name, step: nested }) => ({
+      name,
+      step: renameJumpTargets(nested, replaceLabels),
+    }),
+  )
+
+  return new TryStepASTNamed(
+    transformedTrySteps,
+    transformedExceptSteps,
+    step.retryPolicy,
+    step.errorMap,
+  )
+}
+
+/**
+ * Returns a copy of a step with a transformation applied to the child steps.
+ */
+function transformNestedSteps(
+  step: WorkflowStepASTWithNamedNested,
+  transform: (steps: NamedWorkflowStep[]) => NamedWorkflowStep[],
+): WorkflowStepASTWithNamedNested {
+  switch (step.tag) {
+    case 'assign':
+    case 'call':
+    case 'next':
+    case 'raise':
+    case 'return':
+    case 'jumptarget':
+      return step
+
+    case 'for':
+      return transformNestedStepsFor(step, transform)
+
+    case 'parallel':
+      return transformNestedStepsParallel(step, transform)
+
+    case 'steps':
+      return new StepsStepASTNamed(transform(step.steps))
+
+    case 'switch':
+      return transformNestedStepsSwitch(step, transform)
+
+    case 'try':
+      return new TryStepASTNamed(
+        transform(step.trySteps),
+        transform(step.exceptSteps),
+        step.retryPolicy,
+        step.errorMap,
+      )
+  }
+}
+
+function transformNestedStepsFor(
+  step: ForStepASTNamed,
+  transform: (steps: NamedWorkflowStep[]) => NamedWorkflowStep[],
+): ForStepASTNamed {
+  return new ForStepASTNamed(
+    transform(step.steps),
+    step.loopVariableName,
+    step.listExpression,
+    step.indexVariableName,
+    step.rangeStart,
+    step.rangeEnd,
+  )
+}
+
+function transformNestedStepsParallel(
+  step: ParallelStepASTNamed,
+  transform: (steps: NamedWorkflowStep[]) => NamedWorkflowStep[],
+): ParallelStepASTNamed {
+  let transformedSteps: Record<StepName, StepsStepASTNamed> | ForStepASTNamed
+  if (step.branches) {
+    transformedSteps = Object.fromEntries(
+      step.branches.map((x) => {
+        return [
+          x.name,
+          new StepsStepASTNamed(transform(nestedSteps(x.step).flat())),
+        ]
+      }),
+    )
+  } else if (step.forStep) {
+    transformedSteps = transformNestedStepsFor(step.forStep, transform)
+  } else {
+    // should not be reached
+    transformedSteps = {}
+  }
+
+  return new ParallelStepASTNamed(
+    transformedSteps,
+    step.shared,
+    step.concurrenceLimit,
+    step.exceptionPolicy,
+  )
+}
+
+function transformNestedStepsSwitch(
+  step: SwitchStepASTNamed,
+  transform: (steps: NamedWorkflowStep[]) => NamedWorkflowStep[],
+): SwitchStepASTNamed {
+  const transformedConditions = step.conditions.map((cond) => {
+    return {
+      condition: cond.condition,
+      steps: transform(cond.steps),
+      next: cond.next,
+    }
+  })
+  return new SwitchStepASTNamed(transformedConditions, step.next)
 }

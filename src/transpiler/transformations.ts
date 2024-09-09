@@ -2,11 +2,13 @@ import {
   AssignStepAST,
   CallStepAST,
   CustomRetryPolicy,
+  ForStepAST,
+  RaiseStepAST,
+  ReturnStepAST,
   SwitchStepAST,
   TryStepAST,
   WorkflowParameters,
   WorkflowStepAST,
-  transformExpressions,
 } from '../ast/steps.js'
 import { InternalTranspilingError } from '../errors.js'
 import { isRecord } from '../utils.js'
@@ -216,13 +218,24 @@ function parseRetryPolicyNumber(
 export function flattenPlainNextConditions(
   steps: WorkflowStepAST[],
 ): WorkflowStepAST[] {
-  return steps.map((step) => {
-    if (step.tag === 'switch') {
-      return step.flattenPlainNextConditions()
+  return steps.map((step) => (step.tag === 'switch' ? flattenNext(step) : step))
+}
+
+function flattenNext(step: SwitchStepAST): SwitchStepAST {
+  const transformedBranches = step.branches.map((cond) => {
+    if (!cond.next && cond.steps.length === 1 && cond.steps[0].tag === 'next') {
+      const nextStep = cond.steps[0]
+      return {
+        condition: cond.condition,
+        steps: [],
+        next: nextStep.target,
+      }
     } else {
-      return step
+      return cond
     }
   })
+
+  return new SwitchStepAST(transformedBranches)
 }
 
 /**
@@ -257,7 +270,7 @@ function blockingCallsAsCallSteps(steps: WorkflowStepAST[]): WorkflowStepAST[] {
   }
 
   return steps.reduce((acc: WorkflowStepAST[], current: WorkflowStepAST) => {
-    const transformedSteps = transformExpressions(current, transformer)
+    const transformedSteps = transformStepExpressions(current, transformer)
     acc.push(...transformedSteps)
 
     return acc
@@ -326,6 +339,152 @@ function replaceBlockingCalls(
     ),
     callSteps,
   }
+}
+
+/**
+ * Transform expressions in a step by applying transform.
+ *
+ * Returns an array of steps. The array includes the transformed step and possibly
+ * additional steps constructed during the transformation. For example, a
+ * transformation might extract blocking call expressions into call steps.
+ */
+function transformStepExpressions(
+  step: WorkflowStepAST,
+  transform: (ex: Expression) => [WorkflowStepAST[], Expression],
+): WorkflowStepAST[] {
+  switch (step.tag) {
+    case 'assign':
+      return transformExpressionsAssign(step, transform)
+
+    case 'call':
+      return transformExpressionsCall(step, transform)
+
+    case 'for':
+      return transformExpressionsFor(step, transform)
+
+    case 'raise':
+      return transformExpressionsRaise(step, transform)
+
+    case 'return':
+      return transformExpressionsReturn(step, transform)
+
+    case 'switch':
+      return transformExpressionsSwitch(step, transform)
+
+    case 'next':
+    case 'parallel':
+    case 'steps':
+    case 'try':
+    case 'jumptarget':
+      return [step]
+  }
+}
+
+function transformExpressionsAssign(
+  step: AssignStepAST,
+  transform: (ex: Expression) => [WorkflowStepAST[], Expression],
+): WorkflowStepAST[] {
+  if (step.assignments) {
+    const newSteps: WorkflowStepAST[] = []
+    const newAssignments = step.assignments.map(([name, ex]) => {
+      const [steps2, ex2] = transform(ex)
+      newSteps.push(...steps2)
+      return [name, ex2] as const
+    })
+    newSteps.push(new AssignStepAST(newAssignments, step.label))
+    return newSteps
+  } else {
+    return [step]
+  }
+}
+
+function transformExpressionsCall(
+  step: CallStepAST,
+  transform: (ex: Expression) => [WorkflowStepAST[], Expression],
+): WorkflowStepAST[] {
+  if (step.args) {
+    const newSteps: WorkflowStepAST[] = []
+    const newArgs = Object.fromEntries(
+      Object.entries(step.args).map(([name, ex]) => {
+        const [steps2, ex2] = transform(ex)
+        newSteps.push(...steps2)
+        return [name, ex2] as const
+      }),
+    )
+    newSteps.push(new CallStepAST(step.call, newArgs, step.result, step.label))
+    return newSteps
+  } else {
+    return [step]
+  }
+}
+
+function transformExpressionsFor(
+  step: ForStepAST,
+  transform: (ex: Expression) => [WorkflowStepAST[], Expression],
+): WorkflowStepAST[] {
+  if (step.listExpression) {
+    const [newSteps, newListExpression] = transform(step.listExpression)
+    newSteps.push(
+      new ForStepAST(
+        step.steps,
+        step.loopVariableName,
+        newListExpression,
+        step.indexVariableName,
+        step.rangeStart,
+        step.rangeEnd,
+        step.label,
+      ),
+    )
+    return newSteps
+  } else {
+    return [step]
+  }
+}
+
+function transformExpressionsRaise(
+  step: RaiseStepAST,
+  transform: (ex: Expression) => [WorkflowStepAST[], Expression],
+): WorkflowStepAST[] {
+  if (step.value) {
+    const [newSteps, newEx] = transform(step.value)
+    newSteps.push(new RaiseStepAST(newEx, step.label))
+    return newSteps
+  } else {
+    return [step]
+  }
+}
+
+function transformExpressionsReturn(
+  step: ReturnStepAST,
+  transform: (ex: Expression) => [WorkflowStepAST[], Expression],
+): WorkflowStepAST[] {
+  if (step.value) {
+    const [newSteps, newEx] = transform(step.value)
+    newSteps.push(new ReturnStepAST(newEx, step.label))
+    return newSteps
+  } else {
+    return [step]
+  }
+}
+
+function transformExpressionsSwitch(
+  step: SwitchStepAST,
+  transform: (ex: Expression) => [WorkflowStepAST[], Expression],
+): WorkflowStepAST[] {
+  const newSteps: WorkflowStepAST[] = []
+  const newBranches = step.branches.map((cond) => {
+    const [steps2, ex2] = transform(cond.condition)
+    newSteps.push(...steps2)
+
+    return {
+      condition: ex2,
+      steps: cond.steps,
+      next: cond.next,
+    }
+  })
+
+  newSteps.push(new SwitchStepAST(newBranches, step.label))
+  return newSteps
 }
 
 function transformExpression(
@@ -440,7 +599,7 @@ function mapLiteralsAsAssignSteps(steps: WorkflowStepAST[]): WorkflowStepAST[] {
     }
 
     if (needsTransformation) {
-      const transformedSteps = transformExpressions(current, transformer)
+      const transformedSteps = transformStepExpressions(current, transformer)
       acc.push(...transformedSteps)
     } else {
       acc.push(current)
