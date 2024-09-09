@@ -50,7 +50,7 @@ function mergeAssignSteps(steps: WorkflowStepAST[]): WorkflowStepAST[] {
   return steps.reduce((acc: WorkflowStepAST[], current: WorkflowStepAST) => {
     const prev = acc.length > 0 ? acc[acc.length - 1] : null
 
-    if (current instanceof AssignStepAST && prev instanceof AssignStepAST) {
+    if (current.tag === 'assign' && prev?.tag === 'assign') {
       const merged = new AssignStepAST(
         prev.assignments.concat(current.assignments),
       )
@@ -72,8 +72,8 @@ function combineRetryBlocksToTry(steps: WorkflowStepAST[]): WorkflowStepAST[] {
   return steps.reduce((acc: WorkflowStepAST[], current: WorkflowStepAST) => {
     const prev = acc.length > 0 ? acc[acc.length - 1] : null
 
-    if (current instanceof CallStepAST && current.call === 'retry_policy') {
-      if (prev instanceof TryStepAST) {
+    if (current.tag === 'call' && current.call === 'retry_policy') {
+      if (prev?.tag === 'try') {
         if (prev.retryPolicy) {
           throw new InternalTranspilingError('Retry policy already assigned!')
         }
@@ -211,7 +211,7 @@ export function flattenPlainNextConditions(
   steps: WorkflowStepAST[],
 ): WorkflowStepAST[] {
   return steps.map((step) => {
-    if (step instanceof SwitchStepAST) {
+    if (step.tag === 'switch') {
       return step.flattenPlainNextConditions()
     } else {
       return step

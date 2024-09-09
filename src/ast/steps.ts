@@ -1,3 +1,4 @@
+import { isRecord } from '../utils.js'
 import {
   Expression,
   VariableName,
@@ -227,7 +228,7 @@ export class ParallelStepASTNamed {
     this.concurrenceLimit = concurrencyLimit
     this.exceptionPolicy = exceptionPolicy
 
-    if (steps instanceof ForStepASTNamed) {
+    if (!isRecord(steps)) {
       this.forStep = steps
     } else {
       this.branches = Object.entries(steps).map((x) => {
@@ -298,7 +299,7 @@ export class SwitchStepAST {
       if (
         !cond.next &&
         cond.steps.length === 1 &&
-        cond.steps[0] instanceof NextStepAST
+        cond.steps[0].tag === 'next'
       ) {
         const nextStep = cond.steps[0]
         return {
@@ -462,11 +463,13 @@ function namedStepsParallel(
   generateName: (prefix: string) => string,
 ) {
   let steps: Record<StepName, StepsStepASTNamed> | ForStepASTNamed
-  if (step.steps instanceof ForStepAST) {
+  if (!isRecord(step.steps)) {
     const forStep = namedSteps(step.steps, generateName).step
 
-    if (!(forStep instanceof ForStepASTNamed)) {
-      throw new Error('Encountered an unexpected step')
+    if (forStep.tag !== 'for') {
+      throw new Error(
+        `Encountered a step of type ${forStep.tag} when a for step was expected`,
+      )
     }
 
     steps = forStep

@@ -170,13 +170,13 @@ function validateJumpTargetsInWorkflow(
   }
 
   for (const { name, step } of workflow.iterateStepsDepthFirst()) {
-    if (step instanceof CallStepAST) {
+    if (step.tag === 'call') {
       if (!validCallTarget(step.call))
         issues.push({
           type: 'missingJumpTarget',
           message: `Call target "${step.call}" in step "${name}" not found`,
         })
-    } else if (step instanceof SwitchStepASTNamed) {
+    } else if (step.tag === 'switch') {
       if (step.next && !validNextTarget(step.next)) {
         issues.push({
           type: 'missingJumpTarget',
@@ -237,10 +237,7 @@ function findIssuesInCallArguments(
   const issues: WorkflowIssue[] = []
 
   for (const { name, step } of wf.iterateStepsDepthFirst()) {
-    if (
-      step instanceof CallStepAST &&
-      argumentBySubworkflowName.has(step.call)
-    ) {
+    if (step.tag === 'call' && argumentBySubworkflowName.has(step.call)) {
       const requiredArgs =
         argumentBySubworkflowName.get(step.call)?.required ?? []
       const optionalArgs =

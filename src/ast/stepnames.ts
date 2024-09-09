@@ -76,7 +76,7 @@ function collectActualJumpTargets(
     // Do not yet pop in case nextNonJumpTargetNode needs to search the stack
     const { namedStep, nestingLevel } = stack[stack.length - 1]
 
-    if (namedStep.step instanceof JumpTargetAST) {
+    if (namedStep.step.tag === 'jumptarget') {
       const currentLabel = namedStep.step.label
       const target = nextNonJumpTargetNode(stack)
       const targetName = target ? target.name : 'end'

@@ -58,6 +58,7 @@ npm run test
 ## Architecture
 
 A transpilation using ts2workflows consists of five phases:
+
 - parsing Typescript source code
 - converting to intermediate representation (IR)
 - transforming and optimizing the IR
