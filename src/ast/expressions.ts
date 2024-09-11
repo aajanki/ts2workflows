@@ -336,7 +336,7 @@ function primitiveExpressionToLiteralValueOrLiteralExpression(
 export function isLiteral(ex: Expression): boolean {
   switch (ex.expressionType) {
     case 'primitive':
-      return primitiveIsLiteral(ex)
+      return primitiveIsLiteral(ex.value)
 
     case 'unary':
       return isLiteral(ex.value)
@@ -349,39 +349,21 @@ export function isLiteral(ex: Expression): boolean {
   }
 }
 
-function primitiveIsLiteral(ex: PrimitiveExpression): boolean {
-  if (Array.isArray(ex.value)) {
-    return ex.value.every((x) => {
-      if (isExpression(x)) {
-        return isLiteral(x)
-      } else {
-        return (
-          typeof x === 'string' ||
-          typeof x === 'number' ||
-          typeof x === 'boolean' ||
-          x === null
-        )
-      }
+function primitiveIsLiteral(value: Primitive): boolean {
+  if (Array.isArray(value)) {
+    return value.every((x) => {
+      return isExpression(x) ? isLiteral(x) : primitiveIsLiteral(x)
     })
-  } else if (isRecord(ex.value)) {
-    return Object.values(ex.value).every((x) => {
-      if (isExpression(x)) {
-        return isLiteral(x)
-      } else {
-        return (
-          typeof x === 'string' ||
-          typeof x === 'number' ||
-          typeof x === 'boolean' ||
-          x === null
-        )
-      }
+  } else if (isRecord(value)) {
+    return Object.values(value).every((x) => {
+      return isExpression(x) ? isLiteral(x) : primitiveIsLiteral(x)
     })
   } else {
     return (
-      typeof ex.value === 'string' ||
-      typeof ex.value === 'number' ||
-      typeof ex.value === 'boolean' ||
-      ex.value === null
+      typeof value === 'string' ||
+      typeof value === 'number' ||
+      typeof value === 'boolean' ||
+      value === null
     )
   }
 }

@@ -498,6 +498,33 @@ describe('Call statement', () => {
     expect(observed).to.deep.equal(expected)
   })
 
+  it('call_step() outputs a call step 2', () => {
+    const code = `function main() {
+      call_step(sys.log, {
+        json: {data: {name: "Oona", occupations: ["queen", "pirate"]}},
+        severity: "INFO"
+      })
+    }`
+    const observed = YAML.parse(transpile(code)) as unknown
+
+    const expected = YAML.parse(`
+    main:
+      steps:
+        - call_sys_log_1:
+            call: sys.log
+            args:
+              json:
+                data:
+                  name: Oona
+                  occupations:
+                    - queen
+                    - pirate
+              severity: INFO
+    `) as unknown
+
+    expect(observed).to.deep.equal(expected)
+  })
+
   it('call_step() with a return value', () => {
     const code = `function main() {
       const response = call_step(http.post, {
