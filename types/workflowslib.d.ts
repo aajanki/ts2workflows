@@ -183,8 +183,8 @@ export declare namespace json {
 }
 
 export declare namespace list {
-  function concat<T>(objs: T[], val: T): T[]
-  function prepend<T>(objs: T[], val: T): T[]
+  function concat<T, U>(objs: T[], val: U): (T | U)[]
+  function prepend<T, U>(objs: T[], val: U): (T | U)[]
 }
 
 export declare namespace map {
