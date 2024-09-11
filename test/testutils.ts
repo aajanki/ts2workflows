@@ -40,7 +40,7 @@ export function parseExpression(expressionString: string): Expression {
 
   let ex: unknown
   if (inputIsJsonObject) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access
     ex = (ast.body[0].expression as any).right
   } else {
     ex = ast.body[0].expression
