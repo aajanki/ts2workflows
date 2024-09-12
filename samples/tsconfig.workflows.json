@@ -4,10 +4,11 @@
     "module": "ES2015",
     "moduleResolution": "bundler",
     "rootDir": ".",
-    "lib": ["ES5"],
+    "lib": [],
     "noEmit": true,
     "strict": true,
     "types": [],
+    "typeRoots": ["./types"],
     "skipLibCheck": true
   }
 }
