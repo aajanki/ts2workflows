@@ -52,6 +52,7 @@ const {
   CallExpression,
   ContinueStatement,
   DoWhileStatement,
+  EmptyStatement,
   ExpressionStatement,
   ForInStatement,
   ForOfStatement,
@@ -142,6 +143,9 @@ function parseStep(node: any, ctx: ParsingContext): WorkflowStepAST[] {
 
     case LabeledStatement:
       return labeledStep(node, ctx)
+
+    case EmptyStatement:
+      return []
 
     case FunctionDeclaration:
       throw new WorkflowSyntaxError(
