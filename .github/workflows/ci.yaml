@@ -1,6 +1,11 @@
 
 name: Lint and test
-on: [pull-request]
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    types: [opened, reopened]
 jobs:
   test:
     runs-on: ubuntu-latest
