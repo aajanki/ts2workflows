@@ -25,7 +25,7 @@
   "files": [
     "dist",
     "types",
-    "README",
+    "README.md",
     "language_reference.md",
     "LICENSE"
   ],
@@ -42,7 +42,7 @@
     "eslint": "^9.10.0",
     "mocha": "^10.4.0",
     "prettier": "^3.2.5",
-    "rimraf": "^6.0.1",
+    "rimraf": "^5.0.10",
     "tsx": "^4.10.2",
     "typescript-eslint": "^8.0.0"
   },
