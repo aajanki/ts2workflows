@@ -188,16 +188,19 @@ export declare namespace list {
 }
 
 export declare namespace map {
-  function _delete<T1>(map: Record<string, T1>, key: string): Record<string, T1>
-  export function get<T2>(map: Record<string, T2>, keys: string | string[]): T2
-  export function merge<S1, S2>(
-    first: Record<string, S1>,
-    second: Record<string, S2>,
-  ): Record<string, S1 | S2>
-  export function merge_nested<S3, S4>(
-    first: Record<string, S3>,
-    second: Record<string, S4>,
-  ): Record<string, S3 | S4>
+  function _delete<T>(map: Record<string, T>, key: string): Record<string, T>
+  export function get<T, K extends string | string[]>(
+    map: Record<string, T>,
+    keys: K,
+  ): K extends string ? T : unknown
+  export function merge<T, U>(
+    first: Record<string, T>,
+    second: Record<string, U>,
+  ): Record<string, T | U>
+  export function merge_nested<T, U>(
+    first: Record<string, T>,
+    second: Record<string, U>,
+  ): Record<string, T | U>
   export { _delete as delete }
 }
 
