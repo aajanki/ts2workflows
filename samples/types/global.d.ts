@@ -11,4 +11,8 @@ declare global {
   interface Object {}
   interface RegExp {}
   interface String {}
+
+  type Record<K extends keyof any, T> = {
+    [P in K]: T
+  }
 }
