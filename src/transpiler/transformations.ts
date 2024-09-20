@@ -587,9 +587,11 @@ function mapLiteralsAsAssignSteps(steps: WorkflowStepAST[]): WorkflowStepAST[] {
       needsTransformation = !current.assignments.every(([, value]) => {
         return value.expressionType === 'primitive'
       })
-    } else if (current.tag === 'raise') {
+    } else if (current.tag === 'raise' || current.tag === 'return') {
       needsTransformation =
-        !isLiteral(current.value) && includesMapLiteral(current.value)
+        current.value !== undefined &&
+        !isLiteral(current.value) &&
+        includesMapLiteral(current.value)
     } else if (current.tag === 'call') {
       if (current.args) {
         needsTransformation = Object.values(current.args).some(

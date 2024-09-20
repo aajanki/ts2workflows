@@ -1389,6 +1389,39 @@ describe('Return statement', () => {
 
     expect(observed).to.deep.equal(expected)
   })
+
+  it('return a map', () => {
+    const code = `function main() { return { result: "OK", value: 1 }; }`
+    const observed = YAML.parse(transpile(code)) as unknown
+
+    const expected = YAML.parse(`
+    main:
+      steps:
+        - return1:
+            return:
+              result: OK
+              value: 1
+    `) as unknown
+
+    expect(observed).to.deep.equal(expected)
+  })
+
+  it('return a variable reference inside a map', () => {
+    const code = `function main(x) { return { value: x }; }`
+    const observed = YAML.parse(transpile(code)) as unknown
+
+    const expected = YAML.parse(`
+    main:
+      params:
+        - x
+      steps:
+        - return1:
+            return:
+              value: \${x}
+    `) as unknown
+
+    expect(observed).to.deep.equal(expected)
+  })
 })
 
 describe('Try-catch statement', () => {
