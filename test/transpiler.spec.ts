@@ -1406,6 +1406,23 @@ describe('Return statement', () => {
     expect(observed).to.deep.equal(expected)
   })
 
+  it('return a list of maps', () => {
+    const code = `function main() { return [ { result: "OK", value: 1 } ]; }`
+    const observed = YAML.parse(transpile(code)) as unknown
+
+    const expected = YAML.parse(`
+    main:
+      steps:
+        - return1:
+            return:
+              -
+                result: OK
+                value: 1
+    `) as unknown
+
+    expect(observed).to.deep.equal(expected)
+  })
+
   it('return a variable reference inside a map', () => {
     const code = `function main(x) { return { value: x }; }`
     const observed = YAML.parse(transpile(code)) as unknown
@@ -1418,6 +1435,24 @@ describe('Return statement', () => {
         - return1:
             return:
               value: \${x}
+    `) as unknown
+
+    expect(observed).to.deep.equal(expected)
+  })
+
+  it('return a member of a map', () => {
+    const code = `function main() { return {value: 5}.value; }`
+    const observed = YAML.parse(transpile(code)) as unknown
+
+    const expected = YAML.parse(`
+    main:
+      steps:
+        - assign1:
+            assign:
+              - __temp0:
+                  value: 5
+        - return1:
+            return: \${__temp0.value}
     `) as unknown
 
     expect(observed).to.deep.equal(expected)
@@ -1749,6 +1784,32 @@ describe('Throw statement', () => {
         - raise1:
             raise:
               code: 98
+              message: "Access denied"
+    `) as unknown
+
+    expect(observed).to.deep.equal(expected)
+  })
+
+  it('transpiles a throw with a map value that includes a variable reference', () => {
+    const code = `
+    function main() {
+      const errorCode = 98
+      throw {
+        code: errorCode,
+        message: "Access denied"
+      };
+    }`
+    const observed = YAML.parse(transpile(code)) as unknown
+
+    const expected = YAML.parse(`
+    main:
+      steps:
+        - assign1:
+            assign:
+              - errorCode: 98
+        - raise1:
+            raise:
+              code: \${errorCode}
               message: "Access denied"
     `) as unknown
 

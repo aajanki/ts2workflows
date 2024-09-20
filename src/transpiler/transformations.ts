@@ -590,12 +590,11 @@ function mapLiteralsAsAssignSteps(steps: WorkflowStepAST[]): WorkflowStepAST[] {
     } else if (current.tag === 'raise' || current.tag === 'return') {
       needsTransformation =
         current.value !== undefined &&
-        !isLiteral(current.value) &&
-        includesMapLiteral(current.value)
+        includesExtractableMapLiteral(current.value, true)
     } else if (current.tag === 'call') {
       if (current.args) {
-        needsTransformation = Object.values(current.args).some(
-          (ex) => !isLiteral(ex) && includesMapLiteral(ex),
+        needsTransformation = Object.values(current.args).some((ex) =>
+          includesExtractableMapLiteral(ex, true),
         )
       }
     }
@@ -611,25 +610,52 @@ function mapLiteralsAsAssignSteps(steps: WorkflowStepAST[]): WorkflowStepAST[] {
   }, [])
 }
 
-function includesMapLiteral(ex: Expression): boolean {
+// Return true if the string representation of ex would include {}
+function includesExtractableMapLiteral(
+  ex: Expression,
+  parentAllowsMaps: boolean,
+): boolean {
   switch (ex.expressionType) {
     case 'primitive':
-      return isRecord(ex.value)
+      if (isRecord(ex.value)) {
+        return (
+          !parentAllowsMaps ||
+          Object.values(ex.value).some(
+            (x) =>
+              isExpression(x) &&
+              includesExtractableMapLiteral(x, parentAllowsMaps),
+          )
+        )
+      } else if (Array.isArray(ex.value)) {
+        return ex.value.some(
+          (x) =>
+            isExpression(x) &&
+            includesExtractableMapLiteral(x, parentAllowsMaps),
+        )
+      } else {
+        return false
+      }
 
     case 'binary':
-      return includesMapLiteral(ex.left) || includesMapLiteral(ex.right)
+      return (
+        includesExtractableMapLiteral(ex.left, parentAllowsMaps) ||
+        includesExtractableMapLiteral(ex.right, parentAllowsMaps)
+      )
 
     case 'variableReference':
       return false
 
     case 'unary':
-      return includesMapLiteral(ex.value)
+      return includesExtractableMapLiteral(ex.value, parentAllowsMaps)
 
     case 'functionInvocation':
-      return ex.arguments.some(includesMapLiteral)
+      return ex.arguments.some((x) => includesExtractableMapLiteral(x, false))
 
     case 'member':
-      return includesMapLiteral(ex.object) || includesMapLiteral(ex.property)
+      return (
+        includesExtractableMapLiteral(ex.object, false) ||
+        includesExtractableMapLiteral(ex.property, false)
+      )
   }
 }
 
