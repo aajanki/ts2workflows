@@ -69,6 +69,26 @@ describe('Type annotations', () => {
 
     expect(observed).to.deep.equal(expected)
   })
+
+  it('ignores interface declaration', () => {
+    const code = `
+    interface Person {
+      name: string
+    }`
+    const observed = YAML.parse(transpile(code)) as unknown
+
+    expect(observed).to.deep.equal({})
+  })
+
+  it('ignores type declaration', () => {
+    const code = `
+    type Person = {
+      name: string
+    }`
+    const observed = YAML.parse(transpile(code)) as unknown
+
+    expect(observed).to.deep.equal({})
+  })
 })
 
 describe('Function definition', () => {
@@ -114,6 +134,17 @@ describe('Function definition', () => {
     `) as unknown
 
     expect(observed).to.deep.equal(expected)
+  })
+
+  it('ignores function declaration', () => {
+    const code = `
+    declare function computeIt()
+    export declare function exportedComputation()
+    `
+
+    const observed = YAML.parse(transpile(code)) as unknown
+
+    expect(observed).to.deep.equal({})
   })
 
   it('throws if function is defined in a nested scope', () => {

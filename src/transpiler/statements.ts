@@ -67,6 +67,7 @@ const {
   SwitchStatement,
   ThrowStatement,
   TryStatement,
+  TSDeclareFunction,
   TSTypeAliasDeclaration,
   TSInterfaceDeclaration,
   VariableDeclaration,
@@ -155,7 +156,8 @@ function parseStep(node: any, ctx: ParsingContext): WorkflowStepAST[] {
 
     case TSInterfaceDeclaration:
     case TSTypeAliasDeclaration:
-      // Ignore "type" and "interface" declarations
+    case TSDeclareFunction:
+      // Ignore "type", "interface" and "declare function"
       return []
 
     default:

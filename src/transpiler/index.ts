@@ -19,6 +19,7 @@ const {
   ImportNamespaceSpecifier,
   Literal,
   Program,
+  TSDeclareFunction,
   TSTypeAliasDeclaration,
   TSInterfaceDeclaration,
 } = AST_NODE_TYPES
@@ -69,12 +70,13 @@ function parseTopLevelStatement(node: any): SubworkflowAST[] {
 
     case TSInterfaceDeclaration:
     case TSTypeAliasDeclaration:
-      // Ignore "type" and "interface" declarations at the top-level
+    case TSDeclareFunction:
+      // Ignore "type", "interface" and "declare function" at the top-level
       return []
 
     default:
       throw new WorkflowSyntaxError(
-        `Only function declarations, imports and type aliases allowed at the top level, encountered ${node?.type}`,
+        `Only function definitions, imports and type aliases allowed at the top level, encountered ${node?.type}`,
         node?.loc,
       )
   }
