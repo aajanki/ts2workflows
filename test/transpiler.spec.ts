@@ -3008,6 +3008,27 @@ describe('Labelled statement', () => {
   })
 })
 
+describe('Runtime functions', () => {
+  it('Array.isArray(x) is converted to get_type(x) == "list"', () => {
+    const code = `
+    function main(x) {
+      return Array.isArray(x)
+    }`
+    const observed = YAML.parse(transpile(code)) as unknown
+
+    const expected = YAML.parse(`
+    main:
+      params:
+        - x
+      steps:
+        - return1:
+            return: \${get_type(x) == "list"}
+    `) as unknown
+
+    expect(observed).to.deep.equal(expected)
+  })
+})
+
 describe('Sample source files', () => {
   const samplesdir = './samples'
 

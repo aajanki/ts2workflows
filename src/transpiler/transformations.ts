@@ -29,6 +29,9 @@ import {
 } from '../ast/expressions.js'
 import { blockingFunctions } from './generated/functionMetadata.js'
 
+const Unmodified = Symbol()
+type Unmodified = typeof Unmodified
+
 /**
  * Performs various transformations on the AST.
  *
@@ -37,9 +40,11 @@ import { blockingFunctions } from './generated/functionMetadata.js'
  */
 export function transformAST(steps: WorkflowStepAST[]): WorkflowStepAST[] {
   return blockingCallsAsCallSteps(
-    flattenPlainNextConditions(
-      combineRetryBlocksToTry(
-        mergeAssignSteps(mapLiteralsAsAssignSteps(steps)),
+    runtimeFunctionImplementation(
+      flattenPlainNextConditions(
+        combineRetryBlocksToTry(
+          mergeAssignSteps(mapLiteralsAsAssignSteps(steps)),
+        ),
       ),
     ),
   )
@@ -282,9 +287,6 @@ function createTempVariableGenerator(): () => string {
   const generator = () => `__temp${i++}`
   return generator
 }
-
-const Unmodified = Symbol()
-type Unmodified = typeof Unmodified
 
 function replaceBlockingCalls(
   expression: Expression,
@@ -682,5 +684,37 @@ function replaceMapLiterals(
   return {
     transformedExpression: transformExpression(expression, replace),
     assignSteps,
+  }
+}
+
+/**
+ * Replace `Array.isArray(x)` with `get_type(x) == "list"`
+ */
+function runtimeFunctionImplementation(
+  steps: WorkflowStepAST[],
+): WorkflowStepAST[] {
+  return steps.reduce((acc: WorkflowStepAST[], current: WorkflowStepAST) => {
+    const transformedSteps = transformStepExpressions(current, (ex) => [
+      [],
+      transformExpression(ex, replaceIsArray),
+    ])
+    acc.push(...transformedSteps)
+
+    return acc
+  }, [])
+}
+
+function replaceIsArray(ex: Expression): Expression | Unmodified {
+  if (
+    ex.expressionType === 'functionInvocation' &&
+    ex.functionName === 'Array.isArray'
+  ) {
+    return new BinaryExpression(
+      new FunctionInvocationExpression('get_type', ex.arguments),
+      '==',
+      new PrimitiveExpression('list'),
+    )
+  } else {
+    return Unmodified
   }
 }

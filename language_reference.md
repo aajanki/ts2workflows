@@ -2,7 +2,7 @@
 
 ts2workflow converts Typescript source code to GCP Workflows YAML syntax. Only a subset of Typescript language features are supported. This page documents supported Typescript features and shows examples of the generted Workflows YAML output.
 
-Functions provided by a Javascript runtime (`console.log`, `setInterval`, etc) are not available.
+Most functions provided by a Javascript runtime (`console.log()`, `setInterval()`, etc) are not available.
 
 Type annotations are allowed. Type checking is done by the compiler but the types dont't affect the generated Workflows code.
 
@@ -22,7 +22,7 @@ Semicolon can be used as optional statement delimitter.
 
 ### Array type
 
-⚠️ Arrays are not objects. In particular, methods like `array.map()` and `array.concat()` are not available.
+⚠️ Arrays are not objects. In particular, methods like `[].map()` and `[].concat()` are not available.
 
 ⚠️ Accessing out-of-bounds index will cause an IndexError at runtime unlike in Typescript where out-of-bounds access would return `undefined`.
 
@@ -689,7 +689,19 @@ function read_from_env() {
 
 At the moment, type annotations are provided for some [connectors](https://cloud.google.com/workflows/docs/reference/googleapis) but not for all of them.
 
-## Special run-time functions
+### Runtime functions
+
+This section describes the few standard Javascript runtime functions that are available. Most are not.
+
+### Array.isArray()
+
+```typescript
+Array.isArray(arg: any): arg is any[]
+```
+
+Gets converted to the comparison `get_type(arg) == "list"`. Unlike a direct call to `get_type()`, `Array.isArray()` allows the type inference to learn if `arg` is array or not.
+
+## Language extension functions
 
 ts2workflows provides some special functions for implementing features that are not directly supported by Typescript language features. The type annotations for these functions can be imported from ts2workflows/types/workflowslib:
 
@@ -701,7 +713,7 @@ import {
 } from 'ts2workflows/types/workflowslib'
 ```
 
-### call_step
+### call_step()
 
 ```typescript
 function call_step(func: Function, args: Record<string, unknown>): unknown
@@ -709,7 +721,7 @@ function call_step(func: Function, args: Record<string, unknown>): unknown
 
 The `call_step` function outputs a [call step](https://cloud.google.com/workflows/docs/reference/syntax/calls).
 
-### parallel
+### parallel()
 
 ```typescript
 function parallel(
@@ -724,7 +736,7 @@ function parallel(
 
 The `parallel` function executes code blocks in parallel (using [parallel step](https://cloud.google.com/workflows/docs/reference/syntax/parallel-steps)). See the previous sections covering parallel branches and iteration.
 
-### retry_policy
+### retry_policy()
 
 ```typescript
 function retry_policy(
@@ -760,9 +772,9 @@ const var1 = 1 // This is a comment
 
 ts2workflows supports only a subset of all Typescript language features. Some examples that are not (yet) supported by ts2workflows:
 
-- Functions provided by a Javascript runtime (`console.log`, `setInterval`, etc) are not available. Only the [GCP Workflows standard library functions](https://cloud.google.com/workflows/docs/reference/stdlib/overview) and [connectors](https://cloud.google.com/workflows/docs/reference/googleapis) are available.
+- Most functions provided by a Javascript runtime (`console.log()`, `setInterval()`, etc) are not available. Only the [GCP Workflows standard library functions](https://cloud.google.com/workflows/docs/reference/stdlib/overview) and [connectors](https://cloud.google.com/workflows/docs/reference/googleapis) are available.
 - Classes (`class`) are not supported
-- Arrays and maps are not objects. In particular, arrays don't have methods such as `array.push()`, `array.map()`, etc.
+- Arrays and maps are not objects. In particular, arrays don't have methods such as `[].push()`, `[].map()`, etc.
 - Functions (subworkflows) are not first-class objects. Functions can not be assigned to a variable or passed to other functions
 - Update expressions (`x++` and similar) are not supported
 - Destructuring (`[a, b] = func()`) is not supported

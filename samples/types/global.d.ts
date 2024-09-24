@@ -1,7 +1,9 @@
 export {}
 
 declare global {
-  interface Array<T> {}
+  interface Array<T> {
+    isArray(arg: any): arg is any[]
+  }
   interface Boolean {}
   interface CallableFunction {}
   interface Function {}
