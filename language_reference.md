@@ -716,7 +716,10 @@ import {
 ### call_step()
 
 ```typescript
-function call_step(func: Function, args: Record<string, unknown>): unknown
+function call_step<T, A extends any[]>(
+  func: (...args: A) => T,
+  arguments: Record<string, unknown>,
+): T
 ```
 
 The `call_step` function outputs a [call step](https://cloud.google.com/workflows/docs/reference/syntax/calls).

@@ -711,7 +711,7 @@ export declare function retry_policy(
       },
 ): void
 
-export declare function call_step(
-  func: Function,
+export declare function call_step<T, A extends any[]>(
+  func: (...args: A) => T,
   arguments: Record<string, unknown>,
-): unknown
+): T
