@@ -1,5 +1,7 @@
 export {}
 
+/// <reference no-default-lib="true"/>
+
 declare global {
   // Minimal definition of Symbol.iterator required by the for-of statement
   interface SymbolConstructor {
