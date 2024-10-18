@@ -163,7 +163,13 @@ export declare namespace http {
 export declare namespace json {
   function decode(data: bytes | string): unknown
   function encode(
-    data: string | number | boolean | unknown[] | Record<string, unknown> | null,
+    data:
+      | string
+      | number
+      | boolean
+      | unknown[]
+      | Record<string, unknown>
+      | null,
     indent?:
       | boolean
       | {
@@ -172,7 +178,13 @@ export declare namespace json {
         },
   ): bytes
   function encode_to_string(
-    data: string | number | boolean | unknown[] | Record<string, unknown> | null,
+    data:
+      | string
+      | number
+      | boolean
+      | unknown[]
+      | Record<string, unknown>
+      | null,
     indent?:
       | boolean
       | {
@@ -192,7 +204,7 @@ export declare namespace map {
   export function get<T, K extends string | string[]>(
     map: Record<string, T>,
     keys: K,
-  ): K extends string ? T : unknown
+  ): K extends string ? T | null : unknown
   export function merge<T, U>(
     first: Record<string, T>,
     second: Record<string, U>,
