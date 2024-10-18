@@ -21,14 +21,18 @@ declare global {
   }
 
   interface Array<T> {
-    isArray(arg: any): arg is any[]
-
     // Array member access
     [n: number]: T
 
     // Arrays can be iterated by the for-of statement
     [Symbol.iterator](): IterableIterator<T>
   }
+
+  interface ArrayConstructor {
+    isArray(arg: any): arg is any[]
+  }
+
+  var Array: ArrayConstructor
 
   interface Boolean {}
   interface CallableFunction {}
