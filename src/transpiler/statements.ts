@@ -325,11 +325,13 @@ function callExpressionAssignStep(
   argumentsNode: any[],
 ): AssignStepAST {
   const argumentExpressions: Expression[] = argumentsNode.map(convertExpression)
-  const assignments: VariableAssignment[] = [
-    ['', new FunctionInvocationExpression(functionName, argumentExpressions)],
-  ]
 
-  return new AssignStepAST(assignments)
+  return new AssignStepAST([
+    [
+      '__temp',
+      new FunctionInvocationExpression(functionName, argumentExpressions),
+    ],
+  ])
 }
 
 function callExpressionToCallStep(
@@ -570,7 +572,7 @@ function parseParallelOptions(node: any) {
 }
 
 function generalExpressionToAssignStep(node: any): AssignStepAST {
-  return new AssignStepAST([['', convertExpression(node)]])
+  return new AssignStepAST([['__temp', convertExpression(node)]])
 }
 
 function returnStatementToReturnStep(node: any): ReturnStepAST {

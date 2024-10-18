@@ -224,7 +224,7 @@ describe('Call statement', () => {
       steps:
         - assign1:
             assign:
-              - "": \${writeLog("Everything going OK!")}
+              - __temp: \${writeLog("Everything going OK!")}
     `) as unknown
 
     expect(observed).to.deep.equal(expected)
@@ -1561,7 +1561,7 @@ describe('Try-catch statement', () => {
                 steps:
                   - assign1:
                       assign:
-                        - "": \${log("Error!")}
+                        - __temp: \${log("Error!")}
     `) as unknown
 
     expect(observed).to.deep.equal(expected)
@@ -1598,7 +1598,7 @@ describe('Try-catch statement', () => {
                 steps:
                   - assign1:
                       assign:
-                        - "": \${log("Error!")}
+                        - __temp: \${log("Error!")}
     `) as unknown
 
     expect(observed).to.deep.equal(expected)
@@ -1645,7 +1645,7 @@ describe('Try-catch statement', () => {
                 steps:
                   - assign1:
                       assign:
-                        - "": \${log("Error!")}
+                        - __temp: \${log("Error!")}
     `) as unknown
 
     expect(observed).to.deep.equal(expected)
@@ -1731,10 +1731,10 @@ describe('Try-catch statement', () => {
                 steps:
                   - assign1:
                       assign:
-                        - "": \${log("Error!")}
+                        - __temp: \${log("Error!")}
           - assign2:
               assign:
-                - "": \${log("try block completed")}
+                - __temp: \${log("try block completed")}
     `) as unknown
 
     expect(observed).to.deep.equal(expected)
@@ -2736,17 +2736,17 @@ describe('Parallel step', () => {
                     steps:
                       - assign1:
                           assign:
-                            - "": \${log("Hello from branch 1")}
+                            - __temp: \${log("Hello from branch 1")}
                 - branch2:
                     steps:
                       - assign2:
                           assign:
-                            - "": \${log("Hello from branch 2")}
+                            - __temp: \${log("Hello from branch 2")}
                 - branch3:
                     steps:
                       - assign3:
                           assign:
-                            - "": \${log("Hello from branch 3")}
+                            - __temp: \${log("Hello from branch 3")}
     `) as unknown
 
     expect(observed).to.deep.equal(expected)
