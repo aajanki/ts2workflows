@@ -14,7 +14,6 @@ import {
   SwitchConditionAST,
   SwitchStepAST,
   TryStepAST,
-  VariableAssignment,
   WorkflowParameters,
   WorkflowStepAST,
   stepWithLabel,
