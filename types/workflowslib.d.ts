@@ -245,7 +245,7 @@ export declare namespace text {
     index: number
     match: string
   }[]
-  function match_regexp(source: string, regexp: string): boolean
+  function match_regex(source: string, regexp: string): boolean
   function replace_all(source: string, substr: string, repl: string): string
   function replace_all_regex(
     source: string,
