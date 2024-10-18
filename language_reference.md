@@ -145,7 +145,7 @@ is converted to an [assign step](https://cloud.google.com/workflows/docs/referen
       - projectId: ${sys.get_env("GOOGLE_CLOUD_PROJECT_ID")}
 ```
 
-This syntax can be used to call [standard library functions](https://cloud.google.com/workflows/docs/reference/stdlib/overview), subworkflows or connectors.
+This syntax can be used to call [standard library functions](https://cloud.google.com/workflows/docs/reference/stdlib/overview), subworkflows or connectors. Note that Javascript runtime functions (such as `fetch()`, `console.error()` or `new XMLHttpRequest()`) are not available on Workflows.
 
 GCP Workflows language has two ways of calling functions and subworkflows: as expression in an [assign step](https://cloud.google.com/workflows/docs/reference/syntax/variables#assign-step) or as [call step](https://cloud.google.com/workflows/docs/reference/syntax/calls). They can mostly be used interchangeably. However, [blocking calls](https://cloud.google.com/workflows/docs/reference/syntax/expressions#blocking-calls) must be made as call steps. The transpiler tries to automatically output a call step when necessary.
 
@@ -175,7 +175,7 @@ main:
           severity: INFO
 ```
 
-Some Workflows standard library functions have names that are reserved keywords in Typescript. Those functions must be called with alternative names in ts2workflows source code:
+Some Workflows standard library functions have names that are reserved keywords in Typescript. Those functions must be called with alternative syntax in ts2workflows source code:
 
 - To generate a call to `default()` in Workflows code, use the nullish coalescing operator `??`.
 - To generete a call to `if()` in Workflows code, use the ternary operator `a ? b : c`.
