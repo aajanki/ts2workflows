@@ -27,6 +27,7 @@ const {
   ObjectExpression,
   TemplateLiteral,
   TSAsExpression,
+  TSNonNullExpression,
 } = AST_NODE_TYPES
 
 export function convertExpression(instance: any): Expression {
@@ -130,6 +131,9 @@ function convertExpressionOrPrimitive(instance: any): Primitive | Expression {
       return convertConditionalExpression(instance)
 
     case TSAsExpression:
+      return convertExpressionOrPrimitive(instance.expression)
+
+    case TSNonNullExpression:
       return convertExpressionOrPrimitive(instance.expression)
 
     case AwaitExpression:

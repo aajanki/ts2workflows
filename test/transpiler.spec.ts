@@ -89,6 +89,25 @@ describe('Type annotations', () => {
 
     expect(observed).to.deep.equal({})
   })
+
+  it('ignores non-null assertions', () => {
+    const code = `
+    function getName(person) {
+      return person!.name;
+    }`
+    const observed = YAML.parse(transpile(code)) as unknown
+
+    const expected = YAML.parse(`
+    getName:
+      params:
+        - person
+      steps:
+        - return1:
+            return: \${person.name}
+    `) as unknown
+
+    expect(observed).to.deep.equal(expected)
+  })
 })
 
 describe('Function definition', () => {
