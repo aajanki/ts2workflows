@@ -76,6 +76,12 @@ The [precendence order of operators](https://cloud.google.com/workflows/docs/ref
 
 See [expression in GCP Workflows](https://cloud.google.com/workflows/docs/reference/syntax/expressions) for more information.
 
+### Implicit type conversions
+
+Expressions that combine variables with operators such as `+`, `>`, `==` perform implict type conversions according to the [rules listed on GCP Workflows documentation](https://cloud.google.com/workflows/docs/reference/syntax/datatypes#implicit-conversions). For example, applying `+` to a string and a number concatenates the values into a string.
+
+⚠️ Checking if a variable is null or not must be done by an explicit comparison: `if (var != null) {...}`. Attempting to rely in implicit conversion, such as `if (var) {...}`, results in a TypeError at runtime.
+
 ## Template literals
 
 Template literals are strings that support string interpolation. For example, `Hello ${name}`.
