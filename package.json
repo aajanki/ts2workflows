@@ -23,8 +23,13 @@
     "prepare": "husky"
   },
   "lint-staged": {
-    "*.ts": ["prettier --write", "eslint"],
-    "*.md": ["prettier --write"]
+    "*.ts": [
+      "prettier --write",
+      "eslint"
+    ],
+    "*.md": [
+      "prettier --write"
+    ]
   },
   "bin": "./dist/cli.js",
   "files": [
