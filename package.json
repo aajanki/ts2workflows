@@ -19,7 +19,12 @@
     "build:functionmetadata": "tsx scripts/generateBlockingFunctionMetadata.ts",
     "lint": "eslint src test scripts",
     "format": "prettier . --write",
-    "test": "mocha"
+    "test": "mocha",
+    "prepare": "husky"
+  },
+  "lint-staged": {
+    "*.ts": ["prettier --write", "eslint"],
+    "*.md": ["prettier --write"]
   },
   "bin": "./dist/cli.js",
   "files": [
@@ -46,6 +51,8 @@
     "@typescript-eslint/parser": "^8.0.0",
     "chai": "^5.1.1",
     "eslint": "^9.10.0",
+    "husky": "^9.1.6",
+    "lint-staged": "^15.2.10",
     "mocha": "^10.4.0",
     "prettier": "^3.2.5",
     "rimraf": "^5.0.10",
