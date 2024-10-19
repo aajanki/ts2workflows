@@ -16,7 +16,6 @@ import {
   TryStepAST,
   WorkflowParameters,
   WorkflowStepAST,
-  stepWithLabel,
 } from '../ast/steps.js'
 import {
   BinaryExpression,
@@ -856,9 +855,9 @@ function labeledStep(node: any, ctx: ParsingContext): WorkflowStepAST[] {
   assertType(node, LabeledStatement)
 
   const steps = parseStep(node.body, ctx)
-  if (steps.length > 0) {
-    steps[0] = stepWithLabel(steps[0], node.label.name as string)
-    return steps
+  if (steps.length > 0 && steps[0].tag !== 'jumptarget') {
+    const label = node.label.name as string
+    steps[0] = steps[0].withLabel(label)
   }
 
   return steps

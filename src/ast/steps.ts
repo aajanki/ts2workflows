@@ -86,11 +86,15 @@ export interface NamedWorkflowStep {
 export class AssignStepAST {
   readonly tag = 'assign'
   readonly assignments: VariableAssignment[]
-  readonly label: string | undefined
+  readonly label?: string
 
   constructor(assignments: VariableAssignment[], label?: string) {
     this.assignments = assignments
     this.label = label
+  }
+
+  withLabel(newLabel?: string): AssignStepAST {
+    return new AssignStepAST(this.assignments, newLabel)
   }
 }
 
@@ -100,7 +104,7 @@ export class CallStepAST {
   readonly call: string
   readonly args?: WorkflowParameters
   readonly result?: VariableName
-  readonly label: string | undefined
+  readonly label?: string
 
   constructor(
     call: string,
@@ -117,6 +121,10 @@ export class CallStepAST {
   labelPrefix(): string {
     return 'call_' + this.call.replaceAll(/[^a-zA-Z0-9]/g, '_') + '_'
   }
+
+  withLabel(newLabel?: string): CallStepAST {
+    return new CallStepAST(this.call, this.args, this.result, newLabel)
+  }
 }
 
 // https://cloud.google.com/workflows/docs/reference/syntax/iteration
@@ -128,7 +136,7 @@ export class ForStepAST {
   readonly listExpression: Expression
   readonly rangeStart?: number
   readonly rangeEnd?: number
-  readonly label: string | undefined
+  readonly label?: string
 
   constructor(
     steps: WorkflowStepAST[],
@@ -146,6 +154,18 @@ export class ForStepAST {
     this.rangeStart = rangeStart
     this.rangeEnd = rangeEnd
     this.label = label
+  }
+
+  withLabel(newLabel?: string): ForStepAST {
+    return new ForStepAST(
+      this.steps,
+      this.loopVariableName,
+      this.listExpression,
+      this.indexVariableName,
+      this.rangeStart,
+      this.rangeEnd,
+      newLabel,
+    )
   }
 }
 
@@ -178,11 +198,15 @@ export class ForStepASTNamed {
 export class NextStepAST {
   readonly tag = 'next'
   readonly target: string
-  readonly label: string | undefined
+  readonly label?: string
 
   constructor(target: string, label?: string) {
     this.target = target
     this.label = label
+  }
+
+  withLabel(newLabel?: string): NextStepAST {
+    return new NextStepAST(this.target, newLabel)
   }
 }
 
@@ -193,7 +217,7 @@ export class ParallelStepAST {
   readonly shared?: VariableName[]
   readonly concurrencyLimit?: number
   readonly exceptionPolicy?: string
-  readonly label: string | undefined
+  readonly label?: string
 
   constructor(
     steps: Record<StepName, StepsStepAST> | ForStepAST,
@@ -207,6 +231,16 @@ export class ParallelStepAST {
     this.concurrencyLimit = concurrencyLimit
     this.exceptionPolicy = exceptionPolicy
     this.label = label
+  }
+
+  withLabel(newLabel?: string): ParallelStepAST {
+    return new ParallelStepAST(
+      this.steps,
+      this.shared,
+      this.concurrencyLimit,
+      this.exceptionPolicy,
+      newLabel,
+    )
   }
 }
 
@@ -242,23 +276,31 @@ export class ParallelStepASTNamed {
 export class RaiseStepAST {
   readonly tag = 'raise'
   readonly value: Expression
-  readonly label: string | undefined
+  readonly label?: string
 
   constructor(value: Expression, label?: string) {
     this.value = value
     this.label = label
+  }
+
+  withLabel(newLabel?: string): RaiseStepAST {
+    return new RaiseStepAST(this.value, newLabel)
   }
 }
 
 // https://cloud.google.com/workflows/docs/reference/syntax/completing
 export class ReturnStepAST {
   readonly tag = 'return'
-  readonly value: Expression | undefined
-  readonly label: string | undefined
+  readonly value?: Expression
+  readonly label?: string
 
   constructor(value: Expression | undefined, label?: string) {
     this.value = value
     this.label = label
+  }
+
+  withLabel(newLabel?: string): ReturnStepAST {
+    return new ReturnStepAST(this.value, newLabel)
   }
 }
 
@@ -266,11 +308,15 @@ export class ReturnStepAST {
 export class StepsStepAST {
   readonly tag = 'steps'
   readonly steps: WorkflowStepAST[]
-  readonly label: string | undefined
+  readonly label?: string
 
   constructor(steps: WorkflowStepAST[], label?: string) {
     this.steps = steps
     this.label = label
+  }
+
+  withLabel(newLabel?: string): StepsStepAST {
+    return new StepsStepAST(this.steps, newLabel)
   }
 }
 
@@ -287,11 +333,15 @@ export class StepsStepASTNamed {
 export class SwitchStepAST {
   readonly tag = 'switch'
   readonly branches: SwitchConditionAST<WorkflowStepAST>[]
-  readonly label: string | undefined
+  readonly label?: string
 
   constructor(branches: SwitchConditionAST<WorkflowStepAST>[], label?: string) {
     this.branches = branches
     this.label = label
+  }
+
+  withLabel(newLabel?: string): SwitchStepAST {
+    return new SwitchStepAST(this.branches, newLabel)
   }
 }
 
@@ -324,7 +374,7 @@ export class TryStepAST {
   readonly exceptSteps: WorkflowStepAST[]
   readonly retryPolicy?: string | CustomRetryPolicy
   readonly errorMap?: VariableName
-  readonly label: string | undefined
+  readonly label?: string
 
   constructor(
     trySteps: WorkflowStepAST[],
@@ -338,6 +388,16 @@ export class TryStepAST {
     this.retryPolicy = retryPolicy
     this.errorMap = errorMap
     this.label = label
+  }
+
+  withLabel(newLabel?: string): TryStepAST {
+    return new TryStepAST(
+      this.trySteps,
+      this.exceptSteps,
+      this.retryPolicy,
+      this.errorMap,
+      newLabel,
+    )
   }
 }
 
@@ -753,64 +813,4 @@ function renderSteps(steps: NamedWorkflowStep[]) {
   return steps.map((x) => {
     return { [x.name]: renderStep(x.step) }
   })
-}
-
-export function stepWithLabel(
-  step: WorkflowStepAST,
-  label: string,
-): WorkflowStepAST {
-  switch (step.tag) {
-    case 'assign':
-      return new AssignStepAST(step.assignments, label)
-
-    case 'call':
-      return new CallStepAST(step.call, step.args, step.result, label)
-
-    case 'for':
-      return new ForStepAST(
-        step.steps,
-        step.loopVariableName,
-        step.listExpression,
-        step.indexVariableName,
-        step.rangeStart,
-        step.rangeEnd,
-        label,
-      )
-
-    case 'next':
-      return new NextStepAST(step.target, label)
-
-    case 'parallel':
-      return new ParallelStepAST(
-        step.steps,
-        step.shared,
-        step.concurrencyLimit,
-        step.exceptionPolicy,
-        label,
-      )
-
-    case 'raise':
-      return new RaiseStepAST(step.value, label)
-
-    case 'return':
-      return new ReturnStepAST(step.value, label)
-
-    case 'steps':
-      return new StepsStepAST(step.steps, label)
-
-    case 'switch':
-      return new SwitchStepAST(step.branches, label)
-
-    case 'try':
-      return new TryStepAST(
-        step.trySteps,
-        step.exceptSteps,
-        step.retryPolicy,
-        step.errorMap,
-        label,
-      )
-
-    case 'jumptarget':
-      return step
-  }
 }
