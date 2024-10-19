@@ -10,5 +10,6 @@
     "types": [],
     "typeRoots": ["./types"],
     "skipLibCheck": true
-  }
+  },
+  "include": ["samples/*.ts", "types/*.ts"]
 }
