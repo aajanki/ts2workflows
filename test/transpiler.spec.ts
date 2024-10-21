@@ -1191,12 +1191,10 @@ describe('Switch statement', () => {
         - assign2:
             assign:
               - country: Dreamland
-        - next1:
             next: return1
         - assign3:
             assign:
               - country: Bentwood
-        - next2:
             next: return1
         - assign4:
             assign:
@@ -1249,12 +1247,10 @@ describe('Switch statement', () => {
         - assign2:
             assign:
               - country: Dreamland
-        - next1:
             next: end
         - assign3:
             assign:
               - country: Bentwood
-        - next2:
             next: end
         - assign4:
             assign:
@@ -1314,12 +1310,10 @@ describe('Switch statement', () => {
                 - assign2:
                     assign:
                       - country: Dreamland
-                - next1:
                     next: return1
                 - assign3:
                     assign:
                       - country: Bentwood
-                - next2:
                     next: return1
                 - assign4:
                     assign:
@@ -1382,7 +1376,6 @@ describe('Switch statement', () => {
         - assign3:
             assign:
             - country: Dreamland
-        - next1:
             next: return1
         - assign4:
             assign:
@@ -2283,7 +2276,6 @@ describe('Loops', () => {
                   - assign2:
                       assign:
                         - i: \${i - 1}
-                  - next1:
                       next: switch1
     `) as unknown
 
@@ -2430,12 +2422,10 @@ describe('Loops', () => {
                             - assign2:
                                 assign:
                                   - x: \${x * 2}
-                            - next1:
                                 next: switch2
                   - assign3:
                       assign:
                         - x: \${2 * (1 - x)}
-                  - next2:
                       next: switch2
         - return1:
             return: \${x}
@@ -2670,7 +2660,6 @@ describe('Loops', () => {
                   - assign2:
                       assign:
                         - x: \${x * 2}
-                  - next1:
                       next: switch1
         - assign3:
             assign:

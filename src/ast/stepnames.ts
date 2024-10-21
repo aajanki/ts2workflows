@@ -1,4 +1,5 @@
 import {
+  AssignStepAST,
   ForStepASTNamed,
   NamedWorkflowStep,
   NextStepAST,
@@ -270,12 +271,14 @@ function renameJumpTargets(
   replaceLabels: Map<StepName, StepName>,
 ): WorkflowStepASTWithNamedNested {
   switch (step.tag) {
-    case 'assign':
     case 'call':
     case 'raise':
     case 'return':
     case 'jumptarget':
       return step
+
+    case 'assign':
+      return renameJumpTargetsAssign(step, replaceLabels)
 
     case 'next':
       return renameJumpTargetsNext(step, replaceLabels)
@@ -295,6 +298,21 @@ function renameJumpTargets(
     case 'try':
       return renameJumpTargetsTry(step, replaceLabels)
   }
+}
+
+function renameJumpTargetsAssign(
+  step: AssignStepAST,
+  replaceLabels: Map<StepName, StepName>,
+): AssignStepAST {
+  if (step.next) {
+    const newLabel = replaceLabels.get(step.next)
+
+    if (newLabel) {
+      return step.withNext(newLabel)
+    }
+  }
+
+  return step
 }
 
 function renameJumpTargetsFor(

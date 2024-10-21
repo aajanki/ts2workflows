@@ -87,10 +87,24 @@ export class AssignStepAST {
   readonly tag = 'assign'
   readonly assignments: VariableAssignment[]
   readonly label?: string
+  readonly next?: string
 
-  constructor(assignments: VariableAssignment[], label?: string) {
+  constructor(
+    assignments: VariableAssignment[],
+    next?: string,
+    label?: string,
+  ) {
     this.assignments = assignments
+    this.next = next
     this.label = label
+  }
+
+  withNext(newNext?: string): AssignStepAST {
+    if (newNext === this.next) {
+      return this
+    } else {
+      return new AssignStepAST(this.assignments, newNext, this.label)
+    }
   }
 
   withLabel(newLabel?: string): AssignStepAST {
@@ -653,6 +667,7 @@ export function renderStep(
         assign: step.assignments.map(([key, val]) => {
           return { [key]: expressionToLiteralValueOrLiteralExpression(val) }
         }),
+        ...(step.next && { next: step.next }),
       }
 
     case 'call':

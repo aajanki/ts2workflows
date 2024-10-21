@@ -1,5 +1,3 @@
-import { sys } from '../types/workflowslib'
-
 function main() {
   const values = [1, 2, 3]
 

@@ -83,11 +83,13 @@ export interface ParsingContext {
 export function parseBlockStatement(
   node: any,
   ctx: ParsingContext,
+  postSteps?: WorkflowStepAST[],
 ): WorkflowStepAST[] {
   assertType(node, BlockStatement)
 
   const body = node.body as any[]
-  return transformAST(body.flatMap((x) => parseStep(x, ctx)))
+  const bodySteps = body.flatMap((x) => parseStep(x, ctx))
+  return transformAST(bodySteps.concat(postSteps ?? []))
 }
 
 function parseStep(node: any, ctx: ParsingContext): WorkflowStepAST[] {
@@ -741,9 +743,8 @@ function whileStatementSteps(
     continueTarget: startOfLoop.label,
     breakTarget: endOfLoop.label,
   })
-
-  const steps: WorkflowStepAST[] = parseBlockStatement(node.body, ctx2)
-  steps.push(new NextStepAST(startOfLoop.label))
+  const postSteps = [new NextStepAST(startOfLoop.label)]
+  const steps = parseBlockStatement(node.body, ctx2, postSteps)
 
   return [
     startOfLoop,

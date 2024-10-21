@@ -62,10 +62,12 @@ function mergeAssignSteps(steps: WorkflowStepAST[]): WorkflowStepAST[] {
     if (
       current.tag === 'assign' &&
       prev?.tag === 'assign' &&
-      prev.assignments.length < 50
+      prev.assignments.length < 50 &&
+      !prev.next
     ) {
       const merged = new AssignStepAST(
         prev.assignments.concat(current.assignments),
+        current.next,
       )
 
       acc.pop()
@@ -203,7 +205,7 @@ function parseRetryPolicyNumber(
 }
 
 /**
- * Flatten switch conditions that contain a single next step.
+ * Merge a next step to the previous step.
  *
  * For example, transforms this:
  *
@@ -223,10 +225,29 @@ function parseRetryPolicyNumber(
 export function flattenPlainNextConditions(
   steps: WorkflowStepAST[],
 ): WorkflowStepAST[] {
-  return steps.map((step) => (step.tag === 'switch' ? flattenNext(step) : step))
+  return steps.reduce((acc: WorkflowStepAST[], step: WorkflowStepAST) => {
+    if (acc.length > 0 && step.tag === 'next') {
+      // Merge a "next" to the previous "assign" step
+      const prev = acc[acc.length - 1]
+
+      if (prev.tag === 'assign' && !prev.next) {
+        acc.pop()
+        acc.push(prev.withNext(step.target))
+      } else {
+        acc.push(step)
+      }
+    } else if (step.tag === 'switch') {
+      // If the condition steps consists of a single "next", merge it with the condition
+      acc.push(flattenNextToCondition(step))
+    } else {
+      acc.push(step)
+    }
+
+    return acc
+  }, [])
 }
 
-function flattenNext(step: SwitchStepAST): SwitchStepAST {
+function flattenNextToCondition(step: SwitchStepAST): SwitchStepAST {
   const transformedBranches = step.branches.map((cond) => {
     if (!cond.next && cond.steps.length === 1 && cond.steps[0].tag === 'next') {
       const nextStep = cond.steps[0]
@@ -393,7 +414,7 @@ function transformExpressionsAssign(
       newSteps.push(...steps2)
       return [name, ex2] as const
     })
-    newSteps.push(new AssignStepAST(newAssignments, step.label))
+    newSteps.push(new AssignStepAST(newAssignments, step.next, step.label))
     return newSteps
   } else {
     return [step]
