@@ -40,6 +40,12 @@ It is not possible to construct a bytes object expect by calling a function that
 
 In addition to the literal `null`, the Typescript `undefined` value is also treated as `null` in Workflows YAML.
 
+### Implicit type conversions
+
+Expressions that combine variables with operators such as `+`, `>`, `==` perform implict type conversions according to the [rules listed on GCP Workflows documentation](https://cloud.google.com/workflows/docs/reference/syntax/datatypes#implicit-conversions). For example, applying `+` to a string and a number concatenates the values into a string.
+
+⚠️ Checking if a variable is null or not must be done by an explicit comparison: `if (var != null) {...}`. Relying in an implicit conversion, such as `if (var) {...}`, results in a TypeError at runtime.
+
 ## Expressions
 
 Most Typescript expressions work as expected.
@@ -56,7 +62,7 @@ name === 'Bean'
 sys.get_env('GOOGLE_CLOUD_PROJECT_ID')
 ```
 
-Operators:
+## Operators
 
 | Operator     | Description                                  |
 | ------------ | -------------------------------------------- |
@@ -71,16 +77,58 @@ Operators:
 | &&, \|\|, !  | logical operators                            |
 | in           | check if a property is present in an object  |
 | ??           | nullish coalescing                           |
+| ?.           | optional chaining                            |
+| ? :          | conditional operator                         |
 
 The [precendence order of operators](https://cloud.google.com/workflows/docs/reference/syntax/datatypes#order-operations) is the same as in GCP Workflows.
 
 See [expression in GCP Workflows](https://cloud.google.com/workflows/docs/reference/syntax/expressions) for more information.
 
-### Implicit type conversions
+### Conditional (ternary) operator
 
-Expressions that combine variables with operators such as `+`, `>`, `==` perform implict type conversions according to the [rules listed on GCP Workflows documentation](https://cloud.google.com/workflows/docs/reference/syntax/datatypes#implicit-conversions). For example, applying `+` to a string and a number concatenates the values into a string.
+The expression
 
-⚠️ Checking if a variable is null or not must be done by an explicit comparison: `if (var != null) {...}`. Attempting to rely in implicit conversion, such as `if (var) {...}`, results in a TypeError at runtime.
+```javascript
+x > 0 ? 'positive' : 'not positive'
+```
+
+is converted to an [if() expression](https://cloud.google.com/workflows/docs/reference/stdlib/expression-helpers#conditional_functions):
+
+```yaml
+${if(x > 0, "positive", "not positive")}
+```
+
+⚠️ Note that Workflows always evaluates both expression branches unlike Typescript which evaluates only the branch that gets executed.
+
+### Nullish coalescing operator
+
+The expression
+
+```javascript
+x ?? 'default value'
+```
+
+is converted to a [default() expression](https://cloud.google.com/workflows/docs/reference/stdlib/expression-helpers#conditional_functions):
+
+```yaml
+${default(x, "default value")}
+```
+
+⚠️ Note that Workflows always evaluates the right-hand side expression unlike Typescript which evaluates the right-hand side only if the left-hand side is `null` or `undefined`.
+
+### Optional chaining
+
+The optional chaining expression
+
+```javascript
+data.user?.name
+```
+
+is converted to a [map.get() expression](https://cloud.google.com/workflows/docs/reference/stdlib/map/get):
+
+```yaml
+${map.get(data, ["user", "name"])}
+```
 
 ## Template literals
 
@@ -312,38 +360,6 @@ steps:
   - return1:
       return: ${b}
 ```
-
-## Conditional (ternary) operator
-
-The expression
-
-```javascript
-x > 0 ? 'positive' : 'not positive'
-```
-
-is converted to an [if() expression](https://cloud.google.com/workflows/docs/reference/stdlib/expression-helpers#conditional_functions):
-
-```yaml
-${if(x > 0, "positive", "not positive")}
-```
-
-⚠️ Note that Workflows always evaluates both expression branches unlike Typescript which evaluates only the branch that gets executed.
-
-## Nullish coalescing operator
-
-The expression
-
-```javascript
-x ?? 'default value'
-```
-
-is converted to an [default() expression](https://cloud.google.com/workflows/docs/reference/stdlib/expression-helpers#conditional_functions):
-
-```yaml
-${default(x, "default value")}
-```
-
-⚠️ Note that Workflows always evaluates the right-hand side expression unlike Typescript which evaluates the right-hand side only if the left-hand side is `null` or `undefined`.
 
 ## Loops
 

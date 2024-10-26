@@ -366,6 +366,110 @@ describe('Expressions', () => {
     assertExpression('error as {code: number}', '${error}')
     assertExpression('(error as {code: number}).number', '${error.number}')
   })
+
+  it('transpiles optional chaining as map.get()', () => {
+    const ast = transpile(`function test(data) {
+      return data?.name;
+    }`)
+    const expected = `
+    test:
+      params:
+        - data
+      steps:
+        - return1:
+            return: \${map.get(data, "name")}
+    `
+
+    expect(YAML.parse(ast)).to.deep.equal(YAML.parse(expected))
+  })
+
+  it('transpiles nested optional chains', () => {
+    const ast = transpile(`function test(data) {
+      return data.person[3].address?.city?.id;
+    }`)
+    const expected = `
+    test:
+      params:
+        - data
+      steps:
+        - return1:
+            return: \${map.get(data.person[3], ["address", "city", "id"])}
+    `
+
+    expect(YAML.parse(ast)).to.deep.equal(YAML.parse(expected))
+  })
+
+  it('transpiles optional chains with alternativing optional and non-optional elements', () => {
+    const ast = transpile(`function test(data) {
+      return data.person?.address.city?.id;
+    }`)
+    const expected = `
+    test:
+      params:
+        - data
+      steps:
+        - return1:
+            return: \${map.get(data, ["person", "address", "city", "id"])}
+    `
+
+    expect(YAML.parse(ast)).to.deep.equal(YAML.parse(expected))
+  })
+
+  it('transpiles (data?.a).b', () => {
+    const ast = transpile(`function test(data) {
+      return (data?.a).b;
+    }`)
+    const expected = `
+    test:
+      params:
+        - data
+      steps:
+        - return1:
+            return: \${map.get(data, "a").b}
+    `
+
+    expect(YAML.parse(ast)).to.deep.equal(YAML.parse(expected))
+  })
+
+  it('transpiles (data?.a)?.b', () => {
+    const ast = transpile(`function test(data) {
+      return (data?.a)?.b;
+    }`)
+    const expected = `
+    test:
+      params:
+        - data
+      steps:
+        - return1:
+            return: \${map.get(map.get(data, "a"), "b")}
+    `
+
+    expect(YAML.parse(ast)).to.deep.equal(YAML.parse(expected))
+  })
+
+  it('transpiles optional chaining with bracket notation', () => {
+    const ast = transpile(`function test(data) {
+      return data?.["na" + "me"];
+    }`)
+    const expected = `
+    test:
+      params:
+        - data
+      steps:
+        - return1:
+            return: \${map.get(data, "na" + "me")}
+    `
+
+    expect(YAML.parse(ast)).to.deep.equal(YAML.parse(expected))
+  })
+
+  it('optional call expression is not supported', () => {
+    const code = `function test() {
+      return sys.now?.();
+    }`
+
+    expect(() => transpile(code)).to.throw()
+  })
 })
 
 describe('Variable references', () => {

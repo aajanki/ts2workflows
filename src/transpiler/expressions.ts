@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-argument */
 import { AST_NODE_TYPES } from '@typescript-eslint/utils'
+import { TSESTree } from '@typescript-eslint/typescript-estree'
 import {
   BinaryExpression,
   BinaryOperator,
@@ -13,13 +14,14 @@ import {
   isExpression,
   isFullyQualifiedName,
 } from '../ast/expressions.js'
-import { WorkflowSyntaxError } from '../errors.js'
+import { InternalTranspilingError, WorkflowSyntaxError } from '../errors.js'
 import { assertOneOfManyTypes, assertType } from './asserts.js'
 
 const {
   ArrayExpression,
   AwaitExpression,
   CallExpression,
+  ChainExpression,
   ConditionalExpression,
   Identifier,
   Literal,
@@ -123,6 +125,9 @@ function convertExpressionOrPrimitive(instance: any): Primitive | Expression {
 
     case AST_NODE_TYPES.MemberExpression:
       return convertMemberExpression(instance)
+
+    case ChainExpression:
+      return convertChainExpression(instance)
 
     case CallExpression:
       return convertCallExpression(instance)
@@ -269,8 +274,127 @@ export function convertMemberExpression(node: any): Expression {
   )
 }
 
+function convertChainExpression(node: any): Expression {
+  assertType(node, ChainExpression)
+
+  const properties = chainExpressionToFlatArray(node.expression)
+  const args = optinalChainToMapGetArguments(properties)
+
+  return new FunctionInvocationExpression('map.get', args)
+}
+
+interface ChainedProperty {
+  property: TSESTree.BaseNode
+  optional: boolean
+  computed: boolean
+}
+
+function chainExpressionToFlatArray(node: any): ChainedProperty[] {
+  if (node.type === AST_NODE_TYPES.MemberExpression) {
+    const data = {
+      property: node.property as TSESTree.BaseNode,
+      optional: node.optional as boolean,
+      computed: node.computed as boolean,
+    }
+
+    return chainExpressionToFlatArray(node.object).concat([data])
+  } else {
+    return [
+      {
+        property: node as TSESTree.BaseNode,
+        optional: false,
+        computed: false,
+      },
+    ]
+  }
+}
+
+function optinalChainToMapGetArguments(
+  properties: ChainedProperty[],
+): Expression[] {
+  if (properties.length <= 0) {
+    // this shouldn't happen
+    return []
+  }
+
+  let base: Expression
+  let optionalSliceStart: number
+  const firstOptional = properties.findIndex((p) => p.optional)
+
+  if (firstOptional > 2) {
+    const baseProperties = properties.slice(0, firstOptional - 1)
+    base = memberExpressionFromList(baseProperties)
+    optionalSliceStart = firstOptional - 1
+  } else if (firstOptional >= 0) {
+    base = convertExpression(properties[0].property)
+    optionalSliceStart = 1
+  } else {
+    // firstOptional < 0, this shouldn't happen
+    base = memberExpressionFromList(properties)
+    optionalSliceStart = properties.length
+  }
+
+  const optionals = properties.slice(optionalSliceStart).map((opt) => {
+    const propertyExp = convertExpression(opt.property)
+    if (opt.computed) {
+      return propertyExp
+    } else if (isFullyQualifiedName(propertyExp)) {
+      return new PrimitiveExpression(propertyExp.toString())
+    } else {
+      throw new WorkflowSyntaxError(
+        'Unexpected property in an optional chain',
+        opt.property.loc,
+      )
+    }
+  })
+
+  const args = [base]
+  if (optionals.length > 1) {
+    args.push(new PrimitiveExpression(optionals))
+  } else if (optionals.length === 1) {
+    args.push(optionals[0])
+  }
+
+  return args
+}
+
+function memberExpressionFromList(properties: ChainedProperty[]): Expression {
+  if (properties.length >= 2) {
+    const base = new MemberExpression(
+      convertExpression(properties[0].property),
+      convertExpression(properties[1].property),
+      properties[1].computed,
+    )
+
+    return properties
+      .slice(2)
+      .reduce(
+        (exp, current) =>
+          new MemberExpression(
+            exp,
+            convertExpression(current.property),
+            current.computed,
+          ),
+        base,
+      )
+  } else if (properties.length === 1) {
+    return convertExpression(properties[0].property)
+  } else {
+    throw new InternalTranspilingError(
+      'Empty array in memberExpressionFromList()',
+    )
+  }
+}
+
 function convertCallExpression(node: any): Expression {
   assertType(node, CallExpression)
+
+  if (node.optional) {
+    throw new WorkflowSyntaxError(
+      'Optional call expressions are not supported',
+      node.loc,
+    )
+  }
 
   const calleeExpression = convertExpression(node.callee)
   if (isFullyQualifiedName(calleeExpression)) {
