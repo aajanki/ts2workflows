@@ -1,5 +1,5 @@
-/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-argument */
 import * as parser from '@typescript-eslint/typescript-estree'
+import { TSESTree } from '@typescript-eslint/typescript-estree'
 import { AST_NODE_TYPES } from '@typescript-eslint/utils'
 import * as YAML from 'yaml'
 import { SubworkflowAST } from '../ast/steps.js'
@@ -39,15 +39,17 @@ export function transpile(code: string): string {
   return YAML.stringify(workflow.render(), { lineWidth: 100 })
 }
 
-function parseTopLevelStatement(node: any): SubworkflowAST[] {
-  switch (node?.type) {
+function parseTopLevelStatement(
+  node: TSESTree.ProgramStatement,
+): SubworkflowAST[] {
+  switch (node.type) {
     case FunctionDeclaration:
       return [parseSubworkflows(node)]
 
     case ImportDeclaration:
       if (
-        (node.specifiers as any[]).some(
-          (spec: any) =>
+        node.specifiers.some(
+          (spec) =>
             spec.type === ImportNamespaceSpecifier ||
             spec.type === ImportDefaultSpecifier,
         )
@@ -62,8 +64,14 @@ function parseTopLevelStatement(node: any): SubworkflowAST[] {
 
     case ExportNamedDeclaration:
       // "export" keyword is ignored, but a possible function declaration is transpiled.
-      if (node?.declaration) {
-        return parseTopLevelStatement(node.declaration)
+      if (
+        node.declaration?.type === FunctionDeclaration &&
+        node.declaration.id?.type === Identifier
+      ) {
+        // Why is "as" needed here?
+        return parseTopLevelStatement(
+          node.declaration as TSESTree.FunctionDeclarationWithName,
+        )
       } else {
         return []
       }
@@ -76,40 +84,55 @@ function parseTopLevelStatement(node: any): SubworkflowAST[] {
 
     default:
       throw new WorkflowSyntaxError(
-        `Only function definitions, imports and type aliases allowed at the top level, encountered ${node?.type}`,
-        node?.loc,
+        `Only function definitions, imports and type aliases allowed at the top level, encountered ${node.type}`,
+        node.loc,
       )
   }
 }
 
-function parseSubworkflows(node: any): SubworkflowAST {
+function parseSubworkflows(
+  node: TSESTree.FunctionDeclarationWithName,
+): SubworkflowAST {
   assertType(node, FunctionDeclaration)
 
-  if (node.id.type !== Identifier) {
-    throw new WorkflowSyntaxError(
-      'Expected Identifier as a function name',
-      node.id.loc,
-    )
-  }
-
-  const nodeParams = node.params as any[]
-  const workflowParams: WorkflowParameter[] = nodeParams.map((param: any) => {
+  const nodeParams = node.params
+  const workflowParams: WorkflowParameter[] = nodeParams.map((param) => {
     switch (param.type) {
       case Identifier:
-        return { name: param.name as string }
+        return { name: param.name }
 
       case AssignmentPattern:
         assertType(param.left, Identifier)
+
+        if (param.left.type !== Identifier) {
+          throw new WorkflowSyntaxError(
+            'The default value must be an identifier',
+            param.left.loc,
+          )
+        }
         if (param.right.type !== Literal) {
           throw new WorkflowSyntaxError(
             'The default value must be a literal',
             param.right.loc,
           )
         }
+        if (
+          !(
+            typeof param.right.value === 'string' ||
+            typeof param.right.value === 'number' ||
+            typeof param.right.value === 'boolean' ||
+            param.right.value === null
+          )
+        ) {
+          throw new WorkflowSyntaxError(
+            'The default value must be a string, number, boolean or null',
+            param.left.loc,
+          )
+        }
 
         return {
-          name: param.left.name as string,
-          default: param.right.value as string,
+          name: param.left.name,
+          default: param.right.value,
         }
 
       default:
