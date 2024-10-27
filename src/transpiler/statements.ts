@@ -1,4 +1,4 @@
-import { AST_NODE_TYPES, TSESTree } from '@typescript-eslint/utils'
+import { AST_NODE_TYPES, TSESTree } from '@typescript-eslint/typescript-estree'
 import {
   AssignStepAST,
   CallStepAST,
@@ -39,38 +39,6 @@ import {
 } from './expressions.js'
 import { blockingFunctions } from './generated/functionMetadata.js'
 
-const {
-  ArrayExpression,
-  ArrowFunctionExpression,
-  AssignmentExpression,
-  BlockStatement,
-  BreakStatement,
-  CallExpression,
-  ContinueStatement,
-  DoWhileStatement,
-  EmptyStatement,
-  ExpressionStatement,
-  ForInStatement,
-  ForOfStatement,
-  FunctionDeclaration,
-  Identifier,
-  IfStatement,
-  LabeledStatement,
-  MemberExpression,
-  ObjectExpression,
-  ReturnStatement,
-  SpreadElement,
-  SwitchStatement,
-  ThrowStatement,
-  TryStatement,
-  TSDeclareFunction,
-  TSTypeAliasDeclaration,
-  TSInterfaceDeclaration,
-  VariableDeclaration,
-  VariableDeclarator,
-  WhileStatement,
-} = AST_NODE_TYPES
-
 export interface ParsingContext {
   // a jump target for an unlabeled break statement
   breakTarget?: StepName
@@ -92,69 +60,69 @@ function parseStep(
   ctx: ParsingContext,
 ): WorkflowStepAST[] {
   switch (node.type) {
-    case VariableDeclaration:
+    case AST_NODE_TYPES.VariableDeclaration:
       return convertVariableDeclarations(node.declarations)
 
-    case ExpressionStatement:
-      if (node.expression.type === AssignmentExpression) {
+    case AST_NODE_TYPES.ExpressionStatement:
+      if (node.expression.type === AST_NODE_TYPES.AssignmentExpression) {
         return assignmentExpressionToSteps(node.expression)
-      } else if (node.expression.type === CallExpression) {
+      } else if (node.expression.type === AST_NODE_TYPES.CallExpression) {
         return [callExpressionToStep(node.expression, ctx)]
       } else {
         return [generalExpressionToAssignStep(node.expression)]
       }
 
-    case ReturnStatement:
+    case AST_NODE_TYPES.ReturnStatement:
       return [returnStatementToReturnStep(node)]
 
-    case ThrowStatement:
+    case AST_NODE_TYPES.ThrowStatement:
       return [throwStatementToRaiseStep(node)]
 
-    case IfStatement:
+    case AST_NODE_TYPES.IfStatement:
       return [ifStatementToSwitchStep(node, ctx)]
 
-    case SwitchStatement:
+    case AST_NODE_TYPES.SwitchStatement:
       return switchStatementToSteps(node, ctx)
 
-    case ForInStatement:
+    case AST_NODE_TYPES.ForInStatement:
       throw new WorkflowSyntaxError(
         'for...in is not a supported construct. Use for...of.',
         node.loc,
       )
 
-    case ForOfStatement:
+    case AST_NODE_TYPES.ForOfStatement:
       return [forOfStatementToForStep(node, ctx)]
 
-    case DoWhileStatement:
+    case AST_NODE_TYPES.DoWhileStatement:
       return doWhileStatementSteps(node, ctx)
 
-    case WhileStatement:
+    case AST_NODE_TYPES.WhileStatement:
       return whileStatementSteps(node, ctx)
 
-    case BreakStatement:
+    case AST_NODE_TYPES.BreakStatement:
       return [breakStatementToNextStep(node, ctx)]
 
-    case ContinueStatement:
+    case AST_NODE_TYPES.ContinueStatement:
       return [continueStatementToNextStep(node, ctx)]
 
-    case TryStatement:
+    case AST_NODE_TYPES.TryStatement:
       return [tryStatementToTryStep(node, ctx)]
 
-    case LabeledStatement:
+    case AST_NODE_TYPES.LabeledStatement:
       return labeledStep(node, ctx)
 
-    case EmptyStatement:
+    case AST_NODE_TYPES.EmptyStatement:
       return []
 
-    case FunctionDeclaration:
+    case AST_NODE_TYPES.FunctionDeclaration:
       throw new WorkflowSyntaxError(
         'Functions must be defined at the top level of a source file',
         node.loc,
       )
 
-    case TSInterfaceDeclaration:
-    case TSTypeAliasDeclaration:
-    case TSDeclareFunction:
+    case AST_NODE_TYPES.TSInterfaceDeclaration:
+    case AST_NODE_TYPES.TSTypeAliasDeclaration:
+    case AST_NODE_TYPES.TSDeclareFunction:
       // Ignore "type", "interface" and "declare function"
       return []
 
@@ -170,11 +138,11 @@ function convertVariableDeclarations(
   declarations: TSESTree.LetOrConstOrVarDeclarator[],
 ): WorkflowStepAST[] {
   return declarations.map((decl) => {
-    if (decl.type !== VariableDeclarator) {
+    if (decl.type !== AST_NODE_TYPES.VariableDeclarator) {
       throw new WorkflowSyntaxError('Not a VariableDeclarator', decl.loc)
     }
 
-    if (decl.id.type !== Identifier) {
+    if (decl.id.type !== AST_NODE_TYPES.Identifier) {
       throw new WorkflowSyntaxError('Expected Identifier', decl.loc)
     }
 
@@ -182,7 +150,7 @@ function convertVariableDeclarations(
 
     if (!decl.init) {
       return new AssignStepAST([[targetName, new PrimitiveExpression(null)]])
-    } else if (decl.init.type === CallExpression) {
+    } else if (decl.init.type === AST_NODE_TYPES.CallExpression) {
       const maybeBlockingcall = getBlockingCallParameters(decl.init)
 
       if (maybeBlockingcall.isBlockingCall) {
@@ -196,7 +164,7 @@ function convertVariableDeclarations(
           targetName,
         )
       } else if (
-        decl.init.callee.type === Identifier &&
+        decl.init.callee.type === AST_NODE_TYPES.Identifier &&
         decl.init.callee.name === 'call_step'
       ) {
         return createCallStep(decl.init.arguments, targetName)
@@ -281,7 +249,7 @@ function getBlockingCallParameters(
 ):
   | { isBlockingCall: false }
   | { isBlockingCall: true; functionName: string; argumentNames: string[] } {
-  if (node.type === CallExpression) {
+  if (node.type === AST_NODE_TYPES.CallExpression) {
     const functionName = convertExpression(node.callee).toString()
     const argumentNames = blockingFunctions.get(functionName)
     if (argumentNames) {
@@ -325,7 +293,9 @@ function callExpressionAssignStep(
   functionName: string,
   argumentsNode: TSESTree.CallExpressionArgument[],
 ): AssignStepAST {
-  const unsupported = argumentsNode.find((x) => x.type === SpreadElement)
+  const unsupported = argumentsNode.find(
+    (x) => x.type === AST_NODE_TYPES.SpreadElement,
+  )
   if (unsupported) {
     throw new WorkflowSyntaxError(
       'The spread syntax is not supported',
@@ -334,7 +304,7 @@ function callExpressionAssignStep(
   }
 
   const argumentExpressions = argumentsNode
-    .filter((x) => x.type !== SpreadElement)
+    .filter((x) => x.type !== AST_NODE_TYPES.SpreadElement)
     .map(convertExpression)
 
   return new AssignStepAST([
@@ -349,7 +319,10 @@ function callExpressionToCallStep(
   functionName: string,
   argumentsNode: TSESTree.CallExpressionArgument[],
 ): CallStepAST {
-  if (argumentsNode.length < 1 || argumentsNode[0].type !== ObjectExpression) {
+  if (
+    argumentsNode.length < 1 ||
+    argumentsNode[0].type !== AST_NODE_TYPES.ObjectExpression
+  ) {
     throw new WorkflowSyntaxError(
       'Expected one object parameter',
       argumentsNode[0].loc,
@@ -373,9 +346,9 @@ function createCallStep(
   }
 
   let functionName: string
-  if (argumentsNode[0].type === Identifier) {
+  if (argumentsNode[0].type === AST_NODE_TYPES.Identifier) {
     functionName = argumentsNode[0].name
-  } else if (argumentsNode[0].type === MemberExpression) {
+  } else if (argumentsNode[0].type === AST_NODE_TYPES.MemberExpression) {
     const memberExp = convertMemberExpression(argumentsNode[0])
 
     if (!isFullyQualifiedName(memberExp)) {
@@ -395,7 +368,7 @@ function createCallStep(
 
   let args: WorkflowParameters = {}
   if (argumentsNode.length >= 2) {
-    if (argumentsNode[1].type !== ObjectExpression) {
+    if (argumentsNode[1].type !== AST_NODE_TYPES.ObjectExpression) {
       throw new WorkflowSyntaxError(
         'The second argument must be an object',
         argumentsNode[1].loc,
@@ -414,7 +387,9 @@ function blockingFunctionCallStep(
   argumentsNode: TSESTree.CallExpressionArgument[],
   resultName?: string,
 ): CallStepAST {
-  const unsupported = argumentsNode.find((x) => x.type === SpreadElement)
+  const unsupported = argumentsNode.find(
+    (x) => x.type === AST_NODE_TYPES.SpreadElement,
+  )
   if (unsupported) {
     throw new WorkflowSyntaxError(
       'The spread syntax is not supported',
@@ -423,14 +398,14 @@ function blockingFunctionCallStep(
   }
 
   const argumentExpressions = argumentsNode
-    .filter((x) => x.type !== SpreadElement)
+    .filter((x) => x.type !== AST_NODE_TYPES.SpreadElement)
     .map(convertExpression)
   const args: Record<string, Expression> = Object.fromEntries(
     argumentNames.flatMap((argName, i) => {
       if (i >= argumentExpressions.length) {
         return []
       } else if (
-        argumentsNode[i].type === Identifier &&
+        argumentsNode[i].type === AST_NODE_TYPES.Identifier &&
         argumentsNode[i].name === 'undefined'
       ) {
         return []
@@ -447,18 +422,21 @@ function callExpressionToParallelStep(
   node: TSESTree.CallExpression,
   ctx: ParsingContext,
 ): ParallelStepAST {
-  if (node.callee.type !== Identifier || node.callee.name !== 'parallel') {
+  if (
+    node.callee.type !== AST_NODE_TYPES.Identifier ||
+    node.callee.name !== 'parallel'
+  ) {
     throw new TypeError(`The parameter must be a call to "parallel"`)
   }
 
   let steps: Record<StepName, StepsStepAST> | ForStepAST = {}
   if (node.arguments.length > 0) {
     switch (node.arguments[0].type) {
-      case ArrayExpression:
+      case AST_NODE_TYPES.ArrayExpression:
         steps = parseParallelBranches(node.arguments[0])
         break
 
-      case ArrowFunctionExpression:
+      case AST_NODE_TYPES.ArrowFunctionExpression:
         steps = parseParallelIteration(node.arguments[0], ctx)
         break
 
@@ -497,11 +475,11 @@ function parseParallelBranches(
     }
 
     switch (arg.type) {
-      case Identifier:
+      case AST_NODE_TYPES.Identifier:
         return [branchName, new StepsStepAST([new CallStepAST(arg.name)])]
 
-      case ArrowFunctionExpression:
-        if (arg.body.type !== BlockStatement) {
+      case AST_NODE_TYPES.ArrowFunctionExpression:
+        if (arg.body.type !== AST_NODE_TYPES.BlockStatement) {
           throw new WorkflowSyntaxError(
             'The body must be a block statement',
             arg.body.loc,
@@ -525,9 +503,9 @@ function parseParallelIteration(
   ctx: ParsingContext,
 ): ForStepAST {
   if (
-    node.body.type !== BlockStatement ||
+    node.body.type !== AST_NODE_TYPES.BlockStatement ||
     node.body.body.length !== 1 ||
-    node.body.body[0].type !== ForOfStatement
+    node.body.body[0].type !== AST_NODE_TYPES.ForOfStatement
   ) {
     throw new WorkflowSyntaxError(
       'The parallel function body must be a single for...of statement',
@@ -539,7 +517,7 @@ function parseParallelIteration(
 }
 
 function parseParallelOptions(node: TSESTree.CallExpressionArgument) {
-  if (node.type !== ObjectExpression) {
+  if (node.type !== AST_NODE_TYPES.ObjectExpression) {
     throw new WorkflowSyntaxError(
       'The second parameter must be an object',
       node.loc,
@@ -629,7 +607,7 @@ function flattenIfBranches(
   ifStatement: TSESTree.IfStatement,
   ctx: ParsingContext,
 ): SwitchConditionAST<WorkflowStepAST>[] {
-  if (ifStatement.consequent.type !== BlockStatement) {
+  if (ifStatement.consequent.type !== AST_NODE_TYPES.BlockStatement) {
     throw new WorkflowSyntaxError(
       'Only a block statement supported here',
       ifStatement.consequent.loc,
@@ -644,12 +622,12 @@ function flattenIfBranches(
   ]
 
   if (ifStatement.alternate) {
-    if (ifStatement.alternate.type === BlockStatement) {
+    if (ifStatement.alternate.type === AST_NODE_TYPES.BlockStatement) {
       branches.push({
         condition: new PrimitiveExpression(true),
         steps: parseBlockStatement(ifStatement.alternate, ctx),
       })
-    } else if (ifStatement.alternate.type === IfStatement) {
+    } else if (ifStatement.alternate.type === AST_NODE_TYPES.IfStatement) {
       branches.push(...flattenIfBranches(ifStatement.alternate, ctx))
     } else {
       throw new InternalTranspilingError(
@@ -706,7 +684,7 @@ function forOfStatementToForStep(
   node: TSESTree.ForOfStatement,
   ctx: ParsingContext,
 ): ForStepAST {
-  if (node.body.type !== BlockStatement) {
+  if (node.body.type !== AST_NODE_TYPES.BlockStatement) {
     throw new WorkflowSyntaxError(
       'Only block statement supported here',
       node.body.loc,
@@ -720,9 +698,9 @@ function forOfStatementToForStep(
   const steps = parseBlockStatement(node.body, bodyCtx)
 
   let loopVariableName: string
-  if (node.left.type === Identifier) {
+  if (node.left.type === AST_NODE_TYPES.Identifier) {
     loopVariableName = node.left.name
-  } else if (node.left.type === VariableDeclaration) {
+  } else if (node.left.type === AST_NODE_TYPES.VariableDeclaration) {
     if (node.left.declarations.length !== 1) {
       throw new WorkflowSyntaxError(
         'Only one variable can be declared here',
@@ -738,7 +716,7 @@ function forOfStatementToForStep(
       )
     }
 
-    if (declaration.id.type !== Identifier) {
+    if (declaration.id.type !== AST_NODE_TYPES.Identifier) {
       throw new WorkflowSyntaxError(
         `Expected identifier, got ${declaration.id.type}`,
         declaration.id.loc,
@@ -773,7 +751,7 @@ function whileStatementSteps(
   node: TSESTree.WhileStatement,
   ctx: ParsingContext,
 ): WorkflowStepAST[] {
-  if (node.body.type !== BlockStatement) {
+  if (node.body.type !== AST_NODE_TYPES.BlockStatement) {
     throw new WorkflowSyntaxError(
       'Only block statement supported here',
       node.body.loc,
@@ -805,7 +783,7 @@ function doWhileStatementSteps(
   node: TSESTree.DoWhileStatement,
   ctx: ParsingContext,
 ): WorkflowStepAST[] {
-  if (node.body.type !== BlockStatement) {
+  if (node.body.type !== AST_NODE_TYPES.BlockStatement) {
     throw new WorkflowSyntaxError(
       'Only block statement supported here',
       node.body.loc,
@@ -879,7 +857,7 @@ function tryStatementToTryStep(
 
     const handlerParam = node.handler.param
     if (handlerParam) {
-      if (handlerParam.type !== Identifier) {
+      if (handlerParam.type !== AST_NODE_TYPES.Identifier) {
         throw new WorkflowSyntaxError(
           'The error variable must be an identifier',
           handlerParam.loc,

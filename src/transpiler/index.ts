@@ -1,26 +1,14 @@
-import * as parser from '@typescript-eslint/typescript-estree'
-import { TSESTree } from '@typescript-eslint/typescript-estree'
-import { AST_NODE_TYPES } from '@typescript-eslint/utils'
+import {
+  parse,
+  TSESTree,
+  AST_NODE_TYPES,
+} from '@typescript-eslint/typescript-estree'
 import * as YAML from 'yaml'
 import { SubworkflowAST } from '../ast/steps.js'
 import { WorkflowSyntaxError } from '../errors.js'
 import { WorkflowParameter } from '../ast/workflows.js'
 import { generateStepNames } from '../ast/stepnames.js'
 import { parseBlockStatement } from './statements.js'
-
-const {
-  AssignmentPattern,
-  ExportNamedDeclaration,
-  FunctionDeclaration,
-  Identifier,
-  ImportDeclaration,
-  ImportDefaultSpecifier,
-  ImportNamespaceSpecifier,
-  Literal,
-  TSDeclareFunction,
-  TSTypeAliasDeclaration,
-  TSInterfaceDeclaration,
-} = AST_NODE_TYPES
 
 export function transpile(code: string): string {
   const parserOptions = {
@@ -29,7 +17,7 @@ export function transpile(code: string): string {
     range: false,
   }
 
-  const ast = parser.parse(code, parserOptions)
+  const ast = parse(code, parserOptions)
   const workflowAst = { subworkflows: ast.body.flatMap(parseTopLevelStatement) }
   const workflow = generateStepNames(workflowAst)
   return YAML.stringify(workflow.render(), { lineWidth: 100 })
@@ -39,15 +27,15 @@ function parseTopLevelStatement(
   node: TSESTree.ProgramStatement,
 ): SubworkflowAST[] {
   switch (node.type) {
-    case FunctionDeclaration:
+    case AST_NODE_TYPES.FunctionDeclaration:
       return [parseSubworkflows(node)]
 
-    case ImportDeclaration:
+    case AST_NODE_TYPES.ImportDeclaration:
       if (
         node.specifiers.some(
           (spec) =>
-            spec.type === ImportNamespaceSpecifier ||
-            spec.type === ImportDefaultSpecifier,
+            spec.type === AST_NODE_TYPES.ImportNamespaceSpecifier ||
+            spec.type === AST_NODE_TYPES.ImportDefaultSpecifier,
         )
       ) {
         throw new WorkflowSyntaxError(
@@ -58,11 +46,11 @@ function parseTopLevelStatement(
 
       return []
 
-    case ExportNamedDeclaration:
+    case AST_NODE_TYPES.ExportNamedDeclaration:
       // "export" keyword is ignored, but a possible function declaration is transpiled.
       if (
-        node.declaration?.type === FunctionDeclaration &&
-        node.declaration.id?.type === Identifier
+        node.declaration?.type === AST_NODE_TYPES.FunctionDeclaration &&
+        node.declaration.id?.type === AST_NODE_TYPES.Identifier
       ) {
         // Why is "as" needed here?
         return parseTopLevelStatement(
@@ -72,9 +60,9 @@ function parseTopLevelStatement(
         return []
       }
 
-    case TSInterfaceDeclaration:
-    case TSTypeAliasDeclaration:
-    case TSDeclareFunction:
+    case AST_NODE_TYPES.TSInterfaceDeclaration:
+    case AST_NODE_TYPES.TSTypeAliasDeclaration:
+    case AST_NODE_TYPES.TSDeclareFunction:
       // Ignore "type", "interface" and "declare function" at the top-level
       return []
 
@@ -92,17 +80,17 @@ function parseSubworkflows(
   const nodeParams = node.params
   const workflowParams: WorkflowParameter[] = nodeParams.map((param) => {
     switch (param.type) {
-      case Identifier:
+      case AST_NODE_TYPES.Identifier:
         return { name: param.name }
 
-      case AssignmentPattern:
-        if (param.left.type !== Identifier) {
+      case AST_NODE_TYPES.AssignmentPattern:
+        if (param.left.type !== AST_NODE_TYPES.Identifier) {
           throw new WorkflowSyntaxError(
             'The default value must be an identifier',
             param.left.loc,
           )
         }
-        if (param.right.type !== Literal) {
+        if (param.right.type !== AST_NODE_TYPES.Literal) {
           throw new WorkflowSyntaxError(
             'The default value must be a literal',
             param.right.loc,

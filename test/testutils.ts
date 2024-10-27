@@ -1,5 +1,8 @@
-import { AST_NODE_TYPES } from '@typescript-eslint/utils'
-import { parse, TSESTree } from '@typescript-eslint/typescript-estree'
+import {
+  parse,
+  TSESTree,
+  AST_NODE_TYPES,
+} from '@typescript-eslint/typescript-estree'
 import { Expression } from '../src/ast/expressions.js'
 import {
   NamedWorkflowStep,

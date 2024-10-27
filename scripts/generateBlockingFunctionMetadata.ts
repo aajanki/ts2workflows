@@ -9,8 +9,11 @@
 
 import * as fs from 'node:fs'
 import path from 'node:path'
-import { parse, TSESTree } from '@typescript-eslint/typescript-estree'
-import { AST_NODE_TYPES } from '@typescript-eslint/utils'
+import {
+  parse,
+  TSESTree,
+  AST_NODE_TYPES,
+} from '@typescript-eslint/typescript-estree'
 
 const inputFile = 'types/workflowslib.d.ts'
 const outputFile = 'src/transpiler/generated/functionMetadata.ts'

@@ -1,5 +1,4 @@
-import { AST_NODE_TYPES } from '@typescript-eslint/utils'
-import { TSESTree } from '@typescript-eslint/typescript-estree'
+import { TSESTree, AST_NODE_TYPES } from '@typescript-eslint/typescript-estree'
 import {
   BinaryExpression,
   BinaryOperator,
@@ -15,25 +14,6 @@ import {
 } from '../ast/expressions.js'
 import { InternalTranspilingError, WorkflowSyntaxError } from '../errors.js'
 
-const {
-  ArrayExpression,
-  AssignmentPattern,
-  AwaitExpression,
-  CallExpression,
-  ChainExpression,
-  ConditionalExpression,
-  Identifier,
-  Literal,
-  LogicalExpression,
-  ObjectExpression,
-  PrivateIdentifier,
-  SpreadElement,
-  TemplateLiteral,
-  TSAsExpression,
-  TSEmptyBodyFunctionExpression,
-  TSNonNullExpression,
-} = AST_NODE_TYPES
-
 export function convertExpression(instance: TSESTree.Expression): Expression {
   const expOrPrimitive = convertExpressionOrPrimitive(instance)
   if (isExpression(expOrPrimitive)) {
@@ -47,7 +27,7 @@ export function convertObjectExpression(
   node: TSESTree.ObjectExpression,
 ): Record<string, Primitive | Expression> {
   const unsupported = node.properties.find(
-    (prop) => prop.type === SpreadElement,
+    (prop) => prop.type === AST_NODE_TYPES.SpreadElement,
   )
   if (unsupported) {
     throw new WorkflowSyntaxError(
@@ -58,12 +38,12 @@ export function convertObjectExpression(
 
   return Object.fromEntries(
     node.properties
-      .filter((prop) => prop.type !== SpreadElement)
+      .filter((prop) => prop.type !== AST_NODE_TYPES.SpreadElement)
       .map(({ key, value }) => {
         let keyPrimitive: string
-        if (key.type === Identifier) {
+        if (key.type === AST_NODE_TYPES.Identifier) {
           keyPrimitive = key.name
-        } else if (key.type === Literal) {
+        } else if (key.type === AST_NODE_TYPES.Literal) {
           if (typeof key.value === 'string') {
             keyPrimitive = key.value
           } else {
@@ -80,8 +60,8 @@ export function convertObjectExpression(
         }
 
         if (
-          value.type === AssignmentPattern ||
-          value.type === TSEmptyBodyFunctionExpression
+          value.type === AST_NODE_TYPES.AssignmentPattern ||
+          value.type === AST_NODE_TYPES.TSEmptyBodyFunctionExpression
         ) {
           throw new WorkflowSyntaxError('Value not supported', value.loc)
         }
@@ -109,19 +89,19 @@ function convertExpressionOrPrimitive(
   instance: TSESTree.Expression,
 ): Primitive | Expression {
   switch (instance.type) {
-    case ArrayExpression:
+    case AST_NODE_TYPES.ArrayExpression:
       return convertArrayExpression(instance)
 
-    case ObjectExpression:
+    case AST_NODE_TYPES.ObjectExpression:
       return convertObjectExpression(instance)
 
-    case Literal:
+    case AST_NODE_TYPES.Literal:
       return instance.value as Primitive
 
-    case TemplateLiteral:
+    case AST_NODE_TYPES.TemplateLiteral:
       return convertTemplateLiteralToExpression(instance)
 
-    case Identifier:
+    case AST_NODE_TYPES.Identifier:
       if (instance.name === 'null' || instance.name === 'undefined') {
         return null
       } else if (instance.name === 'True' || instance.name === 'TRUE') {
@@ -136,28 +116,28 @@ function convertExpressionOrPrimitive(
       return convertUnaryExpression(instance)
 
     case AST_NODE_TYPES.BinaryExpression:
-    case LogicalExpression:
+    case AST_NODE_TYPES.LogicalExpression:
       return convertBinaryExpression(instance)
 
     case AST_NODE_TYPES.MemberExpression:
       return convertMemberExpression(instance)
 
-    case ChainExpression:
+    case AST_NODE_TYPES.ChainExpression:
       return convertChainExpression(instance)
 
-    case CallExpression:
+    case AST_NODE_TYPES.CallExpression:
       return convertCallExpression(instance)
 
-    case ConditionalExpression:
+    case AST_NODE_TYPES.ConditionalExpression:
       return convertConditionalExpression(instance)
 
-    case TSAsExpression:
+    case AST_NODE_TYPES.TSAsExpression:
       return convertExpressionOrPrimitive(instance.expression)
 
-    case TSNonNullExpression:
+    case AST_NODE_TYPES.TSNonNullExpression:
       return convertExpressionOrPrimitive(instance.expression)
 
-    case AwaitExpression:
+    case AST_NODE_TYPES.AwaitExpression:
       return convertExpressionOrPrimitive(instance.argument)
 
     default:
@@ -169,7 +149,9 @@ function convertExpressionOrPrimitive(
 }
 
 function convertArrayExpression(instance: TSESTree.ArrayExpression) {
-  const unsupported = instance.elements.find((e) => e?.type === SpreadElement)
+  const unsupported = instance.elements.find(
+    (e) => e?.type === AST_NODE_TYPES.SpreadElement,
+  )
   if (unsupported) {
     throw new WorkflowSyntaxError(
       'The spread syntax is not supported',
@@ -178,7 +160,7 @@ function convertArrayExpression(instance: TSESTree.ArrayExpression) {
   }
 
   return instance.elements
-    .filter((e) => e?.type !== SpreadElement)
+    .filter((e) => e?.type !== AST_NODE_TYPES.SpreadElement)
     .map((e) =>
       e === null
         ? new PrimitiveExpression(null)
@@ -235,7 +217,7 @@ function convertBinaryExpression(
       )
   }
 
-  if (instance.left.type === PrivateIdentifier) {
+  if (instance.left.type === AST_NODE_TYPES.PrivateIdentifier) {
     throw new WorkflowSyntaxError(
       'Private identifier not supported',
       instance.left.loc,
@@ -307,7 +289,7 @@ function convertUnaryExpression(
 export function convertMemberExpression(
   node: TSESTree.MemberExpression,
 ): Expression {
-  if (node.property.type === PrivateIdentifier) {
+  if (node.property.type === AST_NODE_TYPES.PrivateIdentifier) {
     throw new WorkflowSyntaxError(
       'Private identifier not supported',
       node.property.loc,
@@ -339,7 +321,7 @@ function chainExpressionToFlatArray(
   node: TSESTree.Expression,
 ): ChainedProperty[] {
   if (node.type === AST_NODE_TYPES.MemberExpression) {
-    if (node.property.type === PrivateIdentifier) {
+    if (node.property.type === AST_NODE_TYPES.PrivateIdentifier) {
       throw new WorkflowSyntaxError(
         'Private identifier not supported',
         node.property.loc,
@@ -451,7 +433,9 @@ function convertCallExpression(node: TSESTree.CallExpression): Expression {
 
   const calleeExpression = convertExpression(node.callee)
   if (isFullyQualifiedName(calleeExpression)) {
-    const unsupported = node.arguments.find((arg) => arg.type === SpreadElement)
+    const unsupported = node.arguments.find(
+      (arg) => arg.type === AST_NODE_TYPES.SpreadElement,
+    )
     if (unsupported) {
       throw new WorkflowSyntaxError(
         'The spread syntax is not supported',
@@ -460,7 +444,7 @@ function convertCallExpression(node: TSESTree.CallExpression): Expression {
     }
 
     const argumentExpressions = node.arguments
-      .filter((arg) => arg.type !== SpreadElement)
+      .filter((arg) => arg.type !== AST_NODE_TYPES.SpreadElement)
       .map(convertExpression)
 
     return new FunctionInvocationExpression(
