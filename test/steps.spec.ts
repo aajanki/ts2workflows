@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import { expect } from 'chai'
 import * as YAML from 'yaml'
 import { Subworkflow } from '../src/ast/workflows.js'
@@ -13,6 +12,7 @@ import {
   StepsStepASTNamed,
   SwitchStepASTNamed,
   TryStepASTNamed,
+  WorkflowStepASTWithNamedNested,
   renderStep,
 } from '../src/ast/steps.js'
 import { PrimitiveExpression } from '../src/ast/expressions.js'
@@ -24,13 +24,13 @@ describe('workflow step AST', () => {
       ['value', parseExpression('1 + 2')],
     ])
 
-    const expected = YAML.parse(`
+    const expected = `
     assign:
       - city: New New York
       - value: \${1 + 2}
-    `)
+    `
 
-    expect(renderStep(step)).to.deep.equal(expected)
+    assertRenderStep(step, expected)
   })
 
   it('assigns variables with index notation', () => {
@@ -42,26 +42,24 @@ describe('workflow step AST', () => {
       ['my_list[len(my_list) - 1]', new PrimitiveExpression('LastValue')],
     ])
 
-    const expected = YAML.parse(`
+    const expected = `
     assign:
       - my_list: [0, 1, 2, 3, 4]
       - idx: 0
       - my_list[0]: "Value0"
       - my_list[idx + 1]: "Value1"
       - my_list[len(my_list) - 1]: "LastValue"
-    `)
+    `
 
-    expect(renderStep(step)).to.deep.equal(expected)
+    assertRenderStep(step, expected)
   })
 
   it('renders a simple call step', () => {
     const step = new CallStepAST('destination_step')
 
-    const expected = YAML.parse(`
-    call: destination_step
-    `)
+    const expected = `call: destination_step`
 
-    expect(renderStep(step)).to.deep.equal(expected)
+    assertRenderStep(step, expected)
   })
 
   it('renders a call step with arguments and result', () => {
@@ -74,15 +72,15 @@ describe('workflow step AST', () => {
       'deliveryResult',
     )
 
-    const expected = YAML.parse(`
+    const expected = `
     call: deliver_package
     args:
         destination: Atlanta
         deliveryCompany: Planet Express
     result: deliveryResult
-    `)
+    `
 
-    expect(renderStep(step)).to.deep.equal(expected)
+    assertRenderStep(step, expected)
   })
 
   it('renders a call step with an expression as an argument', () => {
@@ -90,13 +88,13 @@ describe('workflow step AST', () => {
       destination: parseExpression('destinations[i]'),
     })
 
-    const expected = YAML.parse(`
+    const expected = `
     call: deliver_package
     args:
         destination: \${destinations[i]}
-    `)
+    `
 
-    expect(renderStep(step)).to.deep.equal(expected)
+    assertRenderStep(step, expected)
   })
 
   it('renders a switch step', () => {
@@ -126,7 +124,7 @@ describe('workflow step AST', () => {
       ),
     )
 
-    const expected2 = YAML.parse(`
+    const expected = `
     switch:
         - condition: \${city == "New New York"}
           next: destination_new_new_york
@@ -138,9 +136,9 @@ describe('workflow step AST', () => {
             - return_counter:
                 return: \${a}
     next: end
-    `)
+    `
 
-    expect(renderStep(step)).to.deep.equal(expected2)
+    assertRenderStep(step, expected)
   })
 
   it('renders a try step', () => {
@@ -179,7 +177,7 @@ describe('workflow step AST', () => {
       'e',
     )
 
-    const expected = YAML.parse(`
+    const expected = `
     try:
         steps:
           - http_step:
@@ -198,9 +196,9 @@ describe('workflow step AST', () => {
                           return: "Not found"
           - unknown_errors:
               raise: \${e}
-    `)
+    `
 
-    expect(renderStep(step)).to.deep.equal(expected)
+    assertRenderStep(step, expected)
   })
 
   it('renders a try step with a default retry policy', () => {
@@ -239,7 +237,7 @@ describe('workflow step AST', () => {
       'e',
     )
 
-    const expected = YAML.parse(`
+    const expected = `
     try:
         steps:
           - http_step:
@@ -259,9 +257,9 @@ describe('workflow step AST', () => {
                           return: "Not found"
           - unknown_errors:
               raise: \${e}
-    `)
+    `
 
-    expect(renderStep(step)).to.deep.equal(expected)
+    assertRenderStep(step, expected)
   })
 
   it('renders a try step with a custom retry policy', () => {
@@ -308,7 +306,7 @@ describe('workflow step AST', () => {
       'e',
     )
 
-    const expected = YAML.parse(`
+    const expected = `
     try:
         steps:
           - http_step:
@@ -334,9 +332,9 @@ describe('workflow step AST', () => {
                           return: "Not found"
           - unknown_errors:
               raise: \${e}
-    `)
+    `
 
-    expect(renderStep(step)).to.deep.equal(expected)
+    assertRenderStep(step, expected)
   })
 
   it('renders a try step with a subworkflow as a retry predicate', () => {
@@ -394,7 +392,7 @@ describe('workflow step AST', () => {
       'e',
     )
 
-    const expected = YAML.parse(`
+    const expected = `
     try:
         steps:
           - http_step:
@@ -420,9 +418,9 @@ describe('workflow step AST', () => {
                           return: "Not found"
           - unknown_errors:
               raise: \${e}
-    `)
+    `
 
-    expect(renderStep(step)).to.deep.equal(expected)
+    assertRenderStep(step, expected)
   })
 
   it('renders a for step', () => {
@@ -437,7 +435,7 @@ describe('workflow step AST', () => {
       new PrimitiveExpression([1, 2, 3]),
     )
 
-    const expected = YAML.parse(`
+    const expected = `
     for:
         value: v
         in: [1, 2, 3]
@@ -445,9 +443,9 @@ describe('workflow step AST', () => {
           - addStep:
               assign:
                 - sum: \${sum + v}
-    `)
+    `
 
-    expect(renderStep(step)).to.deep.equal(expected)
+    assertRenderStep(step, expected)
   })
 
   it('renders an index-based for step', () => {
@@ -463,7 +461,7 @@ describe('workflow step AST', () => {
       'i',
     )
 
-    const expected = YAML.parse(`
+    const expected = `
     for:
         value: v
         index: i
@@ -472,9 +470,9 @@ describe('workflow step AST', () => {
           - addStep:
               assign:
                 - sum: \${sum + i * v}
-    `)
+    `
 
-    expect(renderStep(step)).to.deep.equal(expected)
+    assertRenderStep(step, expected)
   })
 
   it('renders a for-range step', () => {
@@ -492,7 +490,7 @@ describe('workflow step AST', () => {
       9,
     )
 
-    const expected = YAML.parse(`
+    const expected = `
     for:
         value: v
         range: [1, 9]
@@ -500,9 +498,9 @@ describe('workflow step AST', () => {
           - addStep:
               assign:
                 - sum: \${sum + v}
-    `)
+    `
 
-    expect(renderStep(step)).to.deep.equal(expected)
+    assertRenderStep(step, expected)
   })
 
   it('renders parallel branches', () => {
@@ -525,7 +523,7 @@ describe('workflow step AST', () => {
       ]),
     })
 
-    const expected = YAML.parse(`
+    const expected = `
     parallel:
         branches:
           - branch1:
@@ -540,9 +538,9 @@ describe('workflow step AST', () => {
                     call: sys.log
                     args:
                         text: Hello from branch 2
-    `)
+    `
 
-    expect(renderStep(step)).to.deep.equal(expected)
+    assertRenderStep(step, expected)
   })
 
   it('renders parallel branches with shared variables and concurrency limit', () => {
@@ -569,7 +567,7 @@ describe('workflow step AST', () => {
       2,
     )
 
-    const expected = YAML.parse(`
+    const expected = `
     parallel:
         shared: [myVariable]
         concurrency_limit: 2
@@ -584,9 +582,9 @@ describe('workflow step AST', () => {
                 - assign_2:
                     assign:
                       - myVariable[1]: 'Set in branch 2'
-    `)
+    `
 
-    expect(renderStep(step)).to.deep.equal(expected)
+    assertRenderStep(step, expected)
   })
 
   it('renders a parallel for step', () => {
@@ -614,7 +612,7 @@ describe('workflow step AST', () => {
       ['total'],
     )
 
-    const expected = YAML.parse(`
+    const expected = `
     parallel:
         shared: [total]
         for:
@@ -629,8 +627,15 @@ describe('workflow step AST', () => {
               - add:
                   assign:
                     - total: \${total + balance}
-    `)
+    `
 
-    expect(renderStep(step)).to.deep.equal(expected)
+    assertRenderStep(step, expected)
   })
 })
+
+function assertRenderStep(
+  step: WorkflowStepASTWithNamedNested,
+  expected: string,
+): void {
+  expect(renderStep(step)).to.deep.equal(YAML.parse(expected))
+}
