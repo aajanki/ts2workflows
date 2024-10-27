@@ -6,7 +6,6 @@ import { SubworkflowAST } from '../ast/steps.js'
 import { WorkflowSyntaxError } from '../errors.js'
 import { WorkflowParameter } from '../ast/workflows.js'
 import { generateStepNames } from '../ast/stepnames.js'
-import { assertType } from './asserts.js'
 import { parseBlockStatement } from './statements.js'
 
 const {
@@ -18,7 +17,6 @@ const {
   ImportDefaultSpecifier,
   ImportNamespaceSpecifier,
   Literal,
-  Program,
   TSDeclareFunction,
   TSTypeAliasDeclaration,
   TSInterfaceDeclaration,
@@ -32,8 +30,6 @@ export function transpile(code: string): string {
   }
 
   const ast = parser.parse(code, parserOptions)
-  assertType(ast, Program)
-
   const workflowAst = { subworkflows: ast.body.flatMap(parseTopLevelStatement) }
   const workflow = generateStepNames(workflowAst)
   return YAML.stringify(workflow.render(), { lineWidth: 100 })
@@ -93,8 +89,6 @@ function parseTopLevelStatement(
 function parseSubworkflows(
   node: TSESTree.FunctionDeclarationWithName,
 ): SubworkflowAST {
-  assertType(node, FunctionDeclaration)
-
   const nodeParams = node.params
   const workflowParams: WorkflowParameter[] = nodeParams.map((param) => {
     switch (param.type) {
@@ -102,8 +96,6 @@ function parseSubworkflows(
         return { name: param.name }
 
       case AssignmentPattern:
-        assertType(param.left, Identifier)
-
         if (param.left.type !== Identifier) {
           throw new WorkflowSyntaxError(
             'The default value must be an identifier',

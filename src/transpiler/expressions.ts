@@ -14,7 +14,6 @@ import {
   isFullyQualifiedName,
 } from '../ast/expressions.js'
 import { InternalTranspilingError, WorkflowSyntaxError } from '../errors.js'
-import { assertOneOfManyTypes, assertType } from './asserts.js'
 
 const {
   ArrayExpression,
@@ -47,8 +46,6 @@ export function convertExpression(instance: TSESTree.Expression): Expression {
 export function convertObjectExpression(
   node: TSESTree.ObjectExpression,
 ): Record<string, Primitive | Expression> {
-  assertType(node, ObjectExpression)
-
   const unsupported = node.properties.find(
     (prop) => prop.type === SpreadElement,
   )
@@ -192,11 +189,6 @@ function convertArrayExpression(instance: TSESTree.ArrayExpression) {
 function convertBinaryExpression(
   instance: TSESTree.BinaryExpression | TSESTree.LogicalExpression,
 ): Expression {
-  assertOneOfManyTypes(instance, [
-    AST_NODE_TYPES.BinaryExpression,
-    LogicalExpression,
-  ])
-
   // Special case for nullish coalescing becuase the result is a function call
   // expression, not a binary expression
   if (instance.operator === '??') {
@@ -270,8 +262,6 @@ function nullishCoalescingExpression(
 function convertUnaryExpression(
   instance: TSESTree.UnaryExpression,
 ): Expression {
-  assertType(instance, AST_NODE_TYPES.UnaryExpression)
-
   if (instance.prefix === false) {
     throw new WorkflowSyntaxError(
       'only prefix unary operators are supported',
@@ -317,8 +307,6 @@ function convertUnaryExpression(
 export function convertMemberExpression(
   node: TSESTree.MemberExpression,
 ): Expression {
-  assertType(node, AST_NODE_TYPES.MemberExpression)
-
   if (node.property.type === PrivateIdentifier) {
     throw new WorkflowSyntaxError(
       'Private identifier not supported',
@@ -335,8 +323,6 @@ export function convertMemberExpression(
 }
 
 function convertChainExpression(node: TSESTree.ChainExpression): Expression {
-  assertType(node, ChainExpression)
-
   const properties = chainExpressionToFlatArray(node.expression)
   const args = optinalChainToMapGetArguments(properties)
 
@@ -456,8 +442,6 @@ function memberExpressionFromList(properties: ChainedProperty[]): Expression {
 }
 
 function convertCallExpression(node: TSESTree.CallExpression): Expression {
-  assertType(node, CallExpression)
-
   if (node.optional) {
     throw new WorkflowSyntaxError(
       'Optional call expressions are not supported',
@@ -491,8 +475,6 @@ function convertCallExpression(node: TSESTree.CallExpression): Expression {
 function convertConditionalExpression(
   node: TSESTree.ConditionalExpression,
 ): Expression {
-  assertType(node, ConditionalExpression)
-
   const test = convertExpression(node.test)
   const consequent = convertExpression(node.consequent)
   const alternate = convertExpression(node.alternate)
@@ -503,8 +485,6 @@ function convertConditionalExpression(
 function convertTemplateLiteralToExpression(
   node: TSESTree.TemplateLiteral,
 ): Expression {
-  assertType(node, TemplateLiteral)
-
   const stringTerms = node.quasis
     .map((x) => x.value.cooked)
     .map((x) => new PrimitiveExpression(x))
