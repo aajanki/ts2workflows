@@ -150,6 +150,18 @@ describe('Literals', () => {
     )
     assertExpression('`value:\\t${x}`', '${"value:\\t" + x}')
   })
+
+  it('rejects BigInt literals', () => {
+    const code = `function test() { x = 18446744073709552000n }`
+
+    expect(() => transpile(code)).to.throw()
+  })
+
+  it('rejects RegExp literals', () => {
+    const code = `function test() { x = /a.c/ }`
+
+    expect(() => transpile(code)).to.throw()
+  })
 })
 
 describe('Expressions', () => {

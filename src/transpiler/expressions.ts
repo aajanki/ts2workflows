@@ -96,7 +96,14 @@ function convertExpressionOrPrimitive(
       return convertObjectExpression(instance)
 
     case AST_NODE_TYPES.Literal:
-      return instance.value as Primitive
+      if (instance.value instanceof RegExp) {
+        throw new WorkflowSyntaxError('RegExp is not supported', instance.loc)
+      }
+      if (typeof instance.value === 'bigint') {
+        throw new WorkflowSyntaxError('BigInt in not supported', instance.loc)
+      }
+
+      return instance.value
 
     case AST_NODE_TYPES.TemplateLiteral:
       return convertTemplateLiteralToExpression(instance)
