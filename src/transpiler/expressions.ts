@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-argument */
 import { AST_NODE_TYPES } from '@typescript-eslint/utils'
 import { TSESTree } from '@typescript-eslint/typescript-estree'
 import {
@@ -19,6 +18,7 @@ import { assertOneOfManyTypes, assertType } from './asserts.js'
 
 const {
   ArrayExpression,
+  AssignmentPattern,
   AwaitExpression,
   CallExpression,
   ChainExpression,
@@ -27,12 +27,15 @@ const {
   Literal,
   LogicalExpression,
   ObjectExpression,
+  PrivateIdentifier,
+  SpreadElement,
   TemplateLiteral,
   TSAsExpression,
+  TSEmptyBodyFunctionExpression,
   TSNonNullExpression,
 } = AST_NODE_TYPES
 
-export function convertExpression(instance: any): Expression {
+export function convertExpression(instance: TSESTree.Expression): Expression {
   const expOrPrimitive = convertExpressionOrPrimitive(instance)
   if (isExpression(expOrPrimitive)) {
     return expOrPrimitive
@@ -42,43 +45,57 @@ export function convertExpression(instance: any): Expression {
 }
 
 export function convertObjectExpression(
-  node: any,
+  node: TSESTree.ObjectExpression,
 ): Record<string, Primitive | Expression> {
   assertType(node, ObjectExpression)
 
-  const properties = node.properties as {
-    key: any
-    value: any
-  }[]
+  const unsupported = node.properties.find(
+    (prop) => prop.type === SpreadElement,
+  )
+  if (unsupported) {
+    throw new WorkflowSyntaxError(
+      'The spread syntax is not supported',
+      unsupported.loc,
+    )
+  }
 
   return Object.fromEntries(
-    properties.map(({ key, value }) => {
-      let keyPrimitive: string
-      if (key.type === Identifier) {
-        keyPrimitive = key.name as string
-      } else if (key.type === Literal) {
-        if (typeof key.value === 'string') {
-          keyPrimitive = key.value as string
+    node.properties
+      .filter((prop) => prop.type !== SpreadElement)
+      .map(({ key, value }) => {
+        let keyPrimitive: string
+        if (key.type === Identifier) {
+          keyPrimitive = key.name
+        } else if (key.type === Literal) {
+          if (typeof key.value === 'string') {
+            keyPrimitive = key.value
+          } else {
+            throw new WorkflowSyntaxError(
+              `Map keys must be identifiers or strings, encountered: ${typeof key.value}`,
+              key.loc,
+            )
+          }
         } else {
           throw new WorkflowSyntaxError(
-            `Map keys must be identifiers or strings, encountered: ${typeof key.value}`,
+            `Not implemented object key type: ${key.type}`,
             key.loc,
           )
         }
-      } else {
-        throw new WorkflowSyntaxError(
-          `Not implemented object key type: ${key.type}`,
-          key.loc,
-        )
-      }
 
-      return [keyPrimitive, convertExpressionOrPrimitive(value)]
-    }),
+        if (
+          value.type === AssignmentPattern ||
+          value.type === TSEmptyBodyFunctionExpression
+        ) {
+          throw new WorkflowSyntaxError('Value not supported', value.loc)
+        }
+
+        return [keyPrimitive, convertExpressionOrPrimitive(value)]
+      }),
   )
 }
 
 export function convertObjectAsExpressionValues(
-  node: any,
+  node: TSESTree.ObjectExpression,
 ): Record<string, Expression> {
   const primitiveOrExpArguments = convertObjectExpression(node)
 
@@ -91,10 +108,12 @@ export function convertObjectAsExpressionValues(
   )
 }
 
-function convertExpressionOrPrimitive(instance: any): Primitive | Expression {
+function convertExpressionOrPrimitive(
+  instance: TSESTree.Expression,
+): Primitive | Expression {
   switch (instance.type) {
     case ArrayExpression:
-      return (instance.elements as any[]).map(convertExpressionOrPrimitive)
+      return convertArrayExpression(instance)
 
     case ObjectExpression:
       return convertObjectExpression(instance)
@@ -113,7 +132,7 @@ function convertExpressionOrPrimitive(instance: any): Primitive | Expression {
       } else if (instance.name === 'False' || instance.name === 'FALSE') {
         return false
       } else {
-        return new VariableReferenceExpression(instance.name as string)
+        return new VariableReferenceExpression(instance.name)
       }
 
     case AST_NODE_TYPES.UnaryExpression:
@@ -152,7 +171,27 @@ function convertExpressionOrPrimitive(instance: any): Primitive | Expression {
   }
 }
 
-function convertBinaryExpression(instance: any): Expression {
+function convertArrayExpression(instance: TSESTree.ArrayExpression) {
+  const unsupported = instance.elements.find((e) => e?.type === SpreadElement)
+  if (unsupported) {
+    throw new WorkflowSyntaxError(
+      'The spread syntax is not supported',
+      unsupported.loc,
+    )
+  }
+
+  return instance.elements
+    .filter((e) => e?.type !== SpreadElement)
+    .map((e) =>
+      e === null
+        ? new PrimitiveExpression(null)
+        : convertExpressionOrPrimitive(e),
+    )
+}
+
+function convertBinaryExpression(
+  instance: TSESTree.BinaryExpression | TSESTree.LogicalExpression,
+): Expression {
   assertOneOfManyTypes(instance, [
     AST_NODE_TYPES.BinaryExpression,
     LogicalExpression,
@@ -204,6 +243,13 @@ function convertBinaryExpression(instance: any): Expression {
       )
   }
 
+  if (instance.left.type === PrivateIdentifier) {
+    throw new WorkflowSyntaxError(
+      'Private identifier not supported',
+      instance.left.loc,
+    )
+  }
+
   return new BinaryExpression(
     convertExpression(instance.left),
     op,
@@ -211,14 +257,19 @@ function convertBinaryExpression(instance: any): Expression {
   )
 }
 
-function nullishCoalescingExpression(left: any, right: any): Expression {
+function nullishCoalescingExpression(
+  left: TSESTree.Expression,
+  right: TSESTree.Expression,
+): Expression {
   return new FunctionInvocationExpression('default', [
     convertExpression(left),
     convertExpression(right),
   ])
 }
 
-function convertUnaryExpression(instance: any): Expression {
+function convertUnaryExpression(
+  instance: TSESTree.UnaryExpression,
+): Expression {
   assertType(instance, AST_NODE_TYPES.UnaryExpression)
 
   if (instance.prefix === false) {
@@ -263,8 +314,17 @@ function convertUnaryExpression(instance: any): Expression {
   return op ? new UnaryExpression(op, ex) : ex
 }
 
-export function convertMemberExpression(node: any): Expression {
+export function convertMemberExpression(
+  node: TSESTree.MemberExpression,
+): Expression {
   assertType(node, AST_NODE_TYPES.MemberExpression)
+
+  if (node.property.type === PrivateIdentifier) {
+    throw new WorkflowSyntaxError(
+      'Private identifier not supported',
+      node.property.loc,
+    )
+  }
 
   const object = convertExpression(node.object)
   return new MemberExpression(
@@ -274,7 +334,7 @@ export function convertMemberExpression(node: any): Expression {
   )
 }
 
-function convertChainExpression(node: any): Expression {
+function convertChainExpression(node: TSESTree.ChainExpression): Expression {
   assertType(node, ChainExpression)
 
   const properties = chainExpressionToFlatArray(node.expression)
@@ -284,24 +344,33 @@ function convertChainExpression(node: any): Expression {
 }
 
 interface ChainedProperty {
-  property: TSESTree.BaseNode
+  property: TSESTree.Expression
   optional: boolean
   computed: boolean
 }
 
-function chainExpressionToFlatArray(node: any): ChainedProperty[] {
+function chainExpressionToFlatArray(
+  node: TSESTree.Expression,
+): ChainedProperty[] {
   if (node.type === AST_NODE_TYPES.MemberExpression) {
+    if (node.property.type === PrivateIdentifier) {
+      throw new WorkflowSyntaxError(
+        'Private identifier not supported',
+        node.property.loc,
+      )
+    }
+
     const data = {
-      property: node.property as TSESTree.BaseNode,
-      optional: node.optional as boolean,
-      computed: node.computed as boolean,
+      property: node.property,
+      optional: node.optional,
+      computed: node.computed,
     }
 
     return chainExpressionToFlatArray(node.object).concat([data])
   } else {
     return [
       {
-        property: node as TSESTree.BaseNode,
+        property: node,
         optional: false,
         computed: false,
       },
@@ -386,7 +455,7 @@ function memberExpressionFromList(properties: ChainedProperty[]): Expression {
   }
 }
 
-function convertCallExpression(node: any): Expression {
+function convertCallExpression(node: TSESTree.CallExpression): Expression {
   assertType(node, CallExpression)
 
   if (node.optional) {
@@ -398,8 +467,18 @@ function convertCallExpression(node: any): Expression {
 
   const calleeExpression = convertExpression(node.callee)
   if (isFullyQualifiedName(calleeExpression)) {
-    const nodeArguments = node.arguments as any[]
-    const argumentExpressions = nodeArguments.map(convertExpression)
+    const unsupported = node.arguments.find((arg) => arg.type === SpreadElement)
+    if (unsupported) {
+      throw new WorkflowSyntaxError(
+        'The spread syntax is not supported',
+        unsupported.loc,
+      )
+    }
+
+    const argumentExpressions = node.arguments
+      .filter((arg) => arg.type !== SpreadElement)
+      .map(convertExpression)
+
     return new FunctionInvocationExpression(
       calleeExpression.toString(),
       argumentExpressions,
@@ -409,7 +488,9 @@ function convertCallExpression(node: any): Expression {
   }
 }
 
-function convertConditionalExpression(node: any): Expression {
+function convertConditionalExpression(
+  node: TSESTree.ConditionalExpression,
+): Expression {
   assertType(node, ConditionalExpression)
 
   const test = convertExpression(node.test)
@@ -419,16 +500,15 @@ function convertConditionalExpression(node: any): Expression {
   return new FunctionInvocationExpression('if', [test, consequent, alternate])
 }
 
-function convertTemplateLiteralToExpression(node: any): Expression {
+function convertTemplateLiteralToExpression(
+  node: TSESTree.TemplateLiteral,
+): Expression {
   assertType(node, TemplateLiteral)
 
-  const elements = node.quasis as { value: { cooked: string } }[]
-  const stringTerms = elements
+  const stringTerms = node.quasis
     .map((x) => x.value.cooked)
     .map((x) => new PrimitiveExpression(x))
-
-  const expressionNodes = node.expressions as any[]
-  const templateTerms = expressionNodes.map(convertExpression)
+  const templateTerms = node.expressions.map(convertExpression)
 
   // interleave string parts and the expression parts starting with strings
   const interleavedTerms: Expression[] = stringTerms

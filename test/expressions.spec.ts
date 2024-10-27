@@ -78,6 +78,10 @@ describe('Literals', () => {
     ])
   })
 
+  it('treats holes in lists as nulls', () => {
+    assertExpression('[1, , 2]', [1, null, 2])
+  })
+
   it('parses maps', () => {
     assertExpression('{"name": "Merkimer", "race": "pig"}', {
       name: 'Merkimer',

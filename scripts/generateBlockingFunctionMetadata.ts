@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access */
 
 /**
  * Generates .ts source for blocking functions metadata.
@@ -10,24 +9,12 @@
 
 import * as fs from 'node:fs'
 import path from 'node:path'
-import * as parser from '@typescript-eslint/typescript-estree'
+import { parse, TSESTree } from '@typescript-eslint/typescript-estree'
 import { AST_NODE_TYPES } from '@typescript-eslint/utils'
 
 const inputFile = 'types/workflowslib.d.ts'
 const outputFile = 'src/transpiler/generated/functionMetadata.ts'
 
-const {
-  ExportNamedDeclaration,
-  Identifier,
-  TSDeclareFunction,
-  TSInterfaceDeclaration,
-  TSModuleDeclaration,
-  VariableDeclaration,
-} = AST_NODE_TYPES
-
-interface TypedNode {
-  type: string
-}
 interface FunctionMetadata {
   functionName: string
   argumentNames: string[]
@@ -43,7 +30,7 @@ function main() {
   }
 
   const sourceCode = fs.readFileSync(inputFile, 'utf8')
-  const ast = parser.parse(sourceCode, parserOptions)
+  const ast = parse(sourceCode, parserOptions)
   const functions = ast.body
     .flatMap((node) => {
       return extractFunctionDefinitions(node, { namespace: undefined })
@@ -86,47 +73,49 @@ function isBlockingFunction(functionName: string): boolean {
 }
 
 function extractFunctionDefinitions(
-  node: any,
+  node: TSESTree.ProgramStatement,
   ctx: ParsingContext,
 ): FunctionMetadata[] {
   switch (node.type) {
-    case ExportNamedDeclaration:
-      if (node.declaration) {
+    case AST_NODE_TYPES.ExportNamedDeclaration:
+      if (node.declaration === null) {
+        return []
+      } else if (
+        node.declaration.type == AST_NODE_TYPES.TSDeclareFunction ||
+        node.declaration.type === AST_NODE_TYPES.TSModuleDeclaration ||
+        node.declaration.type === AST_NODE_TYPES.TSInterfaceDeclaration
+      ) {
         return extractFunctionDefinitions(node.declaration, ctx)
       } else {
-        return []
+        throw new Error(
+          `Declaration of ${node.declaration.type} not implemented`,
+        )
       }
 
-    case TSModuleDeclaration:
+    case AST_NODE_TYPES.TSModuleDeclaration:
       if (node.kind === 'namespace') {
-        const namespace = node.id.name as string
+        const namespace = extractNamespace(node.id)
         const fullNamespace = ctx.namespace
           ? `${ctx.namespace}.${namespace}`
           : namespace
         const nestedCtx = Object.assign({}, ctx, { namespace: fullNamespace })
-        const body = node.body.body as any[]
-        return body.flatMap((node2) => {
+        return node.body.body.flatMap((node2) => {
           return extractFunctionDefinitions(node2, nestedCtx)
         })
       } else {
         throw new Error(`Unexpected module that is not a namespace`)
       }
 
-    case TSDeclareFunction:
-      assertType(node.id as TypedNode, Identifier)
-
+    case AST_NODE_TYPES.TSDeclareFunction:
       return [
         {
-          functionName: parseFunctionName(
-            node.id.name as string,
-            ctx.namespace,
-          ),
-          argumentNames: parseFunctionParamNames(node.params as any[]),
+          functionName: parseFunctionName(node.id?.name ?? '', ctx.namespace),
+          argumentNames: parseFunctionParamNames(node.params),
         },
       ]
 
-    case TSInterfaceDeclaration:
-    case VariableDeclaration:
+    case AST_NODE_TYPES.TSInterfaceDeclaration:
+    case AST_NODE_TYPES.VariableDeclaration:
       // Ignore type and variable definitions
       return []
 
@@ -134,6 +123,17 @@ function extractFunctionDefinitions(
       console.log(`Skipping a node of type ${node.type}`)
       console.log(JSON.stringify(node))
       return []
+  }
+}
+
+function extractNamespace(id: TSESTree.EntityName): string {
+  switch (id.type) {
+    case AST_NODE_TYPES.Identifier:
+      return id.name
+    case AST_NODE_TYPES.ThisExpression:
+      return 'this'
+    case AST_NODE_TYPES.TSQualifiedName:
+      return `${extractNamespace(id.left)}.${id.right.name}`
   }
 }
 
@@ -150,18 +150,14 @@ function parseFunctionName(
   return `${namespacePrefix}${fixedName}`
 }
 
-function parseFunctionParamNames(params: any[]): string[] {
+function parseFunctionParamNames(params: TSESTree.Parameter[]): string[] {
   return params.map((param) => {
-    assertType(param as TypedNode, Identifier)
+    if (param.type !== AST_NODE_TYPES.Identifier) {
+      throw new Error(`Expected Identifier, for ${param.type}`)
+    }
 
-    return param.name as string
+    return param.name
   })
-}
-
-function assertType(node: TypedNode, expectedType: string): void {
-  if (node?.type !== expectedType) {
-    throw new Error(`Expected ${expectedType}, got ${node?.type}`)
-  }
 }
 
 main()

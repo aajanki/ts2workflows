@@ -1,5 +1,5 @@
 import { AST_NODE_TYPES } from '@typescript-eslint/utils'
-import * as parser from '@typescript-eslint/typescript-estree'
+import { parse, TSESTree } from '@typescript-eslint/typescript-estree'
 import { Expression } from '../src/ast/expressions.js'
 import {
   NamedWorkflowStep,
@@ -29,7 +29,7 @@ export function parseExpression(expressionString: string): Expression {
     input = expressionString
   }
 
-  const ast = parser.parse(input)
+  const ast = parse(input)
 
   if (
     ast.body.length === 0 ||
@@ -38,10 +38,13 @@ export function parseExpression(expressionString: string): Expression {
     throw new Error()
   }
 
-  let ex: unknown
+  let ex: TSESTree.Expression
   if (inputIsJsonObject) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access
-    ex = (ast.body[0].expression as any).right
+    if (ast.body[0].expression.type !== AST_NODE_TYPES.AssignmentExpression) {
+      throw new Error()
+    }
+
+    ex = ast.body[0].expression.right
   } else {
     ex = ast.body[0].expression
   }
