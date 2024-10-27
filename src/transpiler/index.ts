@@ -8,7 +8,7 @@ import { SubworkflowAST } from '../ast/steps.js'
 import { WorkflowSyntaxError } from '../errors.js'
 import { WorkflowParameter } from '../ast/workflows.js'
 import { generateStepNames } from '../ast/stepnames.js'
-import { parseBlockStatement } from './statements.js'
+import { parseStatement } from './statements.js'
 
 export function transpile(code: string): string {
   const parserOptions = {
@@ -123,7 +123,7 @@ function parseSubworkflows(
     }
   })
 
-  const steps = parseBlockStatement(node.body, {})
+  const steps = parseStatement(node.body, {})
 
   return new SubworkflowAST(node.id.name, steps, workflowParams)
 }

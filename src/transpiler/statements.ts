@@ -46,20 +46,25 @@ export interface ParsingContext {
   continueTarget?: StepName
 }
 
-export function parseBlockStatement(
-  node: TSESTree.BlockStatement,
+export function parseStatement(
+  node: TSESTree.Statement,
   ctx: ParsingContext,
   postSteps?: WorkflowStepAST[],
 ): WorkflowStepAST[] {
-  const bodySteps = node.body.flatMap((x) => parseStep(x, ctx))
-  return transformAST(bodySteps.concat(postSteps ?? []))
+  const steps = parseStatementRecursively(node, ctx)
+  return transformAST(steps.concat(postSteps ?? []))
 }
 
-function parseStep(
+function parseStatementRecursively(
   node: TSESTree.Statement,
   ctx: ParsingContext,
 ): WorkflowStepAST[] {
   switch (node.type) {
+    case AST_NODE_TYPES.BlockStatement:
+      return node.body.flatMap((statement) =>
+        parseStatementRecursively(statement, ctx),
+      )
+
     case AST_NODE_TYPES.VariableDeclaration:
       return convertVariableDeclarations(node.declarations)
 
@@ -426,7 +431,9 @@ function callExpressionToParallelStep(
     node.callee.type !== AST_NODE_TYPES.Identifier ||
     node.callee.name !== 'parallel'
   ) {
-    throw new TypeError(`The parameter must be a call to "parallel"`)
+    throw new InternalTranspilingError(
+      `The parameter must be a call to "parallel"`,
+    )
   }
 
   let steps: Record<StepName, StepsStepAST> | ForStepAST = {}
@@ -485,7 +492,7 @@ function parseParallelBranches(
             arg.body.loc,
           )
         }
-        return [branchName, new StepsStepAST(parseBlockStatement(arg.body, {}))]
+        return [branchName, new StepsStepAST(parseStatement(arg.body, {}))]
 
       default:
         throw new WorkflowSyntaxError(
@@ -607,32 +614,21 @@ function flattenIfBranches(
   ifStatement: TSESTree.IfStatement,
   ctx: ParsingContext,
 ): SwitchConditionAST<WorkflowStepAST>[] {
-  if (ifStatement.consequent.type !== AST_NODE_TYPES.BlockStatement) {
-    throw new WorkflowSyntaxError(
-      'Only a block statement supported here',
-      ifStatement.consequent.loc,
-    )
-  }
-
   const branches = [
     {
       condition: convertExpression(ifStatement.test),
-      steps: parseBlockStatement(ifStatement.consequent, ctx),
+      steps: parseStatement(ifStatement.consequent, ctx),
     },
   ]
 
   if (ifStatement.alternate) {
-    if (ifStatement.alternate.type === AST_NODE_TYPES.BlockStatement) {
-      branches.push({
-        condition: new PrimitiveExpression(true),
-        steps: parseBlockStatement(ifStatement.alternate, ctx),
-      })
-    } else if (ifStatement.alternate.type === AST_NODE_TYPES.IfStatement) {
+    if (ifStatement.alternate.type === AST_NODE_TYPES.IfStatement) {
       branches.push(...flattenIfBranches(ifStatement.alternate, ctx))
     } else {
-      throw new InternalTranspilingError(
-        `Expected BlockStatement or IfStatement, got ${ifStatement.alternate.type}`,
-      )
+      branches.push({
+        condition: new PrimitiveExpression(true),
+        steps: parseStatement(ifStatement.alternate, ctx),
+      })
     }
   }
 
@@ -661,7 +657,7 @@ function switchStatementToSteps(
 
     const jumpTarget = new JumpTargetAST()
     const body = transformAST(
-      caseNode.consequent.flatMap((x) => parseStep(x, switchCtx)),
+      caseNode.consequent.flatMap((x) => parseStatement(x, switchCtx)),
     )
 
     steps.push(jumpTarget)
@@ -684,18 +680,11 @@ function forOfStatementToForStep(
   node: TSESTree.ForOfStatement,
   ctx: ParsingContext,
 ): ForStepAST {
-  if (node.body.type !== AST_NODE_TYPES.BlockStatement) {
-    throw new WorkflowSyntaxError(
-      'Only block statement supported here',
-      node.body.loc,
-    )
-  }
-
   const bodyCtx = Object.assign({}, ctx, {
     continueTarget: undefined,
     breakTarget: undefined,
   })
-  const steps = parseBlockStatement(node.body, bodyCtx)
+  const steps = parseStatement(node.body, bodyCtx)
 
   let loopVariableName: string
   if (node.left.type === AST_NODE_TYPES.Identifier) {
@@ -751,13 +740,6 @@ function whileStatementSteps(
   node: TSESTree.WhileStatement,
   ctx: ParsingContext,
 ): WorkflowStepAST[] {
-  if (node.body.type !== AST_NODE_TYPES.BlockStatement) {
-    throw new WorkflowSyntaxError(
-      'Only block statement supported here',
-      node.body.loc,
-    )
-  }
-
   const startOfLoop = new JumpTargetAST()
   const endOfLoop = new JumpTargetAST()
   const ctx2 = Object.assign({}, ctx, {
@@ -765,7 +747,7 @@ function whileStatementSteps(
     breakTarget: endOfLoop.label,
   })
   const postSteps = [new NextStepAST(startOfLoop.label)]
-  const steps = parseBlockStatement(node.body, ctx2, postSteps)
+  const steps = parseStatement(node.body, ctx2, postSteps)
 
   return [
     startOfLoop,
@@ -783,13 +765,6 @@ function doWhileStatementSteps(
   node: TSESTree.DoWhileStatement,
   ctx: ParsingContext,
 ): WorkflowStepAST[] {
-  if (node.body.type !== AST_NODE_TYPES.BlockStatement) {
-    throw new WorkflowSyntaxError(
-      'Only block statement supported here',
-      node.body.loc,
-    )
-  }
-
   const startOfLoop = new JumpTargetAST()
   const endOfLoop = new JumpTargetAST()
   const ctx2 = Object.assign({}, ctx, {
@@ -798,7 +773,7 @@ function doWhileStatementSteps(
   })
 
   const steps: WorkflowStepAST[] = [startOfLoop]
-  steps.push(...parseBlockStatement(node.body, ctx2))
+  steps.push(...parseStatement(node.body, ctx2))
   steps.push(
     new SwitchStepAST([
       {
@@ -849,11 +824,11 @@ function tryStatementToTryStep(
   node: TSESTree.TryStatement,
   ctx: ParsingContext,
 ): TryStepAST {
-  const steps = parseBlockStatement(node.block, ctx)
+  const steps = parseStatement(node.block, ctx)
   let exceptSteps: WorkflowStepAST[] = []
   let errorVariable: string | undefined = undefined
   if (node.handler) {
-    exceptSteps = parseBlockStatement(node.handler.body, ctx)
+    exceptSteps = parseStatement(node.handler.body, ctx)
 
     const handlerParam = node.handler.param
     if (handlerParam) {
@@ -883,7 +858,7 @@ function labeledStep(
   node: TSESTree.LabeledStatement,
   ctx: ParsingContext,
 ): WorkflowStepAST[] {
-  const steps = parseStep(node.body, ctx)
+  const steps = parseStatement(node.body, ctx)
   if (steps.length > 0 && steps[0].tag !== 'jumptarget') {
     steps[0] = steps[0].withLabel(node.label.name)
   }

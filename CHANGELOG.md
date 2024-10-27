@@ -1,3 +1,11 @@
+<unreleased>
+
+- Optional chaining a?.b is converted to map.get(a, "b")
+- Non-null assertions person!.name is accepted but ignored to the transpiler
+- Merge a next step to a preceeding assign step
+- Accept a single-statement body (body without braces {}) in if, while, etc
+- Better error messages on RegExp, BigInt, spread syntax and other non-supported Javascript features
+
 Version 0.3.0 - 2024-10-19
 
 - Function invocations no longer generate invalid empty variable names

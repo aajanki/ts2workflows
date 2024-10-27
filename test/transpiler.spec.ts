@@ -38,17 +38,16 @@ describe('Type annotations', () => {
     function main() {
       const greeting: string = "Hi, I'm Elfo!";
     }`
-    const observed = YAML.parse(transpile(code)) as unknown
 
-    const expected = YAML.parse(`
+    const expected = `
     main:
       steps:
         - assign1:
             assign:
               - greeting: Hi, I'm Elfo!
-    `) as unknown
+    `
 
-    expect(observed).to.deep.equal(expected)
+    assertTranspiled(code, expected)
   })
 
   it('accepts function parameter and return type annotations', () => {
@@ -56,18 +55,17 @@ describe('Type annotations', () => {
     function addOne(x: number): number {
       return x + 1;
     }`
-    const observed = YAML.parse(transpile(code)) as unknown
 
-    const expected = YAML.parse(`
+    const expected = `
     addOne:
       params:
         - x
       steps:
         - return1:
             return: \${x + 1}
-    `) as unknown
+    `
 
-    expect(observed).to.deep.equal(expected)
+    assertTranspiled(code, expected)
   })
 
   it('ignores interface declaration', () => {
@@ -95,34 +93,32 @@ describe('Type annotations', () => {
     function getName(person) {
       return person!.name;
     }`
-    const observed = YAML.parse(transpile(code)) as unknown
 
-    const expected = YAML.parse(`
+    const expected = `
     getName:
       params:
         - person
       steps:
         - return1:
             return: \${person.name}
-    `) as unknown
+    `
 
-    expect(observed).to.deep.equal(expected)
+    assertTranspiled(code, expected)
   })
 })
 
 describe('Function definition', () => {
   it('accepts "export function"', () => {
     const code = `export function main() { return 1; }`
-    const observed = YAML.parse(transpile(code)) as unknown
 
-    const expected = YAML.parse(`
+    const expected = `
     main:
       steps:
         - return1:
             return: 1
-    `) as unknown
+    `
 
-    expect(observed).to.deep.equal(expected)
+    assertTranspiled(code, expected)
   })
 
   it('accepts but ignores async and await', () => {
@@ -135,9 +131,8 @@ describe('Function definition', () => {
     async function workflow2() {
       return 1;
     }`
-    const observed = YAML.parse(transpile(code)) as unknown
 
-    const expected = YAML.parse(`
+    const expected = `
     workflow1:
       steps:
         - assign1:
@@ -150,9 +145,9 @@ describe('Function definition', () => {
       steps:
         - return2:
             return: 1
-    `) as unknown
+    `
 
-    expect(observed).to.deep.equal(expected)
+    assertTranspiled(code, expected)
   })
 
   it('ignores function declaration', () => {
@@ -184,78 +179,91 @@ describe('Function definition', () => {
 
     expect(() => transpile(code)).to.throw()
   })
+
+  it('accepts nested block statements', () => {
+    const code = `
+    function test() {
+      {
+        return 1;
+      }
+    }`
+
+    const expected = `
+    test:
+      steps:
+        - return1:
+            return: 1
+    `
+
+    assertTranspiled(code, expected)
+  })
 })
 
 describe('Call statement', () => {
   it('assignment of a function call result', () => {
     const code = 'function main() { const name = getName(); }'
-    const observed = YAML.parse(transpile(code)) as unknown
 
-    const expected = YAML.parse(`
+    const expected = `
     main:
       steps:
         - assign1:
             assign:
               - name: \${getName()}
-    `) as unknown
+    `
 
-    expect(observed).to.deep.equal(expected)
+    assertTranspiled(code, expected)
   })
 
   it('assignment of a function call result with anonymous parameters', () => {
     const code = 'function main() { const three = add(1, 2); }'
-    const observed = YAML.parse(transpile(code)) as unknown
 
-    const expected = YAML.parse(`
+    const expected = `
     main:
       steps:
         - assign1:
             assign:
               - three: \${add(1, 2)}
-    `) as unknown
+    `
 
-    expect(observed).to.deep.equal(expected)
+    assertTranspiled(code, expected)
   })
 
   it('assignment of a scoped function call result', () => {
     const code = `function main() {
       const projectId = sys.get_env("GOOGLE_CLOUD_PROJECT_ID");
     }`
-    const observed = YAML.parse(transpile(code)) as unknown
 
-    const expected = YAML.parse(`
+    const expected = `
     main:
       steps:
         - assign1:
             assign:
               - projectId: \${sys.get_env("GOOGLE_CLOUD_PROJECT_ID")}
-    `) as unknown
+    `
 
-    expect(observed).to.deep.equal(expected)
+    assertTranspiled(code, expected)
   })
 
   it('side effecting function call', () => {
     const code = 'function main() { writeLog("Everything going OK!"); }'
-    const observed = YAML.parse(transpile(code)) as unknown
 
-    const expected = YAML.parse(`
+    const expected = `
     main:
       steps:
         - assign1:
             assign:
               - __temp: \${writeLog("Everything going OK!")}
-    `) as unknown
+    `
 
-    expect(observed).to.deep.equal(expected)
+    assertTranspiled(code, expected)
   })
 
   it('transpiles blocking functions as call steps', () => {
     const code = `function main() {
       sys.log(undefined, "ERROR", "Something bad happened");
     }`
-    const observed = YAML.parse(transpile(code)) as unknown
 
-    const expected = YAML.parse(`
+    const expected = `
     main:
       steps:
         - call_sys_log_1:
@@ -263,18 +271,17 @@ describe('Call statement', () => {
             args:
               text: Something bad happened
               severity: ERROR
-    `) as unknown
+    `
 
-    expect(observed).to.deep.equal(expected)
+    assertTranspiled(code, expected)
   })
 
   it('assigns the return value of a blocking function call (variable declaration)', () => {
     const code = `function main() {
       const response = http.get("https://visit.dreamland.test/");
     }`
-    const observed = YAML.parse(transpile(code)) as unknown
 
-    const expected = YAML.parse(`
+    const expected = `
     main:
       steps:
         - call_http_get_1:
@@ -282,9 +289,9 @@ describe('Call statement', () => {
             args:
               url: https://visit.dreamland.test/
             result: response
-    `) as unknown
+    `
 
-    expect(observed).to.deep.equal(expected)
+    assertTranspiled(code, expected)
   })
 
   it('assigns the return value of a blocking function call (assignment)', () => {
@@ -292,9 +299,8 @@ describe('Call statement', () => {
       let response;
       response = http.get("https://visit.dreamland.test/");
     }`
-    const observed = YAML.parse(transpile(code)) as unknown
 
-    const expected = YAML.parse(`
+    const expected = `
     main:
       steps:
         - call_http_get_1:
@@ -306,9 +312,9 @@ describe('Call statement', () => {
             assign:
               - response:
               - response: \${__temp0}
-    `) as unknown
+    `
 
-    expect(observed).to.deep.equal(expected)
+    assertTranspiled(code, expected)
   })
 
   it('assigns the return value of a blocking function call to a complex variable', () => {
@@ -316,9 +322,8 @@ describe('Call statement', () => {
       const results = {};
       results.response = http.get("https://visit.dreamland.test/");
     }`
-    const observed = YAML.parse(transpile(code)) as unknown
 
-    const expected = YAML.parse(`
+    const expected = `
     main:
       steps:
         - call_http_get_1:
@@ -330,9 +335,9 @@ describe('Call statement', () => {
             assign:
               - results: {}
               - results.response: \${__temp0}
-    `) as unknown
+    `
 
-    expect(observed).to.deep.equal(expected)
+    assertTranspiled(code, expected)
   })
 
   it('creates call steps for blocking calls in a condition', () => {
@@ -343,9 +348,8 @@ describe('Call statement', () => {
         return "error"
       }
     }`
-    const observed = YAML.parse(transpile(code)) as unknown
 
-    const expected = YAML.parse(`
+    const expected = `
     check_post_result:
       steps:
         - call_http_post_1:
@@ -363,9 +367,9 @@ describe('Call statement', () => {
                 steps:
                   - return2:
                       return: error
-    `) as unknown
+    `
 
-    expect(observed).to.deep.equal(expected)
+    assertTranspiled(code, expected)
   })
 
   it('creates call steps for blocking calls in a nested scopes', () => {
@@ -382,9 +386,8 @@ describe('Call statement', () => {
         return "error"
       }
     }`
-    const observed = YAML.parse(transpile(code)) as unknown
 
-    const expected = YAML.parse(`
+    const expected = `
     scopes:
       steps:
         - call_http_get_1:
@@ -419,18 +422,17 @@ describe('Call statement', () => {
                 steps:
                   - return3:
                       return: error
-    `) as unknown
+    `
 
-    expect(observed).to.deep.equal(expected)
+    assertTranspiled(code, expected)
   })
 
   it('creates call steps for blocking calls in return expressions', () => {
     const code = `function download() {
       return http.get("https://visit.dreamland.test/")
     }`
-    const observed = YAML.parse(transpile(code)) as unknown
 
-    const expected = YAML.parse(`
+    const expected = `
     download:
       steps:
         - call_http_get_1:
@@ -440,9 +442,9 @@ describe('Call statement', () => {
             result: __temp0
         - return1:
             return: \${__temp0}
-    `) as unknown
+    `
 
-    expect(observed).to.deep.equal(expected)
+    assertTranspiled(code, expected)
   })
 
   it('creates call steps for blocking calls in complex expressions', () => {
@@ -451,9 +453,8 @@ describe('Call statement', () => {
         map.get(http.get("https://visit.dreamland.test/elfo.html"), "body") + \
         http.get("https://visit.dreamland.test/luci.html").body
     }`
-    const observed = YAML.parse(transpile(code)) as unknown
 
-    const expected = YAML.parse(`
+    const expected = `
     location:
       steps:
         - call_http_get_1:
@@ -468,18 +469,17 @@ describe('Call statement', () => {
             result: __temp2
         - return1:
             return: \${"response:" + map.get(__temp1, "body") + __temp2.body}
-    `) as unknown
+    `
 
-    expect(observed).to.deep.equal(expected)
+    assertTranspiled(code, expected)
   })
 
   it('creates call steps for nested blocking calls', () => {
     const code = `function nested() {
       return http.get(http.get(http.get("https://example.com/redirected.json").body).body)
     }`
-    const observed = YAML.parse(transpile(code)) as unknown
 
-    const expected = YAML.parse(`
+    const expected = `
     nested:
       steps:
         - call_http_get_1:
@@ -499,18 +499,17 @@ describe('Call statement', () => {
             result: __temp2
         - return1:
             return: \${__temp2}
-    `) as unknown
+    `
 
-    expect(observed).to.deep.equal(expected)
+    assertTranspiled(code, expected)
   })
 
   it('creates call steps for a nested blocking nested in non-blocking calls', () => {
     const code = `function nested() {
       return map.get(map.get(http.get("https://example.com/redirected.json"), "body"), "value")
     }`
-    const observed = YAML.parse(transpile(code)) as unknown
 
-    const expected = YAML.parse(`
+    const expected = `
     nested:
       steps:
         - call_http_get_1:
@@ -520,9 +519,9 @@ describe('Call statement', () => {
             result: __temp3
         - return1:
             return: \${map.get(map.get(__temp3, "body"), "value")}
-    `) as unknown
+    `
 
-    expect(observed).to.deep.equal(expected)
+    assertTranspiled(code, expected)
   })
 
   it('call_step() outputs a call step', () => {
@@ -532,9 +531,8 @@ describe('Call statement', () => {
         severity: "DEBUG"
       })
     }`
-    const observed = YAML.parse(transpile(code)) as unknown
 
-    const expected = YAML.parse(`
+    const expected = `
     main:
       steps:
         - call_sys_log_1:
@@ -543,9 +541,9 @@ describe('Call statement', () => {
               json:
                 message: Meow. That's what cats say, right?
               severity: DEBUG
-    `) as unknown
+    `
 
-    expect(observed).to.deep.equal(expected)
+    assertTranspiled(code, expected)
   })
 
   it('call_step() outputs a call step 2', () => {
@@ -555,9 +553,8 @@ describe('Call statement', () => {
         severity: "INFO"
       })
     }`
-    const observed = YAML.parse(transpile(code)) as unknown
 
-    const expected = YAML.parse(`
+    const expected = `
     main:
       steps:
         - call_sys_log_1:
@@ -570,9 +567,9 @@ describe('Call statement', () => {
                     - queen
                     - pirate
               severity: INFO
-    `) as unknown
+    `
 
-    expect(observed).to.deep.equal(expected)
+    assertTranspiled(code, expected)
   })
 
   it('call_step() with a return value', () => {
@@ -584,9 +581,8 @@ describe('Call statement', () => {
         }
       })
     }`
-    const observed = YAML.parse(transpile(code)) as unknown
 
-    const expected = YAML.parse(`
+    const expected = `
     main:
       steps:
         - call_http_post_1:
@@ -596,98 +592,92 @@ describe('Call statement', () => {
               body:
                 user: bean
             result: response
-    `) as unknown
+    `
 
-    expect(observed).to.deep.equal(expected)
+    assertTranspiled(code, expected)
   })
 
   it('call_step() without arguments', () => {
     const code = `function main() {
       const timestamp = call_step(sys.now)
     }`
-    const observed = YAML.parse(transpile(code)) as unknown
 
-    const expected = YAML.parse(`
+    const expected = `
     main:
       steps:
         - call_sys_now_1:
             call: sys.now
             args: {}
             result: timestamp
-    `) as unknown
+    `
 
-    expect(observed).to.deep.equal(expected)
+    assertTranspiled(code, expected)
   })
 })
 
 describe('Assignment statement', () => {
   it('transpiles a const assignment', () => {
     const code = 'function main() { const a = 1; }'
-    const observed = YAML.parse(transpile(code)) as unknown
 
-    const expected = YAML.parse(`
+    const expected = `
     main:
       steps:
         - assign1:
             assign:
               - a: 1
-    `) as unknown
+    `
 
-    expect(observed).to.deep.equal(expected)
+    assertTranspiled(code, expected)
   })
 
   it('transpiles a let assignment', () => {
     const code = 'function main() { let a = 1; }'
-    const observed = YAML.parse(transpile(code)) as unknown
 
-    const expected = YAML.parse(`
+    const expected = `
     main:
       steps:
         - assign1:
             assign:
               - a: 1
-    `) as unknown
+    `
 
-    expect(observed).to.deep.equal(expected)
+    assertTranspiled(code, expected)
   })
 
   it('transpiles a var assignment', () => {
     const code = 'function main() { var a = 1; }'
-    const observed = YAML.parse(transpile(code)) as unknown
 
-    const expected = YAML.parse(`
+    const expected = `
     main:
       steps:
         - assign1:
             assign:
               - a: 1
-    `) as unknown
+    `
 
-    expect(observed).to.deep.equal(expected)
+    assertTranspiled(code, expected)
   })
 
   it('property assignment', () => {
     const code = 'function main() { person.name = "Bean"; }'
-    const observed = YAML.parse(transpile(code)) as unknown
 
-    const expected = YAML.parse(`
+    const expected = `
     main:
       steps:
         - assign1:
             assign:
               - person.name: Bean
-    `) as unknown
+    `
 
-    expect(observed).to.deep.equal(expected)
+    assertTranspiled(code, expected)
   })
 
   it('member expression with map literal body', () => {
     const code = `function main() {
       return { "value": 111 }.value;
     }`
-    const observed = YAML.parse(transpile(code)) as unknown
 
-    const expected = YAML.parse(`
+    const expected = `
     main:
       steps:
         - assign1:
@@ -696,18 +686,17 @@ describe('Assignment statement', () => {
                   value: 111
         - return1:
             return: \${__temp0.value}
-    `) as unknown
+    `
 
-    expect(observed).to.deep.equal(expected)
+    assertTranspiled(code, expected)
   })
 
   it('deep member expression with map literal body', () => {
     const code = `function main() {
       return { temperature: { value: 18, unit: "Celsius" } }.temperature.value;
     }`
-    const observed = YAML.parse(transpile(code)) as unknown
 
-    const expected = YAML.parse(`
+    const expected = `
     main:
       steps:
         - assign1:
@@ -718,33 +707,31 @@ describe('Assignment statement', () => {
                     unit: Celsius
         - return1:
             return: \${__temp0.temperature.value}
-    `) as unknown
+    `
 
-    expect(observed).to.deep.equal(expected)
+    assertTranspiled(code, expected)
   })
 
   it('member expression with function call body', () => {
     const code = `function main() { const res = get_object().value; }`
-    const observed = YAML.parse(transpile(code)) as unknown
 
-    const expected = YAML.parse(`
+    const expected = `
     main:
       steps:
         - assign1:
             assign:
               - res: \${get_object().value}
-    `) as unknown
+    `
 
-    expect(observed).to.deep.equal(expected)
+    assertTranspiled(code, expected)
   })
 
   it('map literal in an assignment step', () => {
     const code = `function main() {
       const a = ({code: 56} as {code: number}).code
     }`
-    const observed = YAML.parse(transpile(code)) as unknown
 
-    const expected = YAML.parse(`
+    const expected = `
     main:
       steps:
         - assign1:
@@ -752,18 +739,17 @@ describe('Assignment statement', () => {
               - __temp0:
                   code: 56
               - a: \${__temp0.code}
-    `) as unknown
+    `
 
-    expect(observed).to.deep.equal(expected)
+    assertTranspiled(code, expected)
   })
 
   it('map literal as function argument', () => {
     const code = `function main() {
       return get_friends({"name": "Bean"});
     }`
-    const observed = YAML.parse(transpile(code)) as unknown
 
-    const expected = YAML.parse(`
+    const expected = `
     main:
       steps:
         - assign1:
@@ -772,9 +758,9 @@ describe('Assignment statement', () => {
                   name: Bean
         - return1:
             return: \${get_friends(__temp0)}
-    `) as unknown
+    `
 
-    expect(observed).to.deep.equal(expected)
+    assertTranspiled(code, expected)
   })
 
   it('map literal in complex expression', () => {
@@ -788,9 +774,8 @@ describe('Assignment statement', () => {
         return "error"
       }
     }`
-    const observed = YAML.parse(transpile(code)) as unknown
 
-    const expected = YAML.parse(`
+    const expected = `
     complex:
       steps:
         - assign1:
@@ -818,24 +803,23 @@ describe('Assignment statement', () => {
               steps:
                 - return2:
                     return: error
-    `) as unknown
+    `
 
-    expect(observed).to.deep.equal(expected)
+    assertTranspiled(code, expected)
   })
 
   it('indexed assignment', () => {
     const code = 'function main() { values[3] = 10; }'
-    const observed = YAML.parse(transpile(code)) as unknown
 
-    const expected = YAML.parse(`
+    const expected = `
     main:
       steps:
         - assign1:
             assign:
               - values[3]: 10
-    `) as unknown
+    `
 
-    expect(observed).to.deep.equal(expected)
+    assertTranspiled(code, expected)
   })
 
   it('addition assignment', () => {
@@ -844,18 +828,17 @@ describe('Assignment statement', () => {
       let x = 0;
       x += 5;
     }`
-    const observed = YAML.parse(transpile(code)) as unknown
 
-    const expected = YAML.parse(`
+    const expected = `
     main:
       steps:
         - assign1:
             assign:
               - x: 0
               - x: \${x + 5}
-    `) as unknown
+    `
 
-    expect(observed).to.deep.equal(expected)
+    assertTranspiled(code, expected)
   })
 
   it('addition assignment to a member expression', () => {
@@ -863,17 +846,16 @@ describe('Assignment statement', () => {
     function main() {
       people[4].age += 1;
     }`
-    const observed = YAML.parse(transpile(code)) as unknown
 
-    const expected = YAML.parse(`
+    const expected = `
     main:
       steps:
         - assign1:
             assign:
               - people[4].age: \${people[4].age + 1}
-    `) as unknown
+    `
 
-    expect(observed).to.deep.equal(expected)
+    assertTranspiled(code, expected)
   })
 
   it('addition assignment with a complex expression', () => {
@@ -881,17 +863,16 @@ describe('Assignment statement', () => {
     function main() {
       x += 2 * y + 10;
     }`
-    const observed = YAML.parse(transpile(code)) as unknown
 
-    const expected = YAML.parse(`
+    const expected = `
     main:
       steps:
         - assign1:
             assign:
               - x: \${x + 2 * y + 10}
-    `) as unknown
+    `
 
-    expect(observed).to.deep.equal(expected)
+    assertTranspiled(code, expected)
   })
 
   it('substraction assignment', () => {
@@ -900,18 +881,17 @@ describe('Assignment statement', () => {
       let x = 0;
       x -= 5;
     }`
-    const observed = YAML.parse(transpile(code)) as unknown
 
-    const expected = YAML.parse(`
+    const expected = `
     main:
       steps:
         - assign1:
             assign:
               - x: 0
               - x: \${x - 5}
-    `) as unknown
+    `
 
-    expect(observed).to.deep.equal(expected)
+    assertTranspiled(code, expected)
   })
 
   it('multiplication assignment', () => {
@@ -920,18 +900,17 @@ describe('Assignment statement', () => {
       let x = 1;
       x *= 2;
     }`
-    const observed = YAML.parse(transpile(code)) as unknown
 
-    const expected = YAML.parse(`
+    const expected = `
     main:
       steps:
         - assign1:
             assign:
               - x: 1
               - x: \${x * 2}
-    `) as unknown
+    `
 
-    expect(observed).to.deep.equal(expected)
+    assertTranspiled(code, expected)
   })
 
   it('division assignment', () => {
@@ -940,18 +919,17 @@ describe('Assignment statement', () => {
       let x = 10;
       x /= 2;
     }`
-    const observed = YAML.parse(transpile(code)) as unknown
 
-    const expected = YAML.parse(`
+    const expected = `
     main:
       steps:
         - assign1:
             assign:
               - x: 10
               - x: \${x / 2}
-    `) as unknown
+    `
 
-    expect(observed).to.deep.equal(expected)
+    assertTranspiled(code, expected)
   })
 
   it('throws if the left-hand side of an assignment is a complex expression', () => {
@@ -983,9 +961,8 @@ describe('Assignment statement', () => {
       const d = c + 1;
       a.id = '1';
     }`
-    const observed = YAML.parse(transpile(code)) as unknown
 
-    const expected = YAML.parse(`
+    const expected = `
     main:
       steps:
         - assign1:
@@ -995,9 +972,9 @@ describe('Assignment statement', () => {
               - c: 12
               - d: \${c + 1}
               - a.id: "1"
-    `) as unknown
+    `
 
-    expect(observed).to.deep.equal(expected)
+    assertTranspiled(code, expected)
   })
 
   it('merges consequtive assignments into a single step in a nested scope', () => {
@@ -1011,9 +988,8 @@ describe('Assignment statement', () => {
         a.id = '1';
       }
     }`
-    const observed = YAML.parse(transpile(code)) as unknown
 
-    const expected = YAML.parse(`
+    const expected = `
     main:
       steps:
         - switch1:
@@ -1027,26 +1003,25 @@ describe('Assignment statement', () => {
                         - c: 12
                         - d: \${c + 1}
                         - a.id: "1"
-    `) as unknown
+    `
 
-    expect(observed).to.deep.equal(expected)
+    assertTranspiled(code, expected)
   })
 
   it('variable definition without initial value is treated as null assignment', () => {
     const code = `function main() {
       let a;
     }`
-    const observed = YAML.parse(transpile(code)) as unknown
 
-    const expected = YAML.parse(`
+    const expected = `
     main:
       steps:
         - assign1:
             assign:
               - a: null
-    `) as unknown
+    `
 
-    expect(observed).to.deep.equal(expected)
+    assertTranspiled(code, expected)
   })
 })
 
@@ -1058,9 +1033,8 @@ describe('If statement', () => {
         sys.log("positive")
       }
     }`
-    const observed = YAML.parse(transpile(code)) as unknown
 
-    const expected = YAML.parse(`
+    const expected = `
     main:
       params:
         - x
@@ -1073,9 +1047,9 @@ describe('If statement', () => {
                       call: sys.log
                       args:
                         data: positive
-    `) as unknown
+    `
 
-    expect(observed).to.deep.equal(expected)
+    assertTranspiled(code, expected)
   })
 
   it('if-else statement', () => {
@@ -1087,9 +1061,8 @@ describe('If statement', () => {
         return "non-positive";
       }
     }`
-    const observed = YAML.parse(transpile(code)) as unknown
 
-    const expected = YAML.parse(`
+    const expected = `
     main:
       params:
         - x
@@ -1104,9 +1077,9 @@ describe('If statement', () => {
                 steps:
                   - return2:
                       return: non-positive
-    `) as unknown
+    `
 
-    expect(observed).to.deep.equal(expected)
+    assertTranspiled(code, expected)
   })
 
   it('if statement with multiple branches', () => {
@@ -1120,9 +1093,8 @@ describe('If statement', () => {
         return "negative";
       }
     }`
-    const observed = YAML.parse(transpile(code)) as unknown
 
-    const expected = YAML.parse(`
+    const expected = `
     main:
       params:
         - x
@@ -1141,9 +1113,38 @@ describe('If statement', () => {
                 steps:
                   - return3:
                       return: negative
-    `) as unknown
+    `
 
-    expect(observed).to.deep.equal(expected)
+    assertTranspiled(code, expected)
+  })
+
+  it('if with a non-block statement', () => {
+    const code = `
+    function main(x) {
+      if (x > 0)
+        return "positive";
+      else
+        return "non-positive";
+    }`
+
+    const expected = `
+    main:
+      params:
+        - x
+      steps:
+        - switch1:
+            switch:
+              - condition: \${x > 0}
+                steps:
+                  - return1:
+                      return: positive
+              - condition: true
+                steps:
+                  - return2:
+                      return: non-positive
+    `
+
+    assertTranspiled(code, expected)
   })
 })
 
@@ -1168,9 +1169,8 @@ describe('Switch statement', () => {
 
       return country;
     }`
-    const observed = YAML.parse(transpile(code)) as unknown
 
-    const expected = YAML.parse(`
+    const expected = `
     main:
       params:
         - person
@@ -1201,9 +1201,9 @@ describe('Switch statement', () => {
               - country: unknown
         - return1:
             return: \${country}
-    `) as unknown
+    `
 
-    expect(observed).to.deep.equal(expected)
+    assertTranspiled(code, expected)
   })
 
   it('switch statement as the last statement in a block', () => {
@@ -1224,9 +1224,8 @@ describe('Switch statement', () => {
           country = "unknown";
       }
     }`
-    const observed = YAML.parse(transpile(code)) as unknown
 
-    const expected = YAML.parse(`
+    const expected = `
     main:
       params:
         - person
@@ -1255,9 +1254,9 @@ describe('Switch statement', () => {
         - assign4:
             assign:
               - country: unknown
-    `) as unknown
+    `
 
-    expect(observed).to.deep.equal(expected)
+    assertTranspiled(code, expected)
   })
 
   it('switch statement as a last statement in a nested block', () => {
@@ -1284,9 +1283,8 @@ describe('Switch statement', () => {
 
       return country;
     }`
-    const observed = YAML.parse(transpile(code)) as unknown
 
-    const expected = YAML.parse(`
+    const expected = `
     main:
       params:
         - person
@@ -1326,9 +1324,9 @@ describe('Switch statement', () => {
                       - country: error
         - return1:
             return: \${country}
-    `) as unknown
+    `
 
-    expect(observed).to.deep.equal(expected)
+    assertTranspiled(code, expected)
   })
 
   it('fall-through', () => {
@@ -1351,9 +1349,8 @@ describe('Switch statement', () => {
 
       return country;
     }`
-    const observed = YAML.parse(transpile(code)) as unknown
 
-    const expected = YAML.parse(`
+    const expected = `
     main:
       params:
         - person
@@ -1382,78 +1379,73 @@ describe('Switch statement', () => {
               - country: unknown
         - return1:
             return: \${country}
-    `) as unknown
+    `
 
-    expect(observed).to.deep.equal(expected)
+    assertTranspiled(code, expected)
   })
 })
 
 describe('Return statement', () => {
   it('return statement without a value', () => {
     const code = `function main() { return; }`
-    const observed = YAML.parse(transpile(code)) as unknown
 
-    const expected = YAML.parse(`
+    const expected = `
     main:
       steps:
         - return1:
             next: end
-    `) as unknown
+    `
 
-    expect(observed).to.deep.equal(expected)
+    assertTranspiled(code, expected)
   })
 
   it('return a literal value', () => {
     const code = `function main() { return "OK"; }`
-    const observed = YAML.parse(transpile(code)) as unknown
 
-    const expected = YAML.parse(`
+    const expected = `
     main:
       steps:
         - return1:
             return: OK
-    `) as unknown
+    `
 
-    expect(observed).to.deep.equal(expected)
+    assertTranspiled(code, expected)
   })
 
   it('return an expression', () => {
     const code = `function addOne(x) { return x + 1; }`
-    const observed = YAML.parse(transpile(code)) as unknown
 
-    const expected = YAML.parse(`
+    const expected = `
     addOne:
       params:
         - x
       steps:
         - return1:
             return: \${x + 1}
-    `) as unknown
+    `
 
-    expect(observed).to.deep.equal(expected)
+    assertTranspiled(code, expected)
   })
 
   it('return a map', () => {
     const code = `function main() { return { result: "OK", value: 1 }; }`
-    const observed = YAML.parse(transpile(code)) as unknown
 
-    const expected = YAML.parse(`
+    const expected = `
     main:
       steps:
         - return1:
             return:
               result: OK
               value: 1
-    `) as unknown
+    `
 
-    expect(observed).to.deep.equal(expected)
+    assertTranspiled(code, expected)
   })
 
   it('return a list of maps', () => {
     const code = `function main() { return [ { result: "OK", value: 1 } ]; }`
-    const observed = YAML.parse(transpile(code)) as unknown
 
-    const expected = YAML.parse(`
+    const expected = `
     main:
       steps:
         - return1:
@@ -1461,16 +1453,15 @@ describe('Return statement', () => {
               -
                 result: OK
                 value: 1
-    `) as unknown
+    `
 
-    expect(observed).to.deep.equal(expected)
+    assertTranspiled(code, expected)
   })
 
   it('return a variable reference inside a map', () => {
     const code = `function main(x) { return { value: x }; }`
-    const observed = YAML.parse(transpile(code)) as unknown
 
-    const expected = YAML.parse(`
+    const expected = `
     main:
       params:
         - x
@@ -1478,16 +1469,15 @@ describe('Return statement', () => {
         - return1:
             return:
               value: \${x}
-    `) as unknown
+    `
 
-    expect(observed).to.deep.equal(expected)
+    assertTranspiled(code, expected)
   })
 
   it('return a member of a map', () => {
     const code = `function main() { return {value: 5}.value; }`
-    const observed = YAML.parse(transpile(code)) as unknown
 
-    const expected = YAML.parse(`
+    const expected = `
     main:
       steps:
         - assign1:
@@ -1496,9 +1486,9 @@ describe('Return statement', () => {
                   value: 5
         - return1:
             return: \${__temp0.value}
-    `) as unknown
+    `
 
-    expect(observed).to.deep.equal(expected)
+    assertTranspiled(code, expected)
   })
 })
 
@@ -1515,9 +1505,8 @@ describe('Try-catch statement', () => {
         }
       }
     }`
-    const observed = YAML.parse(transpile(code)) as unknown
 
-    const expected = YAML.parse(`
+    const expected = `
       main:
         steps:
           - try1:
@@ -1539,9 +1528,9 @@ describe('Try-catch statement', () => {
                           steps:
                             - return2:
                                 return: "Not found"
-    `) as unknown
+    `
 
-    expect(observed).to.deep.equal(expected)
+    assertTranspiled(code, expected)
   })
 
   it('transpiles try-catch without an error variable', () => {
@@ -1554,9 +1543,8 @@ describe('Try-catch statement', () => {
         log("Error!");
       }
     }`
-    const observed = YAML.parse(transpile(code)) as unknown
 
-    const expected = YAML.parse(`
+    const expected = `
       main:
         steps:
           - try1:
@@ -1574,9 +1562,9 @@ describe('Try-catch statement', () => {
                   - assign1:
                       assign:
                         - __temp: \${log("Error!")}
-    `) as unknown
+    `
 
-    expect(observed).to.deep.equal(expected)
+    assertTranspiled(code, expected)
   })
 
   it('transpiles try-catch-retry', () => {
@@ -1590,9 +1578,8 @@ describe('Try-catch statement', () => {
       }
       retry_policy({ policy: http.default_retry })
     }`
-    const observed = YAML.parse(transpile(code)) as unknown
 
-    const expected = YAML.parse(`
+    const expected = `
       main:
         steps:
           - try1:
@@ -1611,9 +1598,9 @@ describe('Try-catch statement', () => {
                   - assign1:
                       assign:
                         - __temp: \${log("Error!")}
-    `) as unknown
+    `
 
-    expect(observed).to.deep.equal(expected)
+    assertTranspiled(code, expected)
   })
 
   it('does retry with a retry predicate and backoff parameters', () => {
@@ -1631,9 +1618,8 @@ describe('Try-catch statement', () => {
         backoff: { initial_delay: 0.5, max_delay: 60, multiplier: 2.5 }
       })
     }`
-    const observed = YAML.parse(transpile(code)) as unknown
 
-    const expected = YAML.parse(`
+    const expected = `
       main:
         steps:
           - try1:
@@ -1658,9 +1644,9 @@ describe('Try-catch statement', () => {
                   - assign1:
                       assign:
                         - __temp: \${log("Error!")}
-    `) as unknown
+    `
 
-    expect(observed).to.deep.equal(expected)
+    assertTranspiled(code, expected)
   })
 
   it('throws if not all custom retry predicate parameters are given', () => {
@@ -1726,9 +1712,8 @@ describe('Try-catch statement', () => {
 
       retry_policy({ policy: http.default_retry })
     }`
-    const observed = YAML.parse(transpile(code)) as unknown
 
-    const expected = YAML.parse(`
+    const expected = `
       main:
         steps:
           - try1:
@@ -1747,9 +1732,9 @@ describe('Try-catch statement', () => {
           - assign2:
               assign:
                 - __temp: \${log("try block completed")}
-    `) as unknown
+    `
 
-    expect(observed).to.deep.equal(expected)
+    assertTranspiled(code, expected)
   })
 
   it('throws on try without a catch', () => {
@@ -1799,16 +1784,15 @@ describe('Try-catch statement', () => {
 describe('Throw statement', () => {
   it('transpiles a throw with a literal string value', () => {
     const code = `function main() { throw "Error!"; }`
-    const observed = YAML.parse(transpile(code)) as unknown
 
-    const expected = YAML.parse(`
+    const expected = `
     main:
       steps:
         - raise1:
             raise: "Error!"
-    `) as unknown
+    `
 
-    expect(observed).to.deep.equal(expected)
+    assertTranspiled(code, expected)
   })
 
   it('transpiles a throw with a literal map value', () => {
@@ -1819,18 +1803,17 @@ describe('Throw statement', () => {
         message: "Access denied"
       };
     }`
-    const observed = YAML.parse(transpile(code)) as unknown
 
-    const expected = YAML.parse(`
+    const expected = `
     main:
       steps:
         - raise1:
             raise:
               code: 98
               message: "Access denied"
-    `) as unknown
+    `
 
-    expect(observed).to.deep.equal(expected)
+    assertTranspiled(code, expected)
   })
 
   it('transpiles a throw with a map value that includes a variable reference', () => {
@@ -1842,9 +1825,8 @@ describe('Throw statement', () => {
         message: "Access denied"
       };
     }`
-    const observed = YAML.parse(transpile(code)) as unknown
 
-    const expected = YAML.parse(`
+    const expected = `
     main:
       steps:
         - assign1:
@@ -1854,25 +1836,24 @@ describe('Throw statement', () => {
             raise:
               code: \${errorCode}
               message: "Access denied"
-    `) as unknown
+    `
 
-    expect(observed).to.deep.equal(expected)
+    assertTranspiled(code, expected)
   })
 
   it('transpiles a throw with an expression', () => {
     const code = `function main(exception) { throw exception; }`
-    const observed = YAML.parse(transpile(code)) as unknown
 
-    const expected = YAML.parse(`
+    const expected = `
     main:
       params:
         - exception
       steps:
         - raise1:
             raise: \${exception}
-    `) as unknown
+    `
 
-    expect(observed).to.deep.equal(expected)
+    assertTranspiled(code, expected)
   })
 })
 
@@ -1886,9 +1867,8 @@ describe('Loops', () => {
       }
       return total;
     }`
-    const observed = YAML.parse(transpile(code)) as unknown
 
-    const expected = YAML.parse(`
+    const expected = `
     main:
       steps:
         - assign1:
@@ -1907,9 +1887,9 @@ describe('Loops', () => {
                       - total: \${total + x}
         - return1:
             return: \${total}
-    `) as unknown
+    `
 
-    expect(observed).to.deep.equal(expected)
+    assertTranspiled(code, expected)
   })
 
   it('transpiles a for loop with identifier as the for loop variable', () => {
@@ -1921,9 +1901,8 @@ describe('Loops', () => {
       }
       return total;
     }`
-    const observed = YAML.parse(transpile(code)) as unknown
 
-    const expected = YAML.parse(`
+    const expected = `
     main:
       steps:
         - assign1:
@@ -1942,9 +1921,9 @@ describe('Loops', () => {
                       - total: \${total + x}
         - return1:
             return: \${total}
-    `) as unknown
+    `
 
-    expect(observed).to.deep.equal(expected)
+    assertTranspiled(code, expected)
   })
 
   it('transpiles a for loop with a let for loop variable', () => {
@@ -1956,9 +1935,8 @@ describe('Loops', () => {
       }
       return total;
     }`
-    const observed = YAML.parse(transpile(code)) as unknown
 
-    const expected = YAML.parse(`
+    const expected = `
     main:
       steps:
         - assign1:
@@ -1977,9 +1955,9 @@ describe('Loops', () => {
                       - total: \${total + x}
         - return1:
             return: \${total}
-    `) as unknown
+    `
 
-    expect(observed).to.deep.equal(expected)
+    assertTranspiled(code, expected)
   })
 
   it('transpiles a for loop with an empty body', () => {
@@ -1988,9 +1966,8 @@ describe('Loops', () => {
       for (const x of [1, 2, 3]) {
       }
     }`
-    const observed = YAML.parse(transpile(code)) as unknown
 
-    const expected = YAML.parse(`
+    const expected = `
     main:
       steps:
         - for1:
@@ -2001,9 +1978,9 @@ describe('Loops', () => {
                 - 2
                 - 3
               steps: []
-    `) as unknown
+    `
 
-    expect(observed).to.deep.equal(expected)
+    assertTranspiled(code, expected)
   })
 
   it('transpiles a for loop over map keys', () => {
@@ -2015,9 +1992,8 @@ describe('Loops', () => {
       }
       return total;
     }`
-    const observed = YAML.parse(transpile(code)) as unknown
 
-    const expected = YAML.parse(`
+    const expected = `
     main:
       params:
         - my_map
@@ -2035,9 +2011,9 @@ describe('Loops', () => {
                       - total: \${total + my_map[key]}
         - return1:
             return: \${total}
-    `) as unknown
+    `
 
-    expect(observed).to.deep.equal(expected)
+    assertTranspiled(code, expected)
   })
 
   it('transpiles a continue in a for loop body', () => {
@@ -2053,9 +2029,8 @@ describe('Loops', () => {
       }
       return total;
     }`
-    const observed = YAML.parse(transpile(code)) as unknown
 
-    const expected = YAML.parse(`
+    const expected = `
     main:
       steps:
         - assign1:
@@ -2079,9 +2054,9 @@ describe('Loops', () => {
                       - total: \${total + x}
         - return1:
             return: \${total}
-    `) as unknown
+    `
 
-    expect(observed).to.deep.equal(expected)
+    assertTranspiled(code, expected)
   })
 
   it('accepts a continue with a label', () => {
@@ -2097,9 +2072,8 @@ describe('Loops', () => {
       }
       return total;
     }`
-    const observed = YAML.parse(transpile(code)) as unknown
 
-    const expected = YAML.parse(`
+    const expected = `
     main:
       steps:
         - assign1:
@@ -2123,9 +2097,9 @@ describe('Loops', () => {
                       - total: \${total + x}
         - return1:
             return: \${total}
-    `) as unknown
+    `
 
-    expect(observed).to.deep.equal(expected)
+    assertTranspiled(code, expected)
   })
 
   it('transpiles a break in a for loop body', () => {
@@ -2141,9 +2115,8 @@ describe('Loops', () => {
       }
       return total;
     }`
-    const observed = YAML.parse(transpile(code)) as unknown
 
-    const expected = YAML.parse(`
+    const expected = `
     main:
       steps:
         - assign1:
@@ -2167,9 +2140,9 @@ describe('Loops', () => {
                       - total: \${total + x}
         - return1:
             return: \${total}
-    `) as unknown
+    `
 
-    expect(observed).to.deep.equal(expected)
+    assertTranspiled(code, expected)
   })
 
   it('accepts a break with a label', () => {
@@ -2185,9 +2158,8 @@ describe('Loops', () => {
       }
       return total;
     }`
-    const observed = YAML.parse(transpile(code)) as unknown
 
-    const expected = YAML.parse(`
+    const expected = `
     main:
       steps:
         - assign1:
@@ -2211,9 +2183,9 @@ describe('Loops', () => {
                       - total: \${total + x}
         - return1:
             return: \${total}
-    `) as unknown
+    `
 
-    expect(observed).to.deep.equal(expected)
+    assertTranspiled(code, expected)
   })
 
   it('transpiles a for loop of a list expression', () => {
@@ -2226,9 +2198,8 @@ describe('Loops', () => {
       }
       return total;
     }`
-    const observed = YAML.parse(transpile(code)) as unknown
 
-    const expected = YAML.parse(`
+    const expected = `
     main:
       steps:
         - assign1:
@@ -2248,9 +2219,9 @@ describe('Loops', () => {
                       - total: \${total + x}
         - return1:
             return: \${total}
-    `) as unknown
+    `
 
-    expect(observed).to.deep.equal(expected)
+    assertTranspiled(code, expected)
   })
 
   it('transpiles a while loop', () => {
@@ -2261,9 +2232,8 @@ describe('Loops', () => {
         i -= 1;
       }
     }`
-    const observed = YAML.parse(transpile(code)) as unknown
 
-    const expected = YAML.parse(`
+    const expected = `
     main:
       steps:
         - assign1:
@@ -2277,9 +2247,35 @@ describe('Loops', () => {
                       assign:
                         - i: \${i - 1}
                       next: switch1
-    `) as unknown
+    `
 
-    expect(observed).to.deep.equal(expected)
+    assertTranspiled(code, expected)
+  })
+
+  it('transpiles a while loop with a single-stetment body', () => {
+    const code = `
+    function main() {
+      const i = 5;
+      while (i > 0) i -= 1;
+    }`
+
+    const expected = `
+    main:
+      steps:
+        - assign1:
+            assign:
+              - i: 5
+        - switch1:
+            switch:
+              - condition: \${i > 0}
+                steps:
+                  - assign2:
+                      assign:
+                        - i: \${i - 1}
+                      next: switch1
+    `
+
+    assertTranspiled(code, expected)
   })
 
   it('transpiles a break in a while loop', () => {
@@ -2300,9 +2296,8 @@ describe('Loops', () => {
 
       return x;
     }`
-    const observed = YAML.parse(transpile(code)) as unknown
 
-    const expected = YAML.parse(`
+    const expected = `
     main:
       steps:
         - assign1:
@@ -2332,9 +2327,9 @@ describe('Loops', () => {
                       next: switch3
         - return1:
             return: \${x}
-    `) as unknown
+    `
 
-    expect(observed).to.deep.equal(expected)
+    assertTranspiled(code, expected)
   })
 
   it('transpiles a break and a while loop as the statement in a block', () => {
@@ -2353,9 +2348,8 @@ describe('Loops', () => {
         }
       }
     }`
-    const observed = YAML.parse(transpile(code)) as unknown
 
-    const expected = YAML.parse(`
+    const expected = `
     main:
       steps:
         - assign1:
@@ -2383,9 +2377,9 @@ describe('Loops', () => {
                                   - x: \${2 * (1 - x)}
                   - next1:
                       next: switch3
-    `) as unknown
+    `
 
-    expect(observed).to.deep.equal(expected)
+    assertTranspiled(code, expected)
   })
 
   it('transpiles a continue in a while loop', () => {
@@ -2403,9 +2397,8 @@ describe('Loops', () => {
 
       return x;
     }`
-    const observed = YAML.parse(transpile(code)) as unknown
 
-    const expected = YAML.parse(`
+    const expected = `
     main:
       steps:
         - assign1:
@@ -2429,9 +2422,9 @@ describe('Loops', () => {
                       next: switch2
         - return1:
             return: \${x}
-    `) as unknown
+    `
 
-    expect(observed).to.deep.equal(expected)
+    assertTranspiled(code, expected)
   })
 
   it('transpiles a do...while loop', () => {
@@ -2442,9 +2435,8 @@ describe('Loops', () => {
         i -= 1;
       } while (i > 0);
     }`
-    const observed = YAML.parse(transpile(code)) as unknown
 
-    const expected = YAML.parse(`
+    const expected = `
     main:
       steps:
         - assign1:
@@ -2457,9 +2449,9 @@ describe('Loops', () => {
             switch:
               - condition: \${i > 0}
                 next: assign2
-    `) as unknown
+    `
 
-    expect(observed).to.deep.equal(expected)
+    assertTranspiled(code, expected)
   })
 
   it('transpiles a break in a do...while loop', () => {
@@ -2480,9 +2472,8 @@ describe('Loops', () => {
 
       return x;
     }`
-    const observed = YAML.parse(transpile(code)) as unknown
 
-    const expected = YAML.parse(`
+    const expected = `
     main:
       steps:
         - assign1:
@@ -2510,9 +2501,9 @@ describe('Loops', () => {
                 next: switch1
         - return1:
             return: \${x}
-    `) as unknown
+    `
 
-    expect(observed).to.deep.equal(expected)
+    assertTranspiled(code, expected)
   })
 
   it('transpiles a break and a do...while loop as the last statement in a block', () => {
@@ -2531,9 +2522,8 @@ describe('Loops', () => {
         }
       } while (x >= 0)
     }`
-    const observed = YAML.parse(transpile(code)) as unknown
 
-    const expected = YAML.parse(`
+    const expected = `
     main:
       steps:
         - assign1:
@@ -2559,9 +2549,9 @@ describe('Loops', () => {
             switch:
               - condition: \${x >= 0}
                 next: switch1
-    `) as unknown
+    `
 
-    expect(observed).to.deep.equal(expected)
+    assertTranspiled(code, expected)
   })
 
   it('transpiles a break in a do...while loop nested in try statement', () => {
@@ -2586,9 +2576,8 @@ describe('Loops', () => {
 
       return x;
     }`
-    const observed = YAML.parse(transpile(code)) as unknown
 
-    const expected = YAML.parse(`
+    const expected = `
     main:
       steps:
         - assign1:
@@ -2625,9 +2614,9 @@ describe('Loops', () => {
                       - x: -1
         - return1:
             return: \${x}
-    `) as unknown
+    `
 
-    expect(observed).to.deep.equal(expected)
+    assertTranspiled(code, expected)
   })
 
   it('transpiles a continue in a do...while loop', () => {
@@ -2645,9 +2634,8 @@ describe('Loops', () => {
 
       return x;
     }`
-    const observed = YAML.parse(transpile(code)) as unknown
 
-    const expected = YAML.parse(`
+    const expected = `
     main:
       steps:
         - assign1:
@@ -2670,9 +2658,9 @@ describe('Loops', () => {
                 next: switch1
         - return1:
             return: \${x}
-    `) as unknown
+    `
 
-    expect(observed).to.deep.equal(expected)
+    assertTranspiled(code, expected)
   })
 
   it('fails to parse for...of a number', () => {
@@ -2732,9 +2720,8 @@ describe('Parallel step', () => {
         },
       ]);
     }`
-    const observed = YAML.parse(transpile(code)) as unknown
 
-    const expected = YAML.parse(`
+    const expected = `
     main:
       steps:
         - parallel1:
@@ -2755,9 +2742,9 @@ describe('Parallel step', () => {
                       - assign3:
                           assign:
                             - __temp: \${log("Hello from branch 3")}
-    `) as unknown
+    `
 
-    expect(observed).to.deep.equal(expected)
+    assertTranspiled(code, expected)
   })
 
   it('calls subworkflows by name', () => {
@@ -2773,9 +2760,8 @@ describe('Parallel step', () => {
     function branch2() {
       return "B";
     }`
-    const observed = YAML.parse(transpile(code)) as unknown
 
-    const expected = YAML.parse(`
+    const expected = `
     main:
       steps:
         - parallel1:
@@ -2799,9 +2785,9 @@ describe('Parallel step', () => {
       steps:
         - return2:
             return: "B"
-    `) as unknown
+    `
 
-    expect(observed).to.deep.equal(expected)
+    assertTranspiled(code, expected)
   })
 
   it('handles optional shared variables parameter', () => {
@@ -2819,9 +2805,8 @@ describe('Parallel step', () => {
       ],
       { shared: ["results"] });
     }`
-    const observed = YAML.parse(transpile(code)) as unknown
 
-    const expected = YAML.parse(`
+    const expected = `
     main:
       steps:
         - assign1:
@@ -2842,9 +2827,9 @@ describe('Parallel step', () => {
                       - assign3:
                           assign:
                             - results.branch2: hello from branch 2
-    `) as unknown
+    `
 
-    expect(observed).to.deep.equal(expected)
+    assertTranspiled(code, expected)
   })
 
   it('handles optional shared variables, exception policy and concurrency limit', () => {
@@ -2865,9 +2850,8 @@ describe('Parallel step', () => {
         concurrency_limit: 2
       });
     }`
-    const observed = YAML.parse(transpile(code)) as unknown
 
-    const expected = YAML.parse(`
+    const expected = `
     main:
       steps:
         - assign1:
@@ -2890,9 +2874,9 @@ describe('Parallel step', () => {
                       - assign3:
                           assign:
                             - results.branch2: hello from branch 2
-    `) as unknown
+    `
 
-    expect(observed).to.deep.equal(expected)
+    assertTranspiled(code, expected)
   })
 
   it('rejects invalid types in optional parameters', () => {
@@ -2920,9 +2904,8 @@ describe('Parallel step', () => {
         { shared: ["total"] }
       );
     }`
-    const observed = YAML.parse(transpile(code)) as unknown
 
-    const expected = YAML.parse(`
+    const expected = `
     main:
       steps:
         - assign1:
@@ -2943,9 +2926,9 @@ describe('Parallel step', () => {
                   - assign2:
                       assign:
                         - total: \${total + getBalance(acccountId)}
-    `) as unknown
+    `
 
-    expect(observed).to.deep.equal(expected)
+    assertTranspiled(code, expected)
   })
 
   it('throws if an arrow function contains something else in addition to a for loop', () => {
@@ -2993,9 +2976,8 @@ describe('Labelled statement', () => {
         nonpositive: return "x is not positive"
       }
     }`
-    const observed = YAML.parse(transpile(code)) as unknown
 
-    const expected = YAML.parse(`
+    const expected = `
     signString:
       params:
         - x
@@ -3010,9 +2992,9 @@ describe('Labelled statement', () => {
                 steps:
                   - nonpositive:
                       return: x is not positive
-    `) as unknown
+    `
 
-    expect(observed).to.deep.equal(expected)
+    assertTranspiled(code, expected)
   })
 })
 
@@ -3022,18 +3004,17 @@ describe('Runtime functions', () => {
     function main(x) {
       return Array.isArray(x)
     }`
-    const observed = YAML.parse(transpile(code)) as unknown
 
-    const expected = YAML.parse(`
+    const expected = `
     main:
       params:
         - x
       steps:
         - return1:
             return: \${get_type(x) == "list"}
-    `) as unknown
+    `
 
-    expect(observed).to.deep.equal(expected)
+    assertTranspiled(code, expected)
   })
 })
 
@@ -3066,3 +3047,7 @@ describe('Sample source files', () => {
     })
   })
 })
+
+function assertTranspiled(code: string, expected: string): void {
+  expect(YAML.parse(transpile(code))).to.deep.equal(YAML.parse(expected))
+}
