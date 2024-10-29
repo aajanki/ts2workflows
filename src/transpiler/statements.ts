@@ -279,15 +279,13 @@ function getBlockingCallParameters(
 ):
   | { isBlockingCall: false }
   | { isBlockingCall: true; functionName: string; argumentNames: string[] } {
-  if (node.type === AST_NODE_TYPES.CallExpression) {
-    const functionName = convertExpression(node.callee).toString()
-    const argumentNames = blockingFunctions.get(functionName)
-    if (argumentNames) {
-      return { isBlockingCall: true, functionName, argumentNames }
-    }
+  const functionName = convertExpression(node.callee).toString()
+  const argumentNames = blockingFunctions.get(functionName)
+  if (argumentNames) {
+    return { isBlockingCall: true, functionName, argumentNames }
+  } else {
+    return { isBlockingCall: false }
   }
-
-  return { isBlockingCall: false }
 }
 
 function callExpressionToStep(
