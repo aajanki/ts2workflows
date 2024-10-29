@@ -597,6 +597,38 @@ describe('Call statement', () => {
     assertTranspiled(code, expected)
   })
 
+  it('call_step() with a return value assigned to a member variable', () => {
+    const code = `function main() {
+      const data = {}
+      data.response = call_step(http.post, {
+        url: "https://visit.dreamland.test/",
+        body: {
+          "user": "bean"
+        }
+      })
+    }`
+
+    const expected = `
+    main:
+      steps:
+        - assign1:
+            assign:
+              - data: {}
+        - call_http_post_1:
+            call: http.post
+            args:
+              url: https://visit.dreamland.test/
+              body:
+                user: bean
+            result: __temp
+        - assign2:
+            assign:
+              - data.response: \${__temp}
+    `
+
+    assertTranspiled(code, expected)
+  })
+
   it('call_step() without arguments', () => {
     const code = `function main() {
       const timestamp = call_step(sys.now)
@@ -1775,6 +1807,21 @@ describe('Try-catch statement', () => {
           return "Not found";
         }
       }
+    }`
+
+    expect(() => transpile(code)).to.throw()
+  })
+
+  it("retry_policy() can't be used in expression", () => {
+    const code = `
+    function main() {
+      try {
+        const response = http.get("https://visit.dreamland.test/");
+        return response;
+      } catch {
+        log("Error!");
+      }
+      const x = 1 + retry_policy({ policy: http.default_retry })
     }`
 
     expect(() => transpile(code)).to.throw()
@@ -2961,6 +3008,23 @@ describe('Parallel step', () => {
         { shared: ["total"] }
       );
     }`
+
+    expect(() => transpile(code)).to.throw()
+  })
+
+  it("parallel() can't be used in expression", () => {
+    const code = `
+      function main() {
+        const result = "result: " + parallel([
+          () => {
+            return "branch 1";
+          },
+          () => {
+            return "branch 2";
+          },
+        ]);
+      }
+    `
 
     expect(() => transpile(code)).to.throw()
   })

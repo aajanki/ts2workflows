@@ -36,6 +36,7 @@ import {
   convertMemberExpression,
   convertObjectExpression,
   convertObjectAsExpressionValues,
+  isMagicFunction,
 } from './expressions.js'
 import { blockingFunctions } from './generated/functionMetadata.js'
 
@@ -70,9 +71,9 @@ function parseStatementRecursively(
 
     case AST_NODE_TYPES.ExpressionStatement:
       if (node.expression.type === AST_NODE_TYPES.AssignmentExpression) {
-        return assignmentExpressionToSteps(node.expression)
+        return assignmentExpressionToSteps(node.expression, ctx)
       } else if (node.expression.type === AST_NODE_TYPES.CallExpression) {
-        return [callExpressionToStep(node.expression, ctx)]
+        return [callExpressionToStep(node.expression, undefined, ctx)]
       } else {
         return [generalExpressionToAssignStep(node.expression)]
       }
@@ -184,6 +185,7 @@ function convertVariableDeclarations(
 
 function assignmentExpressionToSteps(
   node: TSESTree.AssignmentExpression,
+  ctx: ParsingContext,
 ): WorkflowStepAST[] {
   let compoundOperator: BinaryOperator | undefined = undefined
   switch (node.operator) {
@@ -235,8 +237,29 @@ function assignmentExpressionToSteps(
     )
   }
 
+  let valueExpression: Expression
+  const steps: WorkflowStepAST[] = []
   const targetName = targetExpression.toString()
-  let valueExpression: Expression = convertExpression(node.right)
+
+  if (
+    node.right.type === AST_NODE_TYPES.CallExpression &&
+    node.right.callee.type === AST_NODE_TYPES.Identifier &&
+    isMagicFunction(node.right.callee.name)
+  ) {
+    const needsTempVariable =
+      compoundOperator === undefined ||
+      node.left.type !== AST_NODE_TYPES.Identifier
+    const resultVariable = needsTempVariable ? '__temp' : targetName
+    steps.push(callExpressionToStep(node.right, resultVariable, ctx))
+
+    if (!needsTempVariable) {
+      return steps
+    }
+
+    valueExpression = new VariableReferenceExpression('__temp')
+  } else {
+    valueExpression = convertExpression(node.right)
+  }
 
   if (compoundOperator) {
     valueExpression = new BinaryExpression(
@@ -246,7 +269,9 @@ function assignmentExpressionToSteps(
     )
   }
 
-  return [new AssignStepAST([[targetName, valueExpression]])]
+  steps.push(new AssignStepAST([[targetName, valueExpression]]))
+
+  return steps
 }
 
 function getBlockingCallParameters(
@@ -267,6 +292,7 @@ function getBlockingCallParameters(
 
 function callExpressionToStep(
   node: TSESTree.CallExpression,
+  resultVariable: string | undefined,
   ctx: ParsingContext,
 ): WorkflowStepAST {
   const calleeExpression = convertExpression(node.callee)
@@ -277,14 +303,27 @@ function callExpressionToStep(
       // A custom implementation for "parallel"
       return callExpressionToParallelStep(node, ctx)
     } else if (calleeName === 'retry_policy') {
-      return callExpressionToCallStep(calleeName, node.arguments)
+      return callExpressionToCallStep(
+        calleeName,
+        node.arguments,
+        resultVariable,
+      )
     } else if (calleeName === 'call_step') {
-      return createCallStep(node.arguments)
+      return createCallStep(node.arguments, resultVariable)
     } else if (blockingFunctions.has(calleeName)) {
       const argumentNames = blockingFunctions.get(calleeName) ?? []
-      return blockingFunctionCallStep(calleeName, argumentNames, node.arguments)
+      return blockingFunctionCallStep(
+        calleeName,
+        argumentNames,
+        node.arguments,
+        resultVariable,
+      )
     } else {
-      return callExpressionAssignStep(calleeName, node.arguments)
+      return callExpressionAssignStep(
+        calleeName,
+        node.arguments,
+        resultVariable,
+      )
     }
   } else {
     throw new WorkflowSyntaxError(
@@ -297,6 +336,7 @@ function callExpressionToStep(
 function callExpressionAssignStep(
   functionName: string,
   argumentsNode: TSESTree.CallExpressionArgument[],
+  resultVariable?: VariableName,
 ): AssignStepAST {
   const unsupported = argumentsNode.find(
     (x) => x.type === AST_NODE_TYPES.SpreadElement,
@@ -314,7 +354,7 @@ function callExpressionAssignStep(
 
   return new AssignStepAST([
     [
-      '__temp',
+      resultVariable ?? '__temp',
       new FunctionInvocationExpression(functionName, argumentExpressions),
     ],
   ])
@@ -323,6 +363,7 @@ function callExpressionAssignStep(
 function callExpressionToCallStep(
   functionName: string,
   argumentsNode: TSESTree.CallExpressionArgument[],
+  resultVariable?: VariableName,
 ): CallStepAST {
   if (
     argumentsNode.length < 1 ||
@@ -336,7 +377,7 @@ function callExpressionToCallStep(
 
   const workflowArguments = convertObjectAsExpressionValues(argumentsNode[0])
 
-  return new CallStepAST(functionName, workflowArguments)
+  return new CallStepAST(functionName, workflowArguments, resultVariable)
 }
 
 function createCallStep(

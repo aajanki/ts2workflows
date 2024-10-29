@@ -450,17 +450,32 @@ function convertCallExpression(node: TSESTree.CallExpression): Expression {
       )
     }
 
+    const calleeName = calleeExpression.toString()
+    if (isMagicFunction(calleeName)) {
+      let msg: string
+      if (calleeName === 'call_step') {
+        msg =
+          'Calling call_step as part of an expression is not yet implemented'
+      } else {
+        msg = `"${calleeName}" can't be called as an expression`
+      }
+
+      throw new WorkflowSyntaxError(msg, node.callee.loc)
+    }
+
     const argumentExpressions = node.arguments
       .filter((arg) => arg.type !== AST_NODE_TYPES.SpreadElement)
       .map(convertExpression)
 
-    return new FunctionInvocationExpression(
-      calleeExpression.toString(),
-      argumentExpressions,
-    )
+    return new FunctionInvocationExpression(calleeName, argumentExpressions)
   } else {
     throw new WorkflowSyntaxError('Callee should be a qualified name', node.loc)
   }
+}
+
+export function isMagicFunction(calleeName: string): boolean {
+  const magicFunctions = ['parallel', 'retry_policy', 'call_step']
+  return magicFunctions.includes(calleeName)
 }
 
 function convertConditionalExpression(

@@ -4,6 +4,7 @@
 - Non-null assertions person!.name is accepted but ignored to the transpiler
 - Merge a next step to a preceeding assign step
 - Accept a single-statement body (body without braces {}) in if, while, etc
+- Assign the result of call_step() to a member variable: obj.property = call_step()
 - Better error messages on RegExp, BigInt, spread syntax and other non-supported Javascript features
 
 Version 0.3.0 - 2024-10-19
