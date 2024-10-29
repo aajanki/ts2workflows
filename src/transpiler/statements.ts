@@ -37,6 +37,7 @@ import {
   convertObjectExpression,
   convertObjectAsExpressionValues,
   isMagicFunction,
+  throwIfSpread,
 } from './expressions.js'
 import { blockingFunctions } from './generated/functionMetadata.js'
 
@@ -307,19 +308,8 @@ function callExpressionAssignStep(
   argumentsNode: TSESTree.CallExpressionArgument[],
   resultVariable?: VariableName,
 ): AssignStepAST {
-  const unsupported = argumentsNode.find(
-    (x) => x.type === AST_NODE_TYPES.SpreadElement,
-  )
-  if (unsupported) {
-    throw new WorkflowSyntaxError(
-      'The spread syntax is not supported',
-      unsupported.loc,
-    )
-  }
-
-  const argumentExpressions = argumentsNode
-    .filter((x) => x.type !== AST_NODE_TYPES.SpreadElement)
-    .map(convertExpression)
+  const argumentExpressions =
+    throwIfSpread(argumentsNode).map(convertExpression)
 
   return new AssignStepAST([
     [
@@ -402,19 +392,8 @@ function blockingFunctionCallStep(
   argumentsNode: TSESTree.CallExpressionArgument[],
   resultName?: string,
 ): CallStepAST {
-  const unsupported = argumentsNode.find(
-    (x) => x.type === AST_NODE_TYPES.SpreadElement,
-  )
-  if (unsupported) {
-    throw new WorkflowSyntaxError(
-      'The spread syntax is not supported',
-      unsupported.loc,
-    )
-  }
-
-  const argumentExpressions = argumentsNode
-    .filter((x) => x.type !== AST_NODE_TYPES.SpreadElement)
-    .map(convertExpression)
+  const argumentExpressions =
+    throwIfSpread(argumentsNode).map(convertExpression)
   const args: Record<string, Expression> = Object.fromEntries(
     argumentNames.flatMap((argName, i) => {
       if (i >= argumentExpressions.length) {

@@ -26,48 +26,36 @@ export function convertExpression(instance: TSESTree.Expression): Expression {
 export function convertObjectExpression(
   node: TSESTree.ObjectExpression,
 ): Record<string, Primitive | Expression> {
-  const unsupported = node.properties.find(
-    (prop) => prop.type === AST_NODE_TYPES.SpreadElement,
-  )
-  if (unsupported) {
-    throw new WorkflowSyntaxError(
-      'The spread syntax is not supported',
-      unsupported.loc,
-    )
-  }
-
   return Object.fromEntries(
-    node.properties
-      .filter((prop) => prop.type !== AST_NODE_TYPES.SpreadElement)
-      .map(({ key, value }) => {
-        let keyPrimitive: string
-        if (key.type === AST_NODE_TYPES.Identifier) {
-          keyPrimitive = key.name
-        } else if (key.type === AST_NODE_TYPES.Literal) {
-          if (typeof key.value === 'string') {
-            keyPrimitive = key.value
-          } else {
-            throw new WorkflowSyntaxError(
-              `Map keys must be identifiers or strings, encountered: ${typeof key.value}`,
-              key.loc,
-            )
-          }
+    throwIfSpread(node.properties).map(({ key, value }) => {
+      let keyPrimitive: string
+      if (key.type === AST_NODE_TYPES.Identifier) {
+        keyPrimitive = key.name
+      } else if (key.type === AST_NODE_TYPES.Literal) {
+        if (typeof key.value === 'string') {
+          keyPrimitive = key.value
         } else {
           throw new WorkflowSyntaxError(
-            `Not implemented object key type: ${key.type}`,
+            `Map keys must be identifiers or strings, encountered: ${typeof key.value}`,
             key.loc,
           )
         }
+      } else {
+        throw new WorkflowSyntaxError(
+          `Not implemented object key type: ${key.type}`,
+          key.loc,
+        )
+      }
 
-        if (
-          value.type === AST_NODE_TYPES.AssignmentPattern ||
-          value.type === AST_NODE_TYPES.TSEmptyBodyFunctionExpression
-        ) {
-          throw new WorkflowSyntaxError('Value not supported', value.loc)
-        }
+      if (
+        value.type === AST_NODE_TYPES.AssignmentPattern ||
+        value.type === AST_NODE_TYPES.TSEmptyBodyFunctionExpression
+      ) {
+        throw new WorkflowSyntaxError('Value not supported', value.loc)
+      }
 
-        return [keyPrimitive, convertExpressionOrPrimitive(value)]
-      }),
+      return [keyPrimitive, convertExpressionOrPrimitive(value)]
+    }),
   )
 }
 
@@ -156,23 +144,11 @@ function convertExpressionOrPrimitive(
 }
 
 function convertArrayExpression(instance: TSESTree.ArrayExpression) {
-  const unsupported = instance.elements.find(
-    (e) => e?.type === AST_NODE_TYPES.SpreadElement,
+  return throwIfSpread(instance.elements).map((e) =>
+    e === null
+      ? new PrimitiveExpression(null)
+      : convertExpressionOrPrimitive(e),
   )
-  if (unsupported) {
-    throw new WorkflowSyntaxError(
-      'The spread syntax is not supported',
-      unsupported.loc,
-    )
-  }
-
-  return instance.elements
-    .filter((e) => e?.type !== AST_NODE_TYPES.SpreadElement)
-    .map((e) =>
-      e === null
-        ? new PrimitiveExpression(null)
-        : convertExpressionOrPrimitive(e),
-    )
 }
 
 function convertBinaryExpression(
@@ -440,16 +416,6 @@ function convertCallExpression(node: TSESTree.CallExpression): Expression {
 
   const calleeExpression = convertExpression(node.callee)
   if (isFullyQualifiedName(calleeExpression)) {
-    const unsupported = node.arguments.find(
-      (arg) => arg.type === AST_NODE_TYPES.SpreadElement,
-    )
-    if (unsupported) {
-      throw new WorkflowSyntaxError(
-        'The spread syntax is not supported',
-        unsupported.loc,
-      )
-    }
-
     const calleeName = calleeExpression.toString()
     if (isMagicFunction(calleeName)) {
       let msg: string
@@ -457,15 +423,15 @@ function convertCallExpression(node: TSESTree.CallExpression): Expression {
         msg =
           'Calling call_step as part of an expression is not yet implemented'
       } else {
-        msg = `"${calleeName}" can't be called as an expression`
+        msg = `"${calleeName}" can't be called as part of an expression`
       }
 
       throw new WorkflowSyntaxError(msg, node.callee.loc)
     }
 
-    const argumentExpressions = node.arguments
-      .filter((arg) => arg.type !== AST_NODE_TYPES.SpreadElement)
-      .map(convertExpression)
+    const argumentExpressions = throwIfSpread(node.arguments).map(
+      convertExpression,
+    )
 
     return new FunctionInvocationExpression(calleeName, argumentExpressions)
   } else {
@@ -520,4 +486,28 @@ function convertTemplateLiteralToExpression(
       return new BinaryExpression(previous, '+', current)
     })
   }
+}
+
+export function throwIfSpread<
+  T extends
+    | TSESTree.Expression
+    | TSESTree.Property
+    | TSESTree.SpreadElement
+    | null,
+>(nodes: T[]): Exclude<T, TSESTree.SpreadElement>[] {
+  const unsupported = nodes.find(
+    (x) => x?.type === AST_NODE_TYPES.SpreadElement,
+  )
+  if (unsupported) {
+    throw new WorkflowSyntaxError(
+      'The spread syntax is not supported',
+      unsupported.loc,
+    )
+  }
+
+  const argumentExpressions = nodes.filter(
+    (x) => x?.type !== AST_NODE_TYPES.SpreadElement,
+  ) as Exclude<T, TSESTree.SpreadElement>[]
+
+  return argumentExpressions
 }
