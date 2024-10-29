@@ -67,7 +67,7 @@ function parseStatementRecursively(
       )
 
     case AST_NODE_TYPES.VariableDeclaration:
-      return convertVariableDeclarations(node.declarations)
+      return convertVariableDeclarations(node.declarations, ctx)
 
     case AST_NODE_TYPES.ExpressionStatement:
       if (node.expression.type === AST_NODE_TYPES.AssignmentExpression) {
@@ -142,6 +142,7 @@ function parseStatementRecursively(
 
 function convertVariableDeclarations(
   declarations: TSESTree.LetOrConstOrVarDeclarator[],
+  ctx: ParsingContext,
 ): WorkflowStepAST[] {
   return declarations.map((decl) => {
     if (decl.type !== AST_NODE_TYPES.VariableDeclarator) {
@@ -154,31 +155,15 @@ function convertVariableDeclarations(
 
     const targetName = decl.id.name
 
-    if (!decl.init) {
-      return new AssignStepAST([[targetName, new PrimitiveExpression(null)]])
-    } else if (decl.init.type === AST_NODE_TYPES.CallExpression) {
-      const maybeBlockingcall = getBlockingCallParameters(decl.init)
-
-      if (maybeBlockingcall.isBlockingCall) {
-        // This branch could be removed. The transform step for extracting
-        // blocking function would take care of this, but it creates an
-        // unnecessary temporary variable assignment step.
-        return blockingFunctionCallStep(
-          maybeBlockingcall.functionName,
-          maybeBlockingcall.argumentNames,
-          decl.init.arguments,
-          targetName,
-        )
-      } else if (
-        decl.init.callee.type === AST_NODE_TYPES.Identifier &&
-        decl.init.callee.name === 'call_step'
-      ) {
-        return createCallStep(decl.init.arguments, targetName)
-      } else {
-        return new AssignStepAST([[targetName, convertExpression(decl.init)]])
-      }
+    if (decl.init?.type === AST_NODE_TYPES.CallExpression) {
+      return callExpressionToStep(decl.init, targetName, ctx)
     } else {
-      return new AssignStepAST([[targetName, convertExpression(decl.init)]])
+      const value =
+        decl.init == null
+          ? new PrimitiveExpression(null)
+          : convertExpression(decl.init)
+
+      return new AssignStepAST([[targetName, value]])
     }
   })
 }
@@ -272,20 +257,6 @@ function assignmentExpressionToSteps(
   steps.push(new AssignStepAST([[targetName, valueExpression]]))
 
   return steps
-}
-
-function getBlockingCallParameters(
-  node: TSESTree.CallExpression,
-):
-  | { isBlockingCall: false }
-  | { isBlockingCall: true; functionName: string; argumentNames: string[] } {
-  const functionName = convertExpression(node.callee).toString()
-  const argumentNames = blockingFunctions.get(functionName)
-  if (argumentNames) {
-    return { isBlockingCall: true, functionName, argumentNames }
-  } else {
-    return { isBlockingCall: false }
-  }
 }
 
 function callExpressionToStep(
