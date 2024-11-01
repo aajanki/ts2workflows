@@ -108,7 +108,7 @@ export class AssignStepAST {
   }
 
   withLabel(newLabel?: string): AssignStepAST {
-    return new AssignStepAST(this.assignments, newLabel)
+    return new AssignStepAST(this.assignments, this.next, newLabel)
   }
 }
 
