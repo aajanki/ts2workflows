@@ -2299,7 +2299,7 @@ describe('Loops', () => {
     assertTranspiled(code, expected)
   })
 
-  it('transpiles a while loop with a single-stetment body', () => {
+  it('transpiles a while loop with a single-statement body', () => {
     const code = `
     function main() {
       const i = 5;
@@ -2350,15 +2350,15 @@ describe('Loops', () => {
         - assign1:
             assign:
               - x: 0.11
-        - switch3:
+        - switch1:
             switch:
               - condition: \${x >= 0}
                 steps:
-                  - switch1:
+                  - switch2:
                       switch:
                         - condition: \${x > 0.9}
                           next: return1
-                  - switch2:
+                  - switch3:
                       switch:
                         - condition: \${x < 0.5}
                           steps:
@@ -2371,7 +2371,7 @@ describe('Loops', () => {
                                 assign:
                                   - x: \${2 * (1 - x)}
                   - next1:
-                      next: switch3
+                      next: switch1
         - return1:
             return: \${x}
     `
@@ -2379,7 +2379,7 @@ describe('Loops', () => {
     assertTranspiled(code, expected)
   })
 
-  it('transpiles a break and a while loop as the statement in a block', () => {
+  it('transpiles a break and a while loop as the last statement in a block', () => {
     const code = `
     function main() {
       const x = 0.11;
@@ -2402,15 +2402,15 @@ describe('Loops', () => {
         - assign1:
             assign:
               - x: 0.11
-        - switch3:
+        - switch1:
             switch:
               - condition: \${x >= 0}
                 steps:
-                  - switch1:
+                  - switch2:
                       switch:
                         - condition: \${x > 0.9}
                           next: end
-                  - switch2:
+                  - switch3:
                       switch:
                         - condition: \${x < 0.5}
                           steps:
@@ -2423,7 +2423,7 @@ describe('Loops', () => {
                                 assign:
                                   - x: \${2 * (1 - x)}
                   - next1:
-                      next: switch3
+                      next: switch1
     `
 
     assertTranspiled(code, expected)
@@ -2451,22 +2451,22 @@ describe('Loops', () => {
         - assign1:
             assign:
               - x: 0.11
-        - switch2:
+        - switch1:
             switch:
               - condition: \${x < 0.9}
                 steps:
-                  - switch1:
+                  - switch2:
                       switch:
                         - condition: \${x < 0.5}
                           steps:
                             - assign2:
                                 assign:
                                   - x: \${x * 2}
-                                next: switch2
+                                next: switch1
                   - assign3:
                       assign:
                         - x: \${2 * (1 - x)}
-                      next: switch2
+                      next: switch1
         - return1:
             return: \${x}
     `

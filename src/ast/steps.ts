@@ -516,6 +516,7 @@ function namedStepsParallel(
   generateName: (prefix: string) => string,
 ) {
   let steps: Record<StepName, StepsStepASTNamed> | ForStepASTNamed
+  const mainLabel = step.label ?? generateName('parallel')
   if (!isRecord(step.steps)) {
     const forStep = namedSteps(step.steps, generateName).step
 
@@ -536,7 +537,7 @@ function namedStepsParallel(
   }
 
   return {
-    name: step.label ?? generateName('parallel'),
+    name: mainLabel,
     step: new ParallelStepASTNamed(
       steps,
       step.shared,
@@ -562,6 +563,7 @@ function namedStepsSwitch(
   step: SwitchStepAST,
   generateName: (prefix: string) => string,
 ): NamedWorkflowStep {
+  const mainLabel = step.label ?? generateName('switch')
   const namedBranches = step.branches.map((branch) => ({
     condition: branch.condition,
     steps: branch.steps.map((nested) => namedSteps(nested, generateName)),
@@ -569,7 +571,7 @@ function namedStepsSwitch(
   }))
 
   return {
-    name: step.label ?? generateName('switch'),
+    name: mainLabel,
     step: new SwitchStepASTNamed(namedBranches),
   }
 }
@@ -578,6 +580,7 @@ function namedStepsTry(
   step: TryStepAST,
   generateName: (prefix: string) => string,
 ) {
+  const mainLabel = step.label ?? generateName('try')
   const namedTrySteps = step.trySteps.map((nested) =>
     namedSteps(nested, generateName),
   )
@@ -586,7 +589,7 @@ function namedStepsTry(
   )
 
   return {
-    name: step.label ?? generateName('try'),
+    name: mainLabel,
     step: new TryStepASTNamed(
       namedTrySteps,
       namedExceptSteps,
