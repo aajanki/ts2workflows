@@ -147,10 +147,6 @@ function convertVariableDeclarations(
   ctx: ParsingContext,
 ): WorkflowStepAST[] {
   return declarations.map((decl) => {
-    if (decl.type !== AST_NODE_TYPES.VariableDeclarator) {
-      throw new WorkflowSyntaxError('Not a VariableDeclarator', decl.loc)
-    }
-
     if (decl.id.type !== AST_NODE_TYPES.Identifier) {
       throw new WorkflowSyntaxError('Expected Identifier', decl.loc)
     }
