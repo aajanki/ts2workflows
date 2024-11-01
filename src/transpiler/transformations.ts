@@ -68,6 +68,7 @@ function mergeAssignSteps(steps: WorkflowStepAST[]): WorkflowStepAST[] {
       const merged = new AssignStepAST(
         prev.assignments.concat(current.assignments),
         current.next,
+        prev.label ?? current.label,
       )
 
       acc.pop()

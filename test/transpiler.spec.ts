@@ -3094,6 +3094,29 @@ describe('Labelled statement', () => {
 
     assertTranspiled(code, expected)
   })
+
+  it('takes the first label when combining assignment steps', () => {
+    const code = `
+    function test() {
+      var a = 1
+      var b = 2
+      setImportantVariable: var c = 3
+      setAnotherVariable: var d = 4
+    }`
+
+    const expected = `
+    test:
+      steps:
+        - setImportantVariable:
+            assign:
+              - a: 1
+              - b: 2
+              - c: 3
+              - d: 4
+    `
+
+    assertTranspiled(code, expected)
+  })
 })
 
 describe('Runtime functions', () => {
