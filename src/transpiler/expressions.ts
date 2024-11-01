@@ -444,6 +444,11 @@ export function isMagicFunction(calleeName: string): boolean {
   return magicFunctions.includes(calleeName)
 }
 
+export function isMagicFunctionStatmentOnly(calleeName: string): boolean {
+  const statementNames = ['parallel', 'retry_policy']
+  return statementNames.includes(calleeName)
+}
+
 function convertConditionalExpression(
   node: TSESTree.ConditionalExpression,
 ): Expression {

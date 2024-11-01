@@ -38,6 +38,7 @@ import {
   convertObjectAsExpressionValues,
   isMagicFunction,
   throwIfSpread,
+  isMagicFunctionStatmentOnly,
 } from './expressions.js'
 import { blockingFunctions } from './generated/functionMetadata.js'
 
@@ -157,6 +158,17 @@ function convertVariableDeclarations(
     const targetName = decl.id.name
 
     if (decl.init?.type === AST_NODE_TYPES.CallExpression) {
+      const calleeName =
+        decl.init.callee.type === AST_NODE_TYPES.Identifier
+          ? decl.init.callee.name
+          : undefined
+      if (calleeName && isMagicFunctionStatmentOnly(calleeName)) {
+        throw new WorkflowSyntaxError(
+          `"${calleeName}" can't be called as part of an expression`,
+          decl.init.callee.loc,
+        )
+      }
+
       return callExpressionToStep(decl.init, targetName, ctx)
     } else {
       const value =
@@ -232,6 +244,14 @@ function assignmentExpressionToSteps(
     node.right.callee.type === AST_NODE_TYPES.Identifier &&
     isMagicFunction(node.right.callee.name)
   ) {
+    const calleeName = node.right.callee.name
+    if (isMagicFunctionStatmentOnly(calleeName)) {
+      throw new WorkflowSyntaxError(
+        `"${calleeName}" can't be called as part of an expression`,
+        node.right.callee.loc,
+      )
+    }
+
     const needsTempVariable =
       compoundOperator === undefined ||
       node.left.type !== AST_NODE_TYPES.Identifier

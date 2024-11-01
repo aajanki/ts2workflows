@@ -3012,6 +3012,22 @@ describe('Parallel step', () => {
     expect(() => transpile(code)).to.throw()
   })
 
+  it("the return value of parallel() can't be assigned to a variable", () => {
+    const code = `
+      function main() {
+          const result = parallel([
+          () => {
+            return "branch 1";
+          },
+          () => {
+            return "branch 2";
+          },
+        ]);
+      }`
+
+    expect(() => transpile(code)).to.throw()
+  })
+
   it("parallel() can't be used in expression", () => {
     const code = `
       function main() {
@@ -3025,6 +3041,24 @@ describe('Parallel step', () => {
         ]);
       }
     `
+
+    expect(() => transpile(code)).to.throw()
+  })
+
+  it("parallel() can't be used in expression 2", () => {
+    const code = `
+      function main() {
+        return {
+          result: parallel([
+            () => {
+              return "branch 1";
+            },
+            () => {
+              return "branch 2";
+            },
+          ])
+        };
+      }`
 
     expect(() => transpile(code)).to.throw()
   })
