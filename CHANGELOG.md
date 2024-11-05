@@ -1,10 +1,11 @@
-<unreleased>
+Version 0.4.0 - 2024-11-05
 
 - Optional chaining a?.b is converted to map.get(a, "b")
 - Non-null assertions person!.name is accepted but ignored to the transpiler
 - Merge a next step to a preceeding assign step
 - Accept a single-statement body (body without braces {}) in if, while, etc
 - Assign the result of call_step() to a member variable: obj.property = call_step()
+- parallel() and retry_policy() special functions can only be used as statements
 - Better error messages on RegExp, BigInt, spread syntax and other non-supported Javascript features
 
 Version 0.3.0 - 2024-10-19
