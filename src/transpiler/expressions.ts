@@ -13,6 +13,7 @@ import {
   isFullyQualifiedName,
 } from '../ast/expressions.js'
 import { InternalTranspilingError, WorkflowSyntaxError } from '../errors.js'
+import { mapRecordValues } from '../utils.js'
 
 export function convertExpression(instance: TSESTree.Expression): Expression {
   const expOrPrimitive = convertExpressionOrPrimitive(instance)
@@ -62,14 +63,9 @@ export function convertObjectExpression(
 export function convertObjectAsExpressionValues(
   node: TSESTree.ObjectExpression,
 ): Record<string, Expression> {
-  const primitiveOrExpArguments = convertObjectExpression(node)
-
   // Convert Primitive values to PrimitiveExpressions
-  return Object.fromEntries(
-    Object.entries(primitiveOrExpArguments).map(([key, val]) => {
-      const valEx = isExpression(val) ? val : new PrimitiveExpression(val)
-      return [key, valEx]
-    }),
+  return mapRecordValues(convertObjectExpression(node), (val) =>
+    isExpression(val) ? val : new PrimitiveExpression(val),
   )
 }
 

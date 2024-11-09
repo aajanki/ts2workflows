@@ -1,4 +1,4 @@
-import { isRecord } from '../utils.js'
+import { isRecord, mapRecordValues } from '../utils.js'
 import {
   Expression,
   VariableName,
@@ -528,12 +528,10 @@ function namedStepsParallel(
 
     steps = forStep
   } else {
-    steps = Object.fromEntries(
-      Object.entries(step.steps).map(([name, nested]) => {
-        const named = nested.steps.map((x) => namedSteps(x, generateName))
-        return [name, new StepsStepASTNamed(named)]
-      }),
-    )
+    steps = mapRecordValues(step.steps, (step) => {
+      const named = step.steps.map((x) => namedSteps(x, generateName))
+      return new StepsStepASTNamed(named)
+    })
   }
 
   return {
@@ -743,10 +741,8 @@ function renderCallStep(step: CallStepAST): Record<string, unknown> {
     | Record<string, null | string | number | boolean | object>
     | undefined = undefined
   if (step.args) {
-    args = Object.fromEntries(
-      Object.entries(step.args).map(([k, v]) => {
-        return [k, expressionToLiteralValueOrLiteralExpression(v)]
-      }),
+    args = mapRecordValues(step.args, (v) =>
+      expressionToLiteralValueOrLiteralExpression(v),
     )
   }
 

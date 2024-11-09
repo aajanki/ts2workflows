@@ -1,4 +1,4 @@
-import { isRecord } from '../utils.js'
+import { isRecord, mapRecordValues } from '../utils.js'
 
 export type VariableName = string
 export type BinaryOperator =
@@ -302,29 +302,24 @@ function primitiveExpressionToLiteralValueOrLiteralExpression(
       }
     })
   } else if (isRecord(ex.value)) {
-    return Object.fromEntries(
-      Object.entries(ex.value).map(([k, v]) => {
-        if (isExpression(v)) {
-          return [k, expressionToLiteralValueOrLiteralExpression(v)]
-        } else if (Array.isArray(v) || isRecord(v)) {
-          return [
-            k,
-            primitiveExpressionToLiteralValueOrLiteralExpression(
-              new PrimitiveExpression(v),
-            ),
-          ]
-        } else if (
-          v === null ||
-          typeof v === 'string' ||
-          typeof v === 'number' ||
-          typeof v === 'boolean'
-        ) {
-          return [k, v]
-        } else {
-          return [k, `\${${primitiveToString(v)}}`]
-        }
-      }),
-    )
+    return mapRecordValues(ex.value, (v) => {
+      if (isExpression(v)) {
+        return expressionToLiteralValueOrLiteralExpression(v)
+      } else if (Array.isArray(v) || isRecord(v)) {
+        return primitiveExpressionToLiteralValueOrLiteralExpression(
+          new PrimitiveExpression(v),
+        )
+      } else if (
+        v === null ||
+        typeof v === 'string' ||
+        typeof v === 'number' ||
+        typeof v === 'boolean'
+      ) {
+        return v
+      } else {
+        return `\${${primitiveToString(v)}}`
+      }
+    })
   } else {
     return `\${${ex.toString()}}`
   }
