@@ -55,6 +55,10 @@ npm run build
 npm run test
 ```
 
+## Publishing the package to npmjs.com
+
+Update the version number in package.json, npm install, commit, tag with v0.5.0 and push. Github Actions worklfow will build the package and publish it.
+
 ## Architecture
 
 A transpilation using ts2workflows consists of five phases:
