@@ -3298,6 +3298,25 @@ describe('Runtime functions', () => {
 
     assertTranspiled(code, expected)
   })
+
+  it('Array.isArray(x) in a nested expression', () => {
+    const code = `
+    function main(x) {
+      return { type: Array.isArray(x) ? "array" : "not array" }
+    }`
+
+    const expected = `
+    main:
+      params:
+        - x
+      steps:
+        - return1:
+            return:
+              type: \${if(get_type(x) == "list", "array", "not array")}
+    `
+
+    assertTranspiled(code, expected)
+  })
 })
 
 describe('Sample source files', () => {

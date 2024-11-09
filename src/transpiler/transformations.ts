@@ -32,6 +32,7 @@ import { blockingFunctions } from './generated/functionMetadata.js'
 
 const Unmodified = Symbol()
 type Unmodified = typeof Unmodified
+type ExpressionTransformer = (x: Expression) => Expression | Unmodified
 
 /**
  * Performs various transformations on the AST.
@@ -514,9 +515,9 @@ function transformExpressionsSwitch(
 
 function transformExpression(
   ex: Expression,
-  transformer: (x: Expression) => Expression | Unmodified,
+  transform: ExpressionTransformer,
 ): Expression {
-  const transformed = transformer(ex)
+  const transformed = transform(ex)
 
   if (transformed !== Unmodified) {
     // Use the transformed version of this term
@@ -524,49 +525,81 @@ function transformExpression(
   } else {
     // Otherwise, recurse into the nested expression
     switch (ex.expressionType) {
-      // FIXME: should transform nested expression of primitive
       case 'primitive':
-      case 'variableReference':
-        return ex
+        if (isLiteral(ex)) {
+          return ex
+        } else {
+          return new PrimitiveExpression(
+            transformPrimitive(ex.value, transform),
+          )
+        }
 
       case 'binary':
-        return transformBinaryExpression(ex, transformer)
+        return transformBinaryExpression(ex, transform)
 
       case 'functionInvocation':
-        return transformFunctionInvocationExpression(ex, transformer)
+        return transformFunctionInvocationExpression(ex, transform)
 
       case 'member':
         return new MemberExpression(
-          transformExpression(ex.object, transformer),
-          transformExpression(ex.property, transformer),
+          transformExpression(ex.object, transform),
+          transformExpression(ex.property, transform),
           ex.computed,
         )
 
       case 'unary':
         return new UnaryExpression(
           ex.operator,
-          transformExpression(ex.value, transformer),
+          transformExpression(ex.value, transform),
         )
+
+      case 'variableReference':
+        return ex
     }
+  }
+}
+
+function transformPrimitive(
+  val: Primitive,
+  transform: ExpressionTransformer,
+): Primitive {
+  if (Array.isArray(val)) {
+    return val.map((x) =>
+      isExpression(x)
+        ? transformExpression(x, transform)
+        : transformPrimitive(x, transform),
+    )
+  } else if (isRecord(val)) {
+    const transformed: [string, Primitive | Expression][] = Object.entries(
+      val,
+    ).map(([key, x]) => {
+      const t = isExpression(x)
+        ? transformExpression(x, transform)
+        : transformPrimitive(x, transform)
+      return [key, t]
+    })
+    return Object.fromEntries(transformed)
+  } else {
+    return val
   }
 }
 
 function transformBinaryExpression(
   ex: BinaryExpression,
-  transformer: (x: Expression) => Expression | Unmodified,
+  transform: ExpressionTransformer,
 ): BinaryExpression {
   // Transform left first to keep the correct order of execution of sub-expressions
-  const newLeft = transformExpression(ex.left, transformer)
-  const newRight = transformExpression(ex.right, transformer)
+  const newLeft = transformExpression(ex.left, transform)
+  const newRight = transformExpression(ex.right, transform)
   return new BinaryExpression(newLeft, ex.binaryOperator, newRight)
 }
 
 function transformFunctionInvocationExpression(
   ex: FunctionInvocationExpression,
-  transformer: (x: Expression) => Expression | Unmodified,
+  transform: ExpressionTransformer,
 ): FunctionInvocationExpression {
   const newArguments = ex.arguments.map((x) =>
-    transformExpression(x, transformer),
+    transformExpression(x, transform),
   )
   return new FunctionInvocationExpression(ex.functionName, newArguments)
 }
