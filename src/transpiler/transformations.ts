@@ -529,9 +529,10 @@ function transformExpression(
         if (isLiteral(ex)) {
           return ex
         } else {
-          return new PrimitiveExpression(
-            transformPrimitive(ex.value, transform),
-          )
+          const newPrimitive = transformPrimitive(ex.value, transform)
+          return newPrimitive === ex.value
+            ? ex
+            : new PrimitiveExpression(newPrimitive)
         }
 
       case 'binary':
@@ -541,17 +542,10 @@ function transformExpression(
         return transformFunctionInvocationExpression(ex, transform)
 
       case 'member':
-        return new MemberExpression(
-          transformExpression(ex.object, transform),
-          transformExpression(ex.property, transform),
-          ex.computed,
-        )
+        return transformMemberExpression(ex, transform)
 
       case 'unary':
-        return new UnaryExpression(
-          ex.operator,
-          transformExpression(ex.value, transform),
-        )
+        return transformUnaryExpression(ex, transform)
 
       case 'variableReference':
         return ex
@@ -570,15 +564,14 @@ function transformPrimitive(
         : transformPrimitive(x, transform),
     )
   } else if (isRecord(val)) {
-    const transformed: [string, Primitive | Expression][] = Object.entries(
-      val,
-    ).map(([key, x]) => {
-      const t = isExpression(x)
-        ? transformExpression(x, transform)
-        : transformPrimitive(x, transform)
-      return [key, t]
-    })
-    return Object.fromEntries(transformed)
+    return Object.fromEntries(
+      Object.entries(val).map(([key, x]) => {
+        const t = isExpression(x)
+          ? transformExpression(x, transform)
+          : transformPrimitive(x, transform)
+        return [key, t]
+      }),
+    )
   } else {
     return val
   }
@@ -591,7 +584,12 @@ function transformBinaryExpression(
   // Transform left first to keep the correct order of execution of sub-expressions
   const newLeft = transformExpression(ex.left, transform)
   const newRight = transformExpression(ex.right, transform)
-  return new BinaryExpression(newLeft, ex.binaryOperator, newRight)
+
+  if (newLeft === ex.left && newRight === ex.right) {
+    return ex
+  } else {
+    return new BinaryExpression(newLeft, ex.binaryOperator, newRight)
+  }
 }
 
 function transformFunctionInvocationExpression(
@@ -601,7 +599,33 @@ function transformFunctionInvocationExpression(
   const newArguments = ex.arguments.map((x) =>
     transformExpression(x, transform),
   )
-  return new FunctionInvocationExpression(ex.functionName, newArguments)
+  if (newArguments.every((x, i) => x === ex.arguments[i])) {
+    return ex
+  } else {
+    return new FunctionInvocationExpression(ex.functionName, newArguments)
+  }
+}
+
+function transformMemberExpression(
+  ex: MemberExpression,
+  transform: ExpressionTransformer,
+): Expression {
+  const newObject = transformExpression(ex.object, transform)
+  const newProperty = transformExpression(ex.property, transform)
+
+  if (newObject === ex.object && newProperty === ex.property) {
+    return ex
+  } else {
+    return new MemberExpression(newObject, newProperty, ex.computed)
+  }
+}
+
+function transformUnaryExpression(
+  ex: UnaryExpression,
+  transform: ExpressionTransformer,
+): Expression {
+  const newValue = transformExpression(ex.value, transform)
+  return newValue === ex.value ? ex : new UnaryExpression(ex.operator, newValue)
 }
 
 /**
