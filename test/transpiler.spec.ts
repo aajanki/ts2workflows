@@ -690,6 +690,21 @@ describe('Assignment statement', () => {
     assertTranspiled(code, expected)
   })
 
+  it('transpiles an assignment expression', () => {
+    const code = 'function main() { let a; a = 1; }'
+
+    const expected = `
+    main:
+      steps:
+        - assign1:
+            assign:
+              - a: null
+              - a: 1
+    `
+
+    assertTranspiled(code, expected)
+  })
+
   it('property assignment', () => {
     const code = 'function main() { person.name = "Bean"; }'
 
@@ -795,6 +810,129 @@ describe('Assignment statement', () => {
     assertTranspiled(code, expected)
   })
 
+  it('nested map literal and functions', () => {
+    const code = `function main() {
+      const data = {friends: get_friends({name: "Bean"})};
+    }`
+
+    const expected = `
+    main:
+      steps:
+        - assign1:
+            assign:
+              - __temp0:
+                  name: Bean
+              - data:
+                  friends: \${get_friends(__temp0)}
+    `
+
+    assertTranspiled(code, expected)
+  })
+
+  it('nested map literal and functions 2', () => {
+    const code = `function main() {
+      const data = {
+        characters: [
+          get_character({name: "Bean"}),
+          get_character({name: "Elfo"}),
+        ]
+      };
+    }`
+
+    const expected = `
+    main:
+      steps:
+        - assign1:
+            assign:
+              - __temp0:
+                  name: Bean
+              - __temp1:
+                  name: Elfo
+              - data:
+                  characters:
+                    - \${get_character(__temp0)}
+                    - \${get_character(__temp1)}
+    `
+
+    assertTranspiled(code, expected)
+  })
+
+  it('nested map literal and functions 3', () => {
+    const code = `function main() {
+      const data = [
+        {
+          name: get_name({personId: 1})
+        }
+      ];
+    }`
+
+    const expected = `
+    main:
+      steps:
+        - assign1:
+            assign:
+              - __temp0:
+                  personId: 1
+              - data:
+                  - name: \${get_name(__temp0)}
+    `
+
+    assertTranspiled(code, expected)
+  })
+
+  it('deeply nested map literal and functions', () => {
+    const code = `function main() {
+      const data = {
+        friends: get_friends({name: get_name({personId: 1})})
+      };
+    }`
+
+    const expected = `
+    main:
+      steps:
+        - assign1:
+            assign:
+              - __temp0:
+                  personId: 1
+              - __temp1:
+                  name: \${get_name(__temp0)}
+              - data:
+                  friends: \${get_friends(__temp1)}
+    `
+
+    assertTranspiled(code, expected)
+  })
+
+  it('deeply nested map literal and functions 2', () => {
+    const code = `function main() {
+      const data = {
+        friends: get_friends([
+          {name: get_name({personId: 1})},
+          {name: get_name({personId: 2})}
+        ])
+      };
+    }`
+
+    const expected = `
+    main:
+      steps:
+        - assign1:
+            assign:
+              - __temp0:
+                  personId: 1
+              - __temp1:
+                  name: \${get_name(__temp0)}
+              - __temp2:
+                  personId: 2
+              - __temp3:
+                  name: \${get_name(__temp2)}
+              - data:
+                  friends: \${get_friends([__temp1, __temp3])}
+    `
+
+    assertTranspiled(code, expected)
+  })
+
   it('map literal in complex expression', () => {
     const code = `function complex() {
       const codes = { success: "OK" }
@@ -835,6 +973,29 @@ describe('Assignment statement', () => {
               steps:
                 - return2:
                     return: error
+    `
+
+    assertTranspiled(code, expected)
+  })
+
+  it('extracts nested map only on one branches of combined assing step', () => {
+    const code = `function main() {
+      const data = {friends: get_friends({name: "Bean"})};
+      const data2 = {person: {name: "Bean"}}
+    }`
+
+    const expected = `
+    main:
+      steps:
+        - assign1:
+            assign:
+              - __temp0:
+                  name: Bean
+              - data:
+                  friends: \${get_friends(__temp0)}
+              - data2:
+                  person:
+                    name: Bean
     `
 
     assertTranspiled(code, expected)

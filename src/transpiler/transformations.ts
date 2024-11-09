@@ -7,6 +7,7 @@ import {
   ReturnStepAST,
   SwitchStepAST,
   TryStepAST,
+  VariableAssignment,
   WorkflowParameters,
   WorkflowStepAST,
 } from '../ast/steps.js'
@@ -523,6 +524,7 @@ function transformExpression(
   } else {
     // Otherwise, recurse into the nested expression
     switch (ex.expressionType) {
+      // FIXME: should transform nested expression of primitive
       case 'primitive':
       case 'variableReference':
         return ex
@@ -589,123 +591,251 @@ function transformFunctionInvocationExpression(
  *     return: ${__temp0.value}
  */
 function mapLiteralsAsAssignSteps(steps: WorkflowStepAST[]): WorkflowStepAST[] {
-  function transformer(ex: Expression): [WorkflowStepAST[], Expression] {
-    const generateTemporaryVariableName = createTempVariableGenerator()
-    const { transformedExpression, assignSteps } = replaceMapLiterals(
-      ex,
-      generateTemporaryVariableName,
-    )
-
-    return [assignSteps, transformedExpression]
-  }
-
-  return steps.reduce((acc: WorkflowStepAST[], current: WorkflowStepAST) => {
-    let needsTransformation = true
-
-    // These steps are allowed to contain map literals if the map is the
-    // main expression
-    if (current.tag === 'assign') {
-      // This does the transformation a bit too eagerly: If any of the
-      // assignments need the map literal extraction, it is done on all of
-      // the variables.
-      needsTransformation = !current.assignments.every(([, value]) => {
-        return value.expressionType === 'primitive'
-      })
-    } else if (current.tag === 'raise' || current.tag === 'return') {
-      needsTransformation =
-        current.value !== undefined &&
-        includesExtractableMapLiteral(current.value, true)
-    } else if (current.tag === 'call') {
-      if (current.args) {
-        needsTransformation = Object.values(current.args).some((ex) =>
-          includesExtractableMapLiteral(ex, true),
-        )
-      }
-    }
-
-    if (needsTransformation) {
-      const transformedSteps = transformStepExpressions(current, transformer)
-      acc.push(...transformedSteps)
-    } else {
-      acc.push(current)
-    }
-
-    return acc
-  }, [])
+  return steps.flatMap((step) =>
+    transformStepExpressions(step, transformNestedMaps),
+  )
 }
 
-// Return true if the string representation of ex would include {}
-function includesExtractableMapLiteral(
+function transformNestedMaps(ex: Expression): [WorkflowStepAST[], Expression] {
+  const generateTemporaryVariableName = createTempVariableGenerator()
+  const { transformedExpression, tempVariables } = extractNestedMaps(
+    ex,
+    generateTemporaryVariableName,
+    0,
+  )
+  const assignments =
+    tempVariables.length > 0 ? [new AssignStepAST(tempVariables)] : []
+
+  return [assignments, transformedExpression]
+}
+
+function extractNestedMaps(
   ex: Expression,
-  parentAllowsMaps: boolean,
-): boolean {
+  generateName: () => string,
+  nestingLevel: number,
+): { transformedExpression: Expression; tempVariables: VariableAssignment[] } {
   switch (ex.expressionType) {
     case 'primitive':
-      if (isRecord(ex.value)) {
-        return (
-          !parentAllowsMaps ||
-          Object.values(ex.value).some(
-            (x) =>
-              isExpression(x) &&
-              includesExtractableMapLiteral(x, parentAllowsMaps),
-          )
-        )
-      } else if (Array.isArray(ex.value)) {
-        return ex.value.some(
-          (x) =>
-            isExpression(x) &&
-            includesExtractableMapLiteral(x, parentAllowsMaps),
-        )
-      } else {
-        return false
-      }
+      return extractNestedMapPrimitive(ex.value, generateName, nestingLevel)
 
     case 'binary':
-      return (
-        includesExtractableMapLiteral(ex.left, parentAllowsMaps) ||
-        includesExtractableMapLiteral(ex.right, parentAllowsMaps)
-      )
+      return extractNestedMapBinary(ex, generateName, nestingLevel)
 
     case 'variableReference':
-      return false
-
-    case 'unary':
-      return includesExtractableMapLiteral(ex.value, parentAllowsMaps)
+      return { transformedExpression: ex, tempVariables: [] }
 
     case 'functionInvocation':
-      return ex.arguments.some((x) => includesExtractableMapLiteral(x, false))
+      return extractNestedMapFunctionInvocation(ex, generateName, nestingLevel)
 
     case 'member':
-      return (
-        includesExtractableMapLiteral(ex.object, false) ||
-        includesExtractableMapLiteral(ex.property, false)
-      )
+      return extractNestedMapMember(ex, generateName, nestingLevel)
+
+    case 'unary':
+      return extractNestedMapUnary(ex, generateName, nestingLevel)
   }
 }
 
-function replaceMapLiterals(
-  expression: Expression,
+function extractNestedMapPrimitive(
+  primitiveEx: Primitive,
   generateName: () => string,
-): { transformedExpression: Expression; assignSteps: AssignStepAST[] } {
-  function replace(ex: Expression): Expression | Unmodified {
-    if (ex.expressionType === 'primitive' && isRecord(ex.value)) {
-      const tempVariable = generateName()
-      assignSteps.push(
-        new AssignStepAST([[tempVariable, new PrimitiveExpression(ex.value)]]),
-      )
-
-      // replace the map literal with a reference to the temporary variable
-      return new VariableReferenceExpression(tempVariable)
-    } else {
-      return Unmodified
-    }
-  }
-
-  const assignSteps: AssignStepAST[] = []
+  nestingLevel: number,
+): { transformedExpression: Expression; tempVariables: VariableAssignment[] } {
+  const { transformed, tempVariables } = extractNestedMapPrimitiveRecursive(
+    primitiveEx,
+    generateName,
+    nestingLevel,
+  )
+  const ex = isExpression(transformed)
+    ? transformed
+    : new PrimitiveExpression(transformed)
 
   return {
-    transformedExpression: transformExpression(expression, replace),
-    assignSteps,
+    transformedExpression: ex,
+    tempVariables,
+  }
+}
+
+function extractNestedMapPrimitiveRecursive(
+  primitiveEx: Primitive,
+  generateName: () => string,
+  nestingLevel: number,
+): {
+  transformed: Expression | Primitive
+  tempVariables: VariableAssignment[]
+} {
+  if (
+    typeof primitiveEx === 'string' ||
+    typeof primitiveEx === 'number' ||
+    typeof primitiveEx === 'boolean' ||
+    primitiveEx === null
+  ) {
+    return {
+      transformed: primitiveEx,
+      tempVariables: [],
+    }
+  } else if (Array.isArray(primitiveEx)) {
+    return extractMapsInList(primitiveEx, generateName, nestingLevel)
+  } else {
+    return extractMapsInMap(primitiveEx, generateName, nestingLevel)
+  }
+}
+
+function extractMapsInList(
+  primitiveEx: (Primitive | Expression)[],
+  generateName: () => string,
+  nestingLevel: number,
+) {
+  const { tempVariables, elements } = primitiveEx.reduce(
+    (acc, val) => {
+      if (isExpression(val)) {
+        const { transformedExpression, tempVariables: temps } =
+          extractNestedMaps(val, generateName, nestingLevel)
+        acc.tempVariables.push(...temps)
+        acc.elements.push(transformedExpression)
+      } else {
+        const { transformed, tempVariables: temps } =
+          extractNestedMapPrimitiveRecursive(val, generateName, nestingLevel)
+        acc.tempVariables.push(...temps)
+        acc.elements.push(transformed)
+      }
+
+      return acc
+    },
+    {
+      tempVariables: [] as VariableAssignment[],
+      elements: [] as (Expression | Primitive)[],
+    },
+  )
+
+  return {
+    tempVariables,
+    transformed: elements,
+  }
+}
+
+function extractMapsInMap(
+  primitiveEx: Record<string, Primitive | Expression>,
+  generateName: () => string,
+  nestingLevel: number,
+) {
+  const { tempVariables, properties } = Object.entries(primitiveEx).reduce(
+    (acc, [key, val]) => {
+      if (isExpression(val)) {
+        const { transformedExpression, tempVariables: temps } =
+          extractNestedMaps(val, generateName, 0)
+        acc.tempVariables.push(...temps)
+        acc.properties[key] = transformedExpression
+      } else {
+        const { transformed, tempVariables: temps } =
+          extractNestedMapPrimitiveRecursive(val, generateName, 0)
+        acc.tempVariables.push(...temps)
+        acc.properties[key] = transformed
+      }
+
+      return acc
+    },
+    {
+      tempVariables: [] as VariableAssignment[],
+      properties: {} as Record<string, Expression | Primitive>,
+    },
+  )
+
+  let newValue
+  if (nestingLevel === 0) {
+    newValue = properties
+  } else {
+    const name = generateName()
+    tempVariables.push([name, new PrimitiveExpression(properties)])
+    newValue = new VariableReferenceExpression(name)
+  }
+
+  return {
+    transformed: newValue,
+    tempVariables,
+  }
+}
+
+function extractNestedMapFunctionInvocation(
+  ex: FunctionInvocationExpression,
+  generateName: () => string,
+  nestingLevel: number,
+) {
+  const { expressions, temps } = ex.arguments.reduce(
+    (acc, arg) => {
+      const { transformedExpression, tempVariables } = extractNestedMaps(
+        arg,
+        generateName,
+        nestingLevel + 1,
+      )
+      acc.expressions.push(transformedExpression)
+      acc.temps.push(...tempVariables)
+      return acc
+    },
+    { expressions: [] as Expression[], temps: [] as VariableAssignment[] },
+  )
+
+  return {
+    transformedExpression: new FunctionInvocationExpression(
+      ex.functionName,
+      expressions,
+    ),
+    tempVariables: temps,
+  }
+}
+
+function extractNestedMapBinary(
+  ex: BinaryExpression,
+  generateName: () => string,
+  nestingLevel: number,
+) {
+  const left = extractNestedMaps(ex.left, generateName, nestingLevel + 1)
+  const right = extractNestedMaps(ex.right, generateName, nestingLevel + 1)
+
+  return {
+    transformedExpression: new BinaryExpression(
+      left.transformedExpression,
+      ex.binaryOperator,
+      right.transformedExpression,
+    ),
+    tempVariables: left.tempVariables.concat(right.tempVariables),
+  }
+}
+
+function extractNestedMapMember(
+  ex: MemberExpression,
+  generateName: () => string,
+  nestingLevel: number,
+) {
+  const obj = extractNestedMaps(ex.object, generateName, nestingLevel + 1)
+  const pr = extractNestedMaps(ex.property, generateName, nestingLevel + 1)
+
+  return {
+    transformedExpression: new MemberExpression(
+      obj.transformedExpression,
+      pr.transformedExpression,
+      ex.computed,
+    ),
+    tempVariables: obj.tempVariables.concat(pr.tempVariables),
+  }
+}
+
+function extractNestedMapUnary(
+  ex: UnaryExpression,
+  generateName: () => string,
+  nestingLevel: number,
+) {
+  const { transformedExpression, tempVariables } = extractNestedMaps(
+    ex.value,
+    generateName,
+    nestingLevel,
+  )
+
+  return {
+    transformedExpression: new UnaryExpression(
+      ex.operator,
+      transformedExpression,
+    ),
+    tempVariables,
   }
 }
 

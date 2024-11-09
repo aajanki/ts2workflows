@@ -1,3 +1,7 @@
+<unreleased>
+
+- Move nested map expressions to assign steps where necessary
+
 Version 0.4.0 - 2024-11-05
 
 - Optional chaining a?.b is converted to map.get(a, "b")

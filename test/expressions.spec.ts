@@ -324,8 +324,11 @@ describe('Expressions', () => {
       steps:
         - assign1:
             assign:
+              - __temp0:
+                  Dreamland: 1
+                  Maru: 2
               - _:
-                  isKnownLocation: '\${location in {"Dreamland": 1, "Maru": 2}}'
+                  isKnownLocation: '\${location in __temp0}'
     `
     expect(YAML.parse(ast)).to.deep.equal(YAML.parse(expected))
   })
