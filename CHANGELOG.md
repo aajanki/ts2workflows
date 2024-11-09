@@ -1,6 +1,7 @@
-<unreleased>
+Version 0.5.0 - 2024-11-09
 
 - Move nested map expressions to assign steps where necessary
+- Array.isArray() is transformed correcly in nested expressions
 
 Version 0.4.0 - 2024-11-05
 
