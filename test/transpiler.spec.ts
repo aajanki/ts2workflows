@@ -1685,7 +1685,7 @@ describe('Return statement', () => {
   })
 })
 
-describe('Try-catch statement', () => {
+describe('Try-catch-finally statement', () => {
   it('transpiles try-catch statement', () => {
     const code = `
     function main() {
@@ -1760,6 +1760,257 @@ describe('Try-catch statement', () => {
     assertTranspiled(code, expected)
   })
 
+  it('transpiles try-catch-finally statement', () => {
+    const code = `
+    function safeWrite(data) {
+      try {
+        writeData(data);
+      } catch (err) {
+        sys.log(err);
+      } finally {
+        closeConnection();
+      }
+    }`
+
+    const expected = `
+      safeWrite:
+        params:
+          - data
+        steps:
+          - try1:
+              try:
+                steps:
+                  - try2:
+                      try:
+                        steps:
+                          - assign1:
+                              assign:
+                                - __temp: \${writeData(data)}
+                      except:
+                        as: err
+                        steps:
+                          - call_sys_log_1:
+                              call: sys.log
+                              args:
+                                data: \${err}
+                  - assign2:
+                      assign:
+                        - __fin_exc:
+                            t2w_finally_tag: "no exception"
+                      next: assign3
+              except:
+                as: __fin_exc
+                steps:
+                  - assign3:
+                      assign:
+                        - __temp: \${closeConnection()}
+                  - switch1:
+                      switch:
+                        - condition: \${map.get(__fin_exc, "t2w_finally_tag") == "no exception and return"}
+                          steps:
+                            - return1:
+                                return: \${map.get(__fin_exc, "value")}
+                        - condition: \${map.get(__fin_exc, "t2w_finally_tag") != "no exception"}
+                          steps:
+                            - raise1:
+                                raise: \${__fin_exc}
+    `
+
+    assertTranspiled(code, expected)
+  })
+
+  it('transpiles try-catch-finally statement with a return statement in the try block', () => {
+    const code = `
+    function safeWrite(data) {
+      try {
+        writeData(data);
+        return "OK";
+      } catch (err) {
+        sys.log(err);
+      } finally {
+        closeConnection();
+      }
+    }`
+
+    const expected = `
+      safeWrite:
+        params:
+          - data
+        steps:
+          - try1:
+              try:
+                steps:
+                  - try2:
+                      try:
+                        steps:
+                          - assign1:
+                              assign:
+                                - __temp: \${writeData(data)}
+                                - __fin_exc:
+                                    t2w_finally_tag: "no exception and return"
+                                    value: OK
+                              next: assign3
+                      except:
+                        as: err
+                        steps:
+                          - call_sys_log_1:
+                              call: sys.log
+                              args:
+                                data: \${err}
+                  - assign2:
+                      assign:
+                        - __fin_exc:
+                            t2w_finally_tag: "no exception"
+                      next: assign3
+              except:
+                as: __fin_exc
+                steps:
+                  - assign3:
+                      assign:
+                        - __temp: \${closeConnection()}
+                  - switch1:
+                      switch:
+                        - condition: \${map.get(__fin_exc, "t2w_finally_tag") == "no exception and return"}
+                          steps:
+                            - return1:
+                                return: \${map.get(__fin_exc, "value")}
+                        - condition: \${map.get(__fin_exc, "t2w_finally_tag") != "no exception"}
+                          steps:
+                            - raise1:
+                                raise: \${__fin_exc}
+    `
+
+    assertTranspiled(code, expected)
+  })
+
+  it('transpiles try-catch-finally statement with a return statement in the catch block', () => {
+    const code = `
+    function safeWrite(data) {
+      try {
+        writeData(data);
+      } catch (err) {
+        sys.log(err);
+        return "Error!"
+      } finally {
+        closeConnection();
+      }
+    }`
+
+    const expected = `
+      safeWrite:
+        params:
+          - data
+        steps:
+          - try1:
+              try:
+                steps:
+                  - try2:
+                      try:
+                        steps:
+                          - assign1:
+                              assign:
+                                - __temp: \${writeData(data)}
+                      except:
+                        as: err
+                        steps:
+                          - call_sys_log_1:
+                              call: sys.log
+                              args:
+                                data: \${err}
+                          - assign2:
+                              assign:
+                                - __fin_exc:
+                                    t2w_finally_tag: "no exception and return"
+                                    value: Error!
+                              next: assign4
+                  - assign3:
+                      assign:
+                        - __fin_exc:
+                            t2w_finally_tag: "no exception"
+                      next: assign4
+              except:
+                as: __fin_exc
+                steps:
+                  - assign4:
+                      assign:
+                        - __temp: \${closeConnection()}
+                  - switch1:
+                      switch:
+                        - condition: \${map.get(__fin_exc, "t2w_finally_tag") == "no exception and return"}
+                          steps:
+                            - return1:
+                                return: \${map.get(__fin_exc, "value")}
+                        - condition: \${map.get(__fin_exc, "t2w_finally_tag") != "no exception"}
+                          steps:
+                            - raise1:
+                                raise: \${__fin_exc}
+    `
+
+    assertTranspiled(code, expected)
+  })
+
+  it('transpiles try-catch-finally statement with a return statement in the finally block', () => {
+    const code = `
+    function safeWrite(data) {
+      try {
+        writeData(data);
+      } catch (err) {
+        sys.log(err);
+      } finally {
+        closeConnection();
+        return 0;
+      }
+    }`
+
+    const expected = `
+      safeWrite:
+        params:
+          - data
+        steps:
+          - try1:
+              try:
+                steps:
+                  - try2:
+                      try:
+                        steps:
+                          - assign1:
+                              assign:
+                                - __temp: \${writeData(data)}
+                      except:
+                        as: err
+                        steps:
+                          - call_sys_log_1:
+                              call: sys.log
+                              args:
+                                data: \${err}
+                  - assign2:
+                      assign:
+                        - __fin_exc:
+                            t2w_finally_tag: "no exception"
+                      next: assign3
+              except:
+                as: __fin_exc
+                steps:
+                  - assign3:
+                      assign:
+                        - __temp: \${closeConnection()}
+                  - return1:
+                      return: 0
+                  - switch1:
+                      switch:
+                        - condition: \${map.get(__fin_exc, "t2w_finally_tag") == "no exception and return"}
+                          steps:
+                            - return2:
+                                return: \${map.get(__fin_exc, "value")}
+                        - condition: \${map.get(__fin_exc, "t2w_finally_tag") != "no exception"}
+                          steps:
+                            - raise1:
+                                raise: \${__fin_exc}
+    `
+
+    assertTranspiled(code, expected)
+  })
+
   it('transpiles try-catch-retry', () => {
     const code = `
     function main() {
@@ -1791,6 +2042,72 @@ describe('Try-catch statement', () => {
                   - assign1:
                       assign:
                         - __temp: \${log("Error!")}
+    `
+
+    assertTranspiled(code, expected)
+  })
+
+  it('transpiles try-catch-retry-finally', () => {
+    const code = `
+    function main() {
+      try {
+        const response = http.get("https://visit.dreamland.test/");
+        return response;
+      } catch {
+        log("Error!");
+      } finally {
+        closeConnection();
+      }
+      retry_policy({ policy: http.default_retry })
+    }`
+
+    const expected = `
+      main:
+        steps:
+          - try1:
+              try:
+                steps:
+                  - try2:
+                      try:
+                        steps:
+                          - call_http_get_1:
+                              call: http.get
+                              args:
+                                url: https://visit.dreamland.test/
+                              result: response
+                          - assign1:
+                              assign:
+                                - __fin_exc:
+                                    t2w_finally_tag: no exception and return
+                                    value: \${response}
+                              next: assign4
+                      retry: \${http.default_retry}
+                      except:
+                        steps:
+                          - assign2:
+                              assign:
+                                - __temp: \${log("Error!")}
+                  - assign3:
+                      assign:
+                        - __fin_exc:
+                            t2w_finally_tag: "no exception"
+                      next: assign4
+              except:
+                as: __fin_exc
+                steps:
+                  - assign4:
+                      assign:
+                        - __temp: \${closeConnection()}
+                  - switch1:
+                      switch:
+                        - condition: \${map.get(__fin_exc, "t2w_finally_tag") == "no exception and return"}
+                          steps:
+                            - return1:
+                                return: \${map.get(__fin_exc, "value")}
+                        - condition: \${map.get(__fin_exc, "t2w_finally_tag") != "no exception"}
+                          steps:
+                            - raise1:
+                                raise: \${__fin_exc}
     `
 
     assertTranspiled(code, expected)

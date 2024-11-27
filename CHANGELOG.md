@@ -1,3 +1,7 @@
+<unreleased>
+
+- Try statements support a finally block
+
 Version 0.5.0 - 2024-11-09
 
 - Move nested map expressions to assign steps where necessary

@@ -561,7 +561,7 @@ parallel(
 )
 ```
 
-## Try/catch statements
+## Try/catch/finally statements
 
 The statement
 
@@ -591,6 +591,20 @@ is compiled to the following [try/except structure](https://cloud.google.com/wor
 ```
 
 The error variable and other variables created inside the catch block are accessible only in that block's scope (similar to [the variable scoping in Workflows](https://cloud.google.com/workflows/docs/reference/syntax/catching-errors#variable-scope)).
+
+Finally block is also supported:
+
+```javascript
+try {
+  return readFile()
+} catch (err) {
+  return 'Error!'
+} finally {
+  closeFile()
+}
+```
+
+⚠️ At the moment, break and continue are not supported in a try or a catch block if there is a related finally block.
 
 ## Retrying on errors
 
@@ -660,6 +674,23 @@ main:
           steps:
             - return1:
                 return: Error!
+```
+
+Finally and catch blocks are run after possible retry attempts. The following sample retries `http.get()` if it throws an exception and executes `log('Error!')` and `closeConnection()` after retry attempts.
+
+```javascript
+import { http, retry_policy } from 'ts2workflows/types/workflowslib'
+
+function main() {
+  try {
+    http.get('https://visit.dreamland.test/')
+  } catch (err) {
+    log('Error!')
+  } finally {
+    closeConnection()
+  }
+  retry_policy({ policy: http.default_retry })
+}
 ```
 
 ## Throwing errors
