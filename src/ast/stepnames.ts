@@ -194,7 +194,9 @@ function removeJumpTargetRecurse(
     case 'try':
       return new TryStepASTNamed(
         removeJumpTargetSteps(step.trySteps),
-        removeJumpTargetSteps(step.exceptSteps),
+        step.exceptSteps !== undefined
+          ? removeJumpTargetSteps(step.exceptSteps)
+          : undefined,
         step.retryPolicy,
         step.errorMap,
       )
@@ -429,7 +431,7 @@ function renameJumpTargetsTry(
     name,
     step: renameJumpTargets(nested, replaceLabels),
   }))
-  const transformedExceptSteps = step.exceptSteps.map(
+  const transformedExceptSteps = step.exceptSteps?.map(
     ({ name, step: nested }) => ({
       name,
       step: renameJumpTargets(nested, replaceLabels),

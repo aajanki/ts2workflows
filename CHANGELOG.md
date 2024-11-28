@@ -1,6 +1,7 @@
 <unreleased>
 
 - Try statements support a finally block
+- Support empty body in a catch block
 
 Version 0.5.0 - 2024-11-09
 

@@ -1760,6 +1760,29 @@ describe('Try-catch-finally statement', () => {
     assertTranspiled(code, expected)
   })
 
+  it('empty catch block', () => {
+    const code = `
+    function main() {
+      try {
+        throw 1;
+      } catch {}
+    }`
+
+    const expected = `
+      main:
+        steps:
+          - try1:
+              try:
+                steps:
+                  - raise1:
+                      raise: 1
+              except:
+                steps: []
+    `
+
+    assertTranspiled(code, expected)
+  })
+
   it('transpiles try-catch-finally statement', () => {
     const code = `
     function safeWrite(data) {

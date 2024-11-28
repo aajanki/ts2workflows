@@ -385,14 +385,14 @@ export interface SwitchConditionAST<
 export class TryStepAST {
   readonly tag = 'try'
   readonly trySteps: WorkflowStepAST[]
-  readonly exceptSteps: WorkflowStepAST[]
+  readonly exceptSteps?: WorkflowStepAST[]
   readonly retryPolicy?: string | CustomRetryPolicy
   readonly errorMap?: VariableName
   readonly label?: string
 
   constructor(
     trySteps: WorkflowStepAST[],
-    exceptSteps: WorkflowStepAST[],
+    exceptSteps?: WorkflowStepAST[],
     retryPolicy?: string | CustomRetryPolicy,
     errorMap?: VariableName,
     label?: string,
@@ -422,11 +422,11 @@ export class TryStepASTNamed {
   // Steps in the try block
   readonly trySteps: NamedWorkflowStep[]
   // Steps in the except block
-  readonly exceptSteps: NamedWorkflowStep[]
+  readonly exceptSteps?: NamedWorkflowStep[]
 
   constructor(
     steps: NamedWorkflowStep[],
-    exceptSteps: NamedWorkflowStep[],
+    exceptSteps?: NamedWorkflowStep[],
     retryPolicy?: string | CustomRetryPolicy,
     errorMap?: VariableName,
   ) {
@@ -582,7 +582,7 @@ function namedStepsTry(
   const namedTrySteps = step.trySteps.map((nested) =>
     namedSteps(nested, generateName),
   )
-  const namedExceptSteps = step.exceptSteps.map((nested) =>
+  const namedExceptSteps = step.exceptSteps?.map((nested) =>
     namedSteps(nested, generateName),
   )
 
@@ -649,7 +649,7 @@ function nestedStepsTry(step: TryStepASTNamed): NamedWorkflowStep[][] {
   if (step.trySteps.length > 0) {
     nested.push(step.trySteps)
   }
-  if (step.exceptSteps.length > 0) {
+  if (step.exceptSteps) {
     nested.push(step.exceptSteps)
   }
 
@@ -805,7 +805,7 @@ function renderTryStep(step: TryStepASTNamed): Record<string, unknown> {
   }
 
   let except
-  if (step.exceptSteps.length > 0) {
+  if (step.exceptSteps !== undefined) {
     except = {
       as: step.errorMap,
       steps: renderSteps(step.exceptSteps),
