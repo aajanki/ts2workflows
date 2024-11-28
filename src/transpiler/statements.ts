@@ -611,11 +611,8 @@ function returnStatementToReturnStep(
 
   if (ctx.finalizerTarget) {
     // If we are in try statement with a finally block, return statements are
-    // replaced by capturing the return value and jumping to the finalizer.
-    return new AssignStepAST(
-      [[finalizerVariableName, delayedReturn(value)]],
-      ctx.finalizerTarget,
-    )
+    // replaced by a jump to finally back with a captured return value.
+    return jumpToFinalizerWithDelayedReturn(ctx.finalizerTarget, value)
   }
 
   return new ReturnStepAST(value)
@@ -899,10 +896,7 @@ function tryStatementToTryStep(
     // delayed value returned by the try block.
     const innerTry = [
       baseTryStep,
-      new AssignStepAST(
-        [[finalizerVariableName, delayedReturn()]],
-        startOfFinalizer.label,
-      ),
+      jumpToFinalizerWithDelayedReturn(startOfFinalizer.label),
     ]
 
     delete ctx.finalizerTarget // Reset ctx before parsing the finally block
@@ -987,8 +981,10 @@ function finalizerFooter(finalizerVariable: string) {
   ])
 }
 
-// A value that encloses a return that is delayed until a finally block
-function delayedReturn(value?: Expression): PrimitiveExpression {
+function jumpToFinalizerWithDelayedReturn(
+  finalizerTarget: string,
+  value?: Expression,
+): AssignStepAST {
   let val
   if (value) {
     val = {
@@ -999,7 +995,10 @@ function delayedReturn(value?: Expression): PrimitiveExpression {
     val = { t2w_finally_tag: finNoException }
   }
 
-  return new PrimitiveExpression(val)
+  return new AssignStepAST(
+    [[finalizerVariableName, new PrimitiveExpression(val)]],
+    finalizerTarget,
+  )
 }
 
 function labeledStep(
