@@ -2136,6 +2136,63 @@ describe('Try-catch-finally statement', () => {
     assertTranspiled(code, expected)
   })
 
+  it('transpiles try-finally without a catch block', () => {
+    const code = `
+    function main() {
+      try {
+        const response = http.get("https://visit.dreamland.test/");
+        return response;
+      } finally {
+        closeConnection();
+      }
+    }`
+
+    const expected = `
+      main:
+        steps:
+          - try1:
+              try:
+                steps:
+                  - try2:
+                      try:
+                        steps:
+                          - call_http_get_1:
+                              call: http.get
+                              args:
+                                url: https://visit.dreamland.test/
+                              result: response
+                          - assign1:
+                              assign:
+                                - __fin_exc:
+                                    t2w_finally_tag: no exception and return
+                                    value: \${response}
+                              next: assign3
+                  - assign2:
+                      assign:
+                        - __fin_exc:
+                            t2w_finally_tag: "no exception"
+                      next: assign3
+              except:
+                as: __fin_exc
+                steps:
+                  - assign3:
+                      assign:
+                        - __temp: \${closeConnection()}
+                  - switch1:
+                      switch:
+                        - condition: \${map.get(__fin_exc, "t2w_finally_tag") == "no exception and return"}
+                          steps:
+                            - return1:
+                                return: \${map.get(__fin_exc, "value")}
+                        - condition: \${map.get(__fin_exc, "t2w_finally_tag") != "no exception"}
+                          steps:
+                            - raise1:
+                                raise: \${__fin_exc}
+    `
+
+    assertTranspiled(code, expected)
+  })
+
   it('does retry with a retry predicate and backoff parameters', () => {
     const code = `
     function main() {

@@ -873,7 +873,7 @@ function tryStatementToTryStep(
 
   const trySteps = parseStatement(node.block, ctx)
 
-  let exceptSteps: WorkflowStepAST[] = []
+  let exceptSteps: WorkflowStepAST[] | undefined = undefined
   let errorVariable: string | undefined = undefined
   if (node.handler) {
     exceptSteps = parseStatement(node.handler.body, ctx)
