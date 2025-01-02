@@ -1039,7 +1039,7 @@ function parseRetryPolicy(
     if (isFullyQualifiedName(policyEx)) {
       retryPolicy = policyEx.toString()
     } else {
-      throw new WorkflowSyntaxError('"policy" must be a string', argsLoc)
+      throw new WorkflowSyntaxError('"policy" must be a function name', argsLoc)
     }
   }
 
