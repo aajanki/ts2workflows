@@ -317,7 +317,7 @@ function callExpressionToStep(
       // retry_policy() is handled by AST_NODE_TYPES.TryStatement and therefore ignored here
       return []
     } else if (calleeName === 'call_step') {
-      return [createCallStep(node.arguments, resultVariable)]
+      return [createCallStep(node, node.arguments, resultVariable)]
     } else if (blockingFunctions.has(calleeName)) {
       const argumentNames = blockingFunctions.get(calleeName) ?? []
       return [
@@ -358,13 +358,14 @@ function callExpressionAssignStep(
 }
 
 function createCallStep(
+  node: TSESTree.CallExpression,
   argumentsNode: TSESTree.CallExpressionArgument[],
   resultVariable?: VariableName,
 ): CallStepAST {
   if (argumentsNode.length < 1) {
     throw new WorkflowSyntaxError(
       'The first argument must be a Function',
-      argumentsNode[0].loc,
+      node.loc,
     )
   }
 
