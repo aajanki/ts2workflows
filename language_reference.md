@@ -604,6 +604,8 @@ try {
 }
 ```
 
+If an exception gets thrown inside a try block, the stack trace in Workflows logs will misleadingly show the exception originating from inside the finally block. This happens because the implementation of the finally block catches the original exception and later throws an identical exception. The original source location of the exception is lost.
+
 ⚠️ At the moment, break and continue are not supported in a try or a catch block if there is a related finally block.
 
 ## Retrying on errors
@@ -676,16 +678,16 @@ main:
                 return: Error!
 ```
 
-Finally and catch blocks are run after possible retry attempts. The following sample retries `http.get()` if it throws an exception and executes `log('Error!')` and `closeConnection()` after retry attempts.
+Finally and catch blocks are run after possible retry attempts. The following sample retries `http.get()` if it throws an exception and executes `sys.log('Error!')` and `closeConnection()` after retry attempts.
 
 ```javascript
-import { http, retry_policy } from 'ts2workflows/types/workflowslib'
+import { http, retry_policy, sys } from 'ts2workflows/types/workflowslib'
 
 function main() {
   try {
     http.get('https://visit.dreamland.test/')
   } catch (err) {
-    log('Error!')
+    sys.log('Error!')
   } finally {
     closeConnection()
   }
@@ -812,7 +814,7 @@ function retry_policy(
 ): void
 ```
 
-The `retry_policy` function can called right after a `try`-`catch` block to specify a retry policy. See the section on retrying.
+The `retry_policy` function can called right after a `try`-`catch` block to specify a retry policy. See the section on [retrying errors](#retrying-on-errors).
 
 ## Source code comments
 
