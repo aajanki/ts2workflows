@@ -2299,7 +2299,6 @@ describe('Try-catch-finally statement', () => {
 
       log("try block completed")
 
-
       retry_policy({ policy: http.default_retry })
     }`
 

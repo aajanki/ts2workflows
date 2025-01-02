@@ -2,6 +2,7 @@ import { AST_NODE_TYPES, TSESTree } from '@typescript-eslint/typescript-estree'
 import {
   AssignStepAST,
   CallStepAST,
+  CustomRetryPolicy,
   ForStepAST,
   JumpTargetAST,
   NextStepAST,
@@ -21,15 +22,21 @@ import {
   BinaryOperator,
   Expression,
   FunctionInvocationExpression,
+  Primitive,
   PrimitiveExpression,
   VariableName,
   VariableReferenceExpression,
+  expressionToLiteralValueOrLiteralExpression,
   isExpression,
   isFullyQualifiedName,
   isLiteral,
 } from '../ast/expressions.js'
-import { InternalTranspilingError, WorkflowSyntaxError } from '../errors.js'
-import { isRecord } from '../utils.js'
+import {
+  InternalTranspilingError,
+  SourceCodeLocation,
+  WorkflowSyntaxError,
+} from '../errors.js'
+import { flatMapPair, isRecord } from '../utils.js'
 import { transformAST } from './transformations.js'
 import {
   convertExpression,
@@ -62,18 +69,19 @@ export function parseStatement(
   ctx: ParsingContext,
   postSteps?: WorkflowStepAST[],
 ): WorkflowStepAST[] {
-  const steps = parseStatementRecursively(node, ctx)
+  const steps = parseStatementRecursively(node, undefined, ctx)
   return transformAST(steps.concat(postSteps ?? []))
 }
 
 function parseStatementRecursively(
   node: TSESTree.Statement,
+  nextNode: TSESTree.Statement | undefined,
   ctx: ParsingContext,
 ): WorkflowStepAST[] {
   switch (node.type) {
     case AST_NODE_TYPES.BlockStatement:
-      return node.body.flatMap((statement) =>
-        parseStatementRecursively(statement, ctx),
+      return flatMapPair(node.body, (statement, nextStatement) =>
+        parseStatementRecursively(statement, nextStatement, ctx),
       )
 
     case AST_NODE_TYPES.VariableDeclaration:
@@ -83,7 +91,7 @@ function parseStatementRecursively(
       if (node.expression.type === AST_NODE_TYPES.AssignmentExpression) {
         return assignmentExpressionToSteps(node.expression, ctx)
       } else if (node.expression.type === AST_NODE_TYPES.CallExpression) {
-        return [callExpressionToStep(node.expression, undefined, ctx)]
+        return callExpressionToStep(node.expression, undefined, ctx)
       } else {
         return [generalExpressionToAssignStep(node.expression)]
       }
@@ -121,8 +129,17 @@ function parseStatementRecursively(
     case AST_NODE_TYPES.ContinueStatement:
       return [continueStatementToNextStep(node, ctx)]
 
-    case AST_NODE_TYPES.TryStatement:
-      return [tryStatementToTryStep(node, ctx)]
+    case AST_NODE_TYPES.TryStatement: {
+      let retryPolicy: CustomRetryPolicy | string | undefined = undefined
+      if (
+        nextNode?.type === AST_NODE_TYPES.ExpressionStatement &&
+        nextNode.expression.type === AST_NODE_TYPES.CallExpression
+      ) {
+        retryPolicy = parseRetryPolicy(nextNode.expression)
+      }
+
+      return [tryStatementToTryStep(node, retryPolicy, ctx)]
+    }
 
     case AST_NODE_TYPES.LabeledStatement:
       return labeledStep(node, ctx)
@@ -154,7 +171,7 @@ function convertVariableDeclarations(
   declarations: TSESTree.LetOrConstOrVarDeclarator[],
   ctx: ParsingContext,
 ): WorkflowStepAST[] {
-  return declarations.map((decl) => {
+  return declarations.flatMap((decl) => {
     if (decl.id.type !== AST_NODE_TYPES.Identifier) {
       throw new WorkflowSyntaxError('Expected Identifier', decl.loc)
     }
@@ -180,7 +197,7 @@ function convertVariableDeclarations(
           ? new PrimitiveExpression(null)
           : convertExpression(decl.init)
 
-      return new AssignStepAST([[targetName, value]])
+      return [new AssignStepAST([[targetName, value]])]
     }
   })
 }
@@ -260,7 +277,7 @@ function assignmentExpressionToSteps(
       compoundOperator === undefined ||
       node.left.type !== AST_NODE_TYPES.Identifier
     const resultVariable = needsTempVariable ? '__temp' : targetName
-    steps.push(callExpressionToStep(node.right, resultVariable, ctx))
+    steps.push(...callExpressionToStep(node.right, resultVariable, ctx))
 
     if (!needsTempVariable) {
       return steps
@@ -288,36 +305,33 @@ function callExpressionToStep(
   node: TSESTree.CallExpression,
   resultVariable: string | undefined,
   ctx: ParsingContext,
-): WorkflowStepAST {
+): WorkflowStepAST[] {
   const calleeExpression = convertExpression(node.callee)
   if (isFullyQualifiedName(calleeExpression)) {
     const calleeName = calleeExpression.toString()
 
     if (calleeName === 'parallel') {
       // A custom implementation for "parallel"
-      return callExpressionToParallelStep(node, ctx)
+      return [callExpressionToParallelStep(node, ctx)]
     } else if (calleeName === 'retry_policy') {
-      return callExpressionToCallStep(
-        calleeName,
-        node.arguments,
-        resultVariable,
-      )
+      // retry_policy() is handled by AST_NODE_TYPES.TryStatement and therefore ignored here
+      return []
     } else if (calleeName === 'call_step') {
-      return createCallStep(node.arguments, resultVariable)
+      return [createCallStep(node.arguments, resultVariable)]
     } else if (blockingFunctions.has(calleeName)) {
       const argumentNames = blockingFunctions.get(calleeName) ?? []
-      return blockingFunctionCallStep(
-        calleeName,
-        argumentNames,
-        node.arguments,
-        resultVariable,
-      )
+      return [
+        blockingFunctionCallStep(
+          calleeName,
+          argumentNames,
+          node.arguments,
+          resultVariable,
+        ),
+      ]
     } else {
-      return callExpressionAssignStep(
-        calleeName,
-        node.arguments,
-        resultVariable,
-      )
+      return [
+        callExpressionAssignStep(calleeName, node.arguments, resultVariable),
+      ]
     }
   } else {
     throw new WorkflowSyntaxError(
@@ -341,26 +355,6 @@ function callExpressionAssignStep(
       new FunctionInvocationExpression(functionName, argumentExpressions),
     ],
   ])
-}
-
-function callExpressionToCallStep(
-  functionName: string,
-  argumentsNode: TSESTree.CallExpressionArgument[],
-  resultVariable?: VariableName,
-): CallStepAST {
-  if (
-    argumentsNode.length < 1 ||
-    argumentsNode[0].type !== AST_NODE_TYPES.ObjectExpression
-  ) {
-    throw new WorkflowSyntaxError(
-      'Expected one object parameter',
-      argumentsNode[0].loc,
-    )
-  }
-
-  const workflowArguments = convertObjectAsExpressionValues(argumentsNode[0])
-
-  return new CallStepAST(functionName, workflowArguments, resultVariable)
 }
 
 function createCallStep(
@@ -861,6 +855,7 @@ function continueStatementToNextStep(
 
 function tryStatementToTryStep(
   node: TSESTree.TryStatement,
+  retryPolicy: string | CustomRetryPolicy | undefined,
   ctx: ParsingContext,
 ): TryStepAST {
   const startOfFinalizer = new JumpTargetAST()
@@ -880,7 +875,7 @@ function tryStatementToTryStep(
   const baseTryStep = new TryStepAST(
     trySteps,
     exceptSteps,
-    undefined,
+    retryPolicy,
     errorVariable,
   )
 
@@ -1011,4 +1006,129 @@ function labeledStep(
   }
 
   return steps
+}
+
+function parseRetryPolicy(
+  node: TSESTree.CallExpression,
+): CustomRetryPolicy | string | undefined {
+  const callee = node.callee
+  if (
+    callee.type !== AST_NODE_TYPES.Identifier ||
+    callee.name !== 'retry_policy'
+  ) {
+    // Ignore everything else besides retry_policy()
+    return undefined
+  }
+
+  let retryPolicy: string | CustomRetryPolicy | undefined = undefined
+  const argumentsNode = node.arguments
+  const argsLoc = argumentsNode[0].loc
+  if (
+    argumentsNode.length < 1 ||
+    argumentsNode[0].type !== AST_NODE_TYPES.ObjectExpression
+  ) {
+    throw new WorkflowSyntaxError('Expected one object parameter', argsLoc)
+  }
+
+  const workflowArguments = convertObjectAsExpressionValues(argumentsNode[0])
+
+  if ('policy' in workflowArguments) {
+    const policyEx = workflowArguments.policy
+
+    if (isFullyQualifiedName(policyEx)) {
+      retryPolicy = policyEx.toString()
+    } else {
+      throw new WorkflowSyntaxError('"policy" must be a string', argsLoc)
+    }
+  }
+
+  if (!retryPolicy) {
+    if (
+      'predicate' in workflowArguments &&
+      'max_retries' in workflowArguments &&
+      'backoff' in workflowArguments
+    ) {
+      let predicate = ''
+      const predicateEx = workflowArguments.predicate
+
+      if (isFullyQualifiedName(predicateEx)) {
+        predicate = predicateEx.toString()
+      } else {
+        throw new WorkflowSyntaxError(
+          '"predicate" must be a function name',
+          argsLoc,
+        )
+      }
+
+      const maxRetries = parseRetryPolicyNumber(
+        workflowArguments,
+        'max_retries',
+        argsLoc,
+      )
+
+      let initialDelay = 1
+      let maxDelay = 1
+      let multiplier = 1
+
+      const backoffEx = workflowArguments.backoff
+
+      if (isLiteral(backoffEx) && backoffEx.expressionType === 'primitive') {
+        const backoffLit = backoffEx.value
+
+        if (isRecord(backoffLit)) {
+          initialDelay = parseRetryPolicyNumber(
+            backoffLit,
+            'initial_delay',
+            argsLoc,
+          )
+          maxDelay = parseRetryPolicyNumber(backoffLit, 'max_delay', argsLoc)
+          multiplier = parseRetryPolicyNumber(backoffLit, 'multiplier', argsLoc)
+        }
+      }
+
+      retryPolicy = {
+        predicate,
+        maxRetries,
+        backoff: {
+          initialDelay,
+          maxDelay,
+          multiplier,
+        },
+      }
+    } else {
+      throw new WorkflowSyntaxError(
+        'Some required retry policy parameters are missing',
+        argsLoc,
+      )
+    }
+  }
+
+  return retryPolicy
+}
+
+function parseRetryPolicyNumber(
+  record: Record<string, Expression | Primitive | undefined>,
+  keyName: string,
+  loc: SourceCodeLocation,
+): number {
+  const primitiveOrExpression = record[keyName]
+
+  if (!primitiveOrExpression) {
+    throw new WorkflowSyntaxError(`"${keyName}" expected`, loc)
+  }
+
+  let primitiveValue
+  if (isExpression(primitiveOrExpression)) {
+    primitiveValue = expressionToLiteralValueOrLiteralExpression(
+      primitiveOrExpression,
+    )
+  } else {
+    primitiveValue = primitiveOrExpression
+  }
+
+  if (typeof primitiveValue !== 'number') {
+    throw new WorkflowSyntaxError(`"${keyName}" must be a number`, loc)
+  }
+
+  return primitiveValue
 }

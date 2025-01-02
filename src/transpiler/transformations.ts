@@ -1,12 +1,10 @@
 import {
   AssignStepAST,
   CallStepAST,
-  CustomRetryPolicy,
   ForStepAST,
   RaiseStepAST,
   ReturnStepAST,
   SwitchStepAST,
-  TryStepAST,
   VariableAssignment,
   WorkflowParameters,
   WorkflowStepAST,
@@ -21,11 +19,8 @@ import {
   Primitive,
   PrimitiveExpression,
   UnaryExpression,
-  VariableName,
   VariableReferenceExpression,
-  expressionToLiteralValueOrLiteralExpression,
   isExpression,
-  isFullyQualifiedName,
   isLiteral,
 } from '../ast/expressions.js'
 import { blockingFunctions } from './generated/functionMetadata.js'
@@ -44,9 +39,7 @@ export function transformAST(steps: WorkflowStepAST[]): WorkflowStepAST[] {
   return blockingCallsAsCallSteps(
     runtimeFunctionImplementation(
       flattenPlainNextConditions(
-        combineRetryBlocksToTry(
-          mergeAssignSteps(mapLiteralsAsAssignSteps(steps)),
-        ),
+        mergeAssignSteps(mapLiteralsAsAssignSteps(steps)),
       ),
     ),
   )
@@ -81,130 +74,6 @@ function mergeAssignSteps(steps: WorkflowStepAST[]): WorkflowStepAST[] {
 
     return acc
   }, [])
-}
-
-/**
- * Transform a retry_policy call step to a retry block in a preceeding try step
- */
-function combineRetryBlocksToTry(steps: WorkflowStepAST[]): WorkflowStepAST[] {
-  return steps.reduce((acc: WorkflowStepAST[], current: WorkflowStepAST) => {
-    const prev = acc.length > 0 ? acc[acc.length - 1] : null
-
-    if (current.tag === 'call' && current.call === 'retry_policy') {
-      if (prev?.tag === 'try') {
-        if (prev.retryPolicy) {
-          throw new InternalTranspilingError('Retry policy already assigned!')
-        }
-
-        let retryPolicy: string | CustomRetryPolicy | undefined = undefined
-        const retryParameters = current.args as
-          | Record<VariableName, Expression | undefined>
-          | undefined
-
-        if (retryParameters) {
-          const retryPolicyEx = retryParameters.policy
-          if (retryPolicyEx && isFullyQualifiedName(retryPolicyEx)) {
-            retryPolicy = retryPolicyEx.toString()
-          }
-
-          if (!retryPolicy) {
-            let predicate = ''
-            const predicateEx = retryParameters.predicate
-            if (predicateEx) {
-              if (isFullyQualifiedName(predicateEx)) {
-                predicate = predicateEx.toString()
-              } else {
-                throw new InternalTranspilingError(
-                  '"predicate" must be a function name',
-                )
-              }
-            }
-
-            const maxRetries = parseRetryPolicyNumber(
-              retryParameters,
-              'max_retries',
-            )
-
-            let initialDelay = 1
-            let maxDelay = 1
-            let multiplier = 1
-
-            const backoffEx = retryParameters.backoff
-            if (
-              backoffEx &&
-              isLiteral(backoffEx) &&
-              backoffEx.expressionType === 'primitive'
-            ) {
-              const backoffLit = backoffEx.value
-
-              if (isRecord(backoffLit)) {
-                initialDelay = parseRetryPolicyNumber(
-                  backoffLit,
-                  'initial_delay',
-                )
-                maxDelay = parseRetryPolicyNumber(backoffLit, 'max_delay')
-                multiplier = parseRetryPolicyNumber(backoffLit, 'multiplier')
-              }
-            }
-
-            retryPolicy = {
-              predicate,
-              maxRetries,
-              backoff: {
-                initialDelay,
-                maxDelay,
-                multiplier,
-              },
-            }
-          }
-        }
-
-        const tryWithRetry = new TryStepAST(
-          prev.trySteps,
-          prev.exceptSteps,
-          retryPolicy,
-          prev.errorMap,
-        )
-
-        acc.pop()
-        acc.push(tryWithRetry)
-      }
-      // If prev is not a try step, "retry_policy" is ignored. Should print a warning.
-    } else {
-      acc.push(current)
-    }
-
-    return acc
-  }, [])
-}
-
-function parseRetryPolicyNumber(
-  record: Record<string, Expression | Primitive | undefined>,
-  keyName: string,
-): number {
-  let primitiveValue: Primitive
-  const primitiveOrExpression = record[keyName]
-  if (primitiveOrExpression && isExpression(primitiveOrExpression)) {
-    if (isLiteral(primitiveOrExpression)) {
-      primitiveValue = expressionToLiteralValueOrLiteralExpression(
-        primitiveOrExpression,
-      )
-    } else {
-      throw new InternalTranspilingError(
-        `Support for non-literal "${keyName}" values not yet implemented`,
-      )
-    }
-  } else if (primitiveOrExpression) {
-    primitiveValue = primitiveOrExpression
-  } else {
-    throw new InternalTranspilingError(`"${keyName}" expected`)
-  }
-
-  if (typeof primitiveValue !== 'number') {
-    throw new InternalTranspilingError(`"${keyName}" must be a number`)
-  }
-
-  return primitiveValue
 }
 
 /**
