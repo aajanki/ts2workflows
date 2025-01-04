@@ -64,9 +64,7 @@ export function convertObjectAsExpressionValues(
   node: TSESTree.ObjectExpression,
 ): Record<string, Expression> {
   // Convert Primitive values to PrimitiveExpressions
-  return mapRecordValues(convertObjectExpression(node), (val) =>
-    isExpression(val) ? val : new PrimitiveExpression(val),
-  )
+  return mapRecordValues(convertObjectExpression(node), asExpression)
 }
 
 function convertExpressionOrPrimitive(

@@ -2043,7 +2043,7 @@ describe('Try-catch-finally statement', () => {
       } catch {
         log("Error!");
       }
-      retry_policy({ policy: http.default_retry })
+      retry_policy(http.default_retry)
     }`
 
     const expected = `
@@ -2081,7 +2081,7 @@ describe('Try-catch-finally statement', () => {
       } finally {
         closeConnection();
       }
-      retry_policy({ policy: http.default_retry })
+      retry_policy(http.default_retry)
     }`
 
     const expected = `
@@ -2389,7 +2389,7 @@ describe('Try-catch-finally statement', () => {
       } catch {
         log("Error!");
       }
-      retry_policy({ policy: 1000 })
+      retry_policy(1000)
     }`
 
     expect(() => transpile(code)).to.throw()
@@ -2406,7 +2406,7 @@ describe('Try-catch-finally statement', () => {
 
       log("try block completed")
 
-      retry_policy({ policy: http.default_retry })
+      retry_policy(http.default_retry)
     }`
 
     const expected = `
@@ -2485,7 +2485,7 @@ describe('Try-catch-finally statement', () => {
       } catch {
         log("Error!");
       }
-      const x = 1 + retry_policy({ policy: http.default_retry })
+      const x = 1 + retry_policy(http.default_retry)
     }`
 
     expect(() => transpile(code)).to.throw()

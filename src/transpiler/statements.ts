@@ -22,6 +22,7 @@ import {
   BinaryOperator,
   Expression,
   FunctionInvocationExpression,
+  Primitive,
   PrimitiveExpression,
   VariableName,
   VariableReferenceExpression,
@@ -30,7 +31,7 @@ import {
   isLiteral,
 } from '../ast/expressions.js'
 import { InternalTranspilingError, WorkflowSyntaxError } from '../errors.js'
-import { flatMapPair, isRecord } from '../utils.js'
+import { flatMapPair, isRecord, mapRecordValues } from '../utils.js'
 import { transformAST } from './transformations.js'
 import {
   convertExpression,
@@ -1016,49 +1017,30 @@ function parseRetryPolicy(
     return undefined
   }
 
-  const argumentsNode = node.arguments
-  const argsLoc = argumentsNode[0].loc
-  if (
-    argumentsNode.length < 1 ||
-    argumentsNode[0].type !== AST_NODE_TYPES.ObjectExpression
-  ) {
-    throw new WorkflowSyntaxError(
-      'Expected an object literal with "policy" or all of the following properties: "predicate", "max_retries", "backoff"',
-      argsLoc,
-    )
+  if (node.arguments.length < 1) {
+    throw new WorkflowSyntaxError('Required argument missing', node.loc)
   }
 
-  const workflowArguments = convertObjectAsExpressionValues(argumentsNode[0])
+  const arg0 = throwIfSpread(node.arguments).map(convertExpression)[0]
+  const argsLoc = node.arguments[0].loc
 
-  if ('policy' in workflowArguments) {
-    return retryPolicyFromFunctionName(workflowArguments.policy, argsLoc)
+  if (isFullyQualifiedName(arg0)) {
+    return arg0.toString()
+  } else if (arg0.expressionType === 'primitive' && isRecord(arg0.value)) {
+    return retryPolicyFromParams(arg0.value, argsLoc)
   } else {
-    return retryPolicyFromParams(workflowArguments, argsLoc)
-  }
-}
-
-function retryPolicyFromFunctionName(
-  policyEx: Expression,
-  argsLoc: TSESTree.SourceLocation,
-): string {
-  if (isFullyQualifiedName(policyEx)) {
-    return policyEx.toString()
-  } else {
-    throw new WorkflowSyntaxError('"policy" must be a function name', argsLoc)
+    throw new WorkflowSyntaxError('Unexpected type', argsLoc)
   }
 }
 
 function retryPolicyFromParams(
-  workflowArguments: Record<string, Expression>,
+  paramsObject: Record<string, Primitive | Expression>,
   argsLoc: TSESTree.SourceLocation,
 ): CustomRetryPolicy {
-  if (
-    'predicate' in workflowArguments &&
-    'max_retries' in workflowArguments &&
-    'backoff' in workflowArguments
-  ) {
+  const params = mapRecordValues(paramsObject, asExpression)
+  if ('predicate' in params && 'max_retries' in params && 'backoff' in params) {
     let predicate = ''
-    const predicateEx = workflowArguments.predicate
+    const predicateEx = params.predicate
 
     if (isFullyQualifiedName(predicateEx)) {
       predicate = predicateEx.toString()
@@ -1069,7 +1051,7 @@ function retryPolicyFromParams(
       )
     }
 
-    const backoffEx = workflowArguments.backoff
+    const backoffEx = params.backoff
 
     if (backoffEx.expressionType === 'primitive' && isRecord(backoffEx.value)) {
       const backoffLit = backoffEx.value
@@ -1081,7 +1063,7 @@ function retryPolicyFromParams(
       ) {
         return {
           predicate,
-          maxRetries: workflowArguments.max_retries,
+          maxRetries: params.max_retries,
           backoff: {
             initialDelay: asExpression(backoffLit.initial_delay),
             maxDelay: asExpression(backoffLit.max_delay),

@@ -612,9 +612,28 @@ If an exception gets thrown inside a try block, the stack trace in Workflows log
 
 It is possible to set a retry policy for a try-catch statement. Because Typescript does not have `retry` keyword, the retry is implemented by a special `retry_policy` function. It must be called immediately after a try-catch block. A call to the `retry_policy` is ignored elsewhere.
 
-The `retry_policy` function must be called with parameters defining a retry policy. It can be either a policy provided by GCP Workflows or a custom retry policy. See the GCP documentation for the [required parameters for the two policy types](https://cloud.google.com/workflows/docs/reference/syntax/retrying#try-retry).
+Finally and catch blocks are run after possible retry attempts. The following sample retries `http.get()` if it throws an exception and executes `sys.log('Error!')` and `closeConnection()` after retry attempts.
 
-A sample with a GCP-provided retry policy:
+```javascript
+import { http, retry_policy, sys } from 'ts2workflows/types/workflowslib'
+
+function main() {
+  try {
+    http.get('https://visit.dreamland.test/')
+  } catch (err) {
+    sys.log('Error!')
+  } finally {
+    closeConnection()
+  }
+  retry_policy(http.default_retry)
+}
+```
+
+The `retry_policy` function must be called with a parameter that defines the retry policy. It can be either a policy provided by GCP Workflows or a custom retry policy.
+
+### GCP-provided retry policy
+
+GCP retry policy must be either `http.default_retry` or `http.default_retry_non_idempotent`. Their effects are described by the [GCP documentation](https://cloud.google.com/workflows/docs/reference/syntax/retrying#default-retry-policy).
 
 ```javascript
 import { http, retry_policy } from 'ts2workflows/types/workflowslib'
@@ -625,11 +644,15 @@ function main() {
   } catch (err) {
     return 'Error!'
   }
-  retry_policy({ policy: http.default_retry })
+  retry_policy(http.default_retry)
 }
 ```
 
-A sample with a custom retry policy:
+### Custom retry policy
+
+A custom retry policy is an object with the properties shown in the following example. See the GCP documentation for the [explanation of the properties](https://cloud.google.com/workflows/docs/reference/syntax/retrying#try-retry).
+
+The parameter must be a literal map object (not a variable). The values may be literals or expressions.
 
 ```javascript
 import { http, retry_policy } from 'ts2workflows/types/workflowslib'
@@ -676,23 +699,6 @@ main:
           steps:
             - return1:
                 return: Error!
-```
-
-Finally and catch blocks are run after possible retry attempts. The following sample retries `http.get()` if it throws an exception and executes `sys.log('Error!')` and `closeConnection()` after retry attempts.
-
-```javascript
-import { http, retry_policy, sys } from 'ts2workflows/types/workflowslib'
-
-function main() {
-  try {
-    http.get('https://visit.dreamland.test/')
-  } catch (err) {
-    sys.log('Error!')
-  } finally {
-    closeConnection()
-  }
-  retry_policy({ policy: http.default_retry })
-}
 ```
 
 ## Throwing errors
@@ -799,9 +805,7 @@ The `parallel` function executes code blocks in parallel (using [parallel step](
 ```typescript
 function retry_policy(
   params:
-    | {
-        policy: (exception: unknown) => void
-      }
+    | ((exception: unknown) => void)
     | {
         predicate: (exception: unknown) => boolean
         max_retries: number

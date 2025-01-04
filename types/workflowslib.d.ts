@@ -709,9 +709,7 @@ export declare function parallel(
 
 export declare function retry_policy(
   params:
-    | {
-        policy: (exception: unknown) => void
-      }
+    | ((exception: unknown) => void)
     | {
         predicate: (exception: unknown) => boolean
         max_retries: number

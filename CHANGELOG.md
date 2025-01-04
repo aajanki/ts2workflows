@@ -1,5 +1,11 @@
 <unreleased>
 
+Breaking changes:
+
+- retry_policy() takes a plain policy function name instead of a {policy: ...} object
+
+Fixes:
+
 - The try statement support a finally block
 - Support empty body in a catch block
 - retry_policy() may now include expressions in addition to number literals
