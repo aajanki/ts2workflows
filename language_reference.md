@@ -805,9 +805,9 @@ The `parallel` function executes code blocks in parallel (using [parallel step](
 ```typescript
 function retry_policy(
   params:
-    | ((exception: unknown) => void)
+    | ((errormap: Record<string, any>) => void)
     | {
-        predicate: (exception: unknown) => boolean
+        predicate: (errormap: Record<string, any>) => boolean
         max_retries: number
         backoff: {
           initial_delay: number

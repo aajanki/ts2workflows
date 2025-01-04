@@ -49,11 +49,15 @@ export declare namespace events {
 }
 
 export declare namespace http {
-  export function default_retry(exception: unknown): void
-  export function default_retry_non_idempotent(exception: unknown): void
-  export function default_retry_predicate(exception: unknown): boolean
+  export function default_retry(errormap: Record<string, any>): void
+  export function default_retry_non_idempotent(
+    errormap: Record<string, any>,
+  ): void
+  export function default_retry_predicate(
+    errormap: Record<string, any>,
+  ): boolean
   export function default_retry_predicate_non_idempotent(
-    exception: unknown,
+    errormap: Record<string, any>,
   ): boolean
   function _delete(
     url: string,
@@ -709,9 +713,9 @@ export declare function parallel(
 
 export declare function retry_policy(
   params:
-    | ((exception: unknown) => void)
+    | ((errormap: Record<string, any>) => void)
     | {
-        predicate: (exception: unknown) => boolean
+        predicate: (errormap: Record<string, any>) => boolean
         max_retries: number
         backoff: {
           initial_delay: number
