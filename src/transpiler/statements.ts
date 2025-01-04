@@ -1038,11 +1038,13 @@ function retryPolicyFromParams(
   argsLoc: TSESTree.SourceLocation,
 ): CustomRetryPolicy {
   const params = mapRecordValues(paramsObject, asExpression)
-  if ('predicate' in params && 'max_retries' in params && 'backoff' in params) {
-    let predicate = ''
+  if ('backoff' in params) {
+    let predicate: string | undefined = ''
     const predicateEx = params.predicate
 
-    if (isFullyQualifiedName(predicateEx)) {
+    if (predicateEx === undefined) {
+      predicate = undefined
+    } else if (isFullyQualifiedName(predicateEx)) {
       predicate = predicateEx.toString()
     } else {
       throw new WorkflowSyntaxError(
@@ -1056,25 +1058,20 @@ function retryPolicyFromParams(
     if (backoffEx.expressionType === 'primitive' && isRecord(backoffEx.value)) {
       const backoffLit = backoffEx.value
 
-      if (
-        'initial_delay' in backoffLit &&
-        'max_delay' in backoffLit &&
-        'multiplier' in backoffLit
-      ) {
-        return {
-          predicate,
-          maxRetries: params.max_retries,
-          backoff: {
-            initialDelay: asExpression(backoffLit.initial_delay),
-            maxDelay: asExpression(backoffLit.max_delay),
-            multiplier: asExpression(backoffLit.multiplier),
-          },
-        }
-      } else {
-        throw new WorkflowSyntaxError(
-          '"backoff" must contain properties "initial_delay", "max_delay", and "multiplier"',
-          argsLoc,
-        )
+      return {
+        predicate,
+        maxRetries: params.max_retries,
+        backoff: {
+          initialDelay: backoffLit.initial_delay
+            ? asExpression(backoffLit.initial_delay)
+            : undefined,
+          maxDelay: backoffLit.max_delay
+            ? asExpression(backoffLit.max_delay)
+            : undefined,
+          multiplier: backoffLit.multiplier
+            ? asExpression(backoffLit.multiplier)
+            : undefined,
+        },
       }
     } else {
       throw new WorkflowSyntaxError('Expected an object literal', argsLoc)

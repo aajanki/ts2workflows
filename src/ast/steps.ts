@@ -10,13 +10,19 @@ export type StepName = string
 export type VariableAssignment = readonly [VariableName, Expression]
 export type WorkflowParameters = Record<VariableName, Expression>
 
+// According to the documentation
+// (https://cloud.google.com/workflows/docs/reference/syntax/retrying#try-retry)
+// all parameters are required, but in practice they can be left out.
+// Perhaps Workflows substitutes some default values?
+// Values are expected to be numbers or number valued expressions. Strings
+// are apparently accepted, too, and probably coerced to numbers.
 export interface CustomRetryPolicy {
-  predicate: string
-  maxRetries: Expression // number or a numeric Expression
+  predicate?: string
+  maxRetries: Expression
   backoff: {
-    initialDelay: Expression // number or a numeric Expression
-    maxDelay: Expression // number or a numeric Expression
-    multiplier: Expression // number or a numeric Expression
+    initialDelay?: Expression
+    maxDelay?: Expression
+    multiplier?: Expression
   }
 }
 
@@ -794,20 +800,32 @@ function renderTryStep(step: TryStepASTNamed): Record<string, unknown> {
   } else {
     const predicateName = step.retryPolicy.predicate
     retry = {
-      predicate: `\${${predicateName}}`,
+      ...(predicateName ? { predicate: `\${${predicateName}}` } : {}),
       max_retries: expressionToLiteralValueOrLiteralExpression(
         step.retryPolicy.maxRetries,
       ),
       backoff: {
-        initial_delay: expressionToLiteralValueOrLiteralExpression(
-          step.retryPolicy.backoff.initialDelay,
-        ),
-        max_delay: expressionToLiteralValueOrLiteralExpression(
-          step.retryPolicy.backoff.maxDelay,
-        ),
-        multiplier: expressionToLiteralValueOrLiteralExpression(
-          step.retryPolicy.backoff.multiplier,
-        ),
+        ...(step.retryPolicy.backoff.initialDelay
+          ? {
+              initial_delay: expressionToLiteralValueOrLiteralExpression(
+                step.retryPolicy.backoff.initialDelay,
+              ),
+            }
+          : {}),
+        ...(step.retryPolicy.backoff.maxDelay
+          ? {
+              max_delay: expressionToLiteralValueOrLiteralExpression(
+                step.retryPolicy.backoff.maxDelay,
+              ),
+            }
+          : {}),
+        ...(step.retryPolicy.backoff.multiplier
+          ? {
+              multiplier: expressionToLiteralValueOrLiteralExpression(
+                step.retryPolicy.backoff.multiplier,
+              ),
+            }
+          : {}),
       },
     }
   }

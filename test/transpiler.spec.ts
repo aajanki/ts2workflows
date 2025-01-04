@@ -2295,7 +2295,53 @@ describe('Try-catch-finally statement', () => {
     assertTranspiled(code, expected)
   })
 
-  it('retry policy with numeric expressions', () => {
+  it('retry policy with string values', () => {
+    const code = `
+    function main() {
+      try {
+        const response = http.get("https://visit.dreamland.test/");
+        return response;
+      } catch {
+        log("Error!");
+      }
+      retry_policy({
+        predicate: http.default_retry_predicate,
+        max_retries: "5",
+        backoff: { initial_delay: "5", max_delay: "60", multiplier: "2" }
+      })
+    }`
+
+    const expected = `
+      main:
+        steps:
+          - try1:
+              try:
+                steps:
+                  - call_http_get_1:
+                      call: http.get
+                      args:
+                        url: https://visit.dreamland.test/
+                      result: response
+                  - return1:
+                      return: \${response}
+              retry:
+                predicate: \${http.default_retry_predicate}
+                max_retries: "5"
+                backoff:
+                  initial_delay: "5"
+                  max_delay: "60"
+                  multiplier: "2"
+              except:
+                steps:
+                  - assign1:
+                      assign:
+                        - __temp: \${log("Error!")}
+    `
+
+    assertTranspiled(code, expected)
+  })
+
+  it('retry policy with expressions', () => {
     const code = `
     function main() {
       const multiplier = 2;
@@ -2346,7 +2392,9 @@ describe('Try-catch-finally statement', () => {
     assertTranspiled(code, expected)
   })
 
-  it('throws if not all custom retry predicate parameters are given', () => {
+  it('accepts partial custom retry predicate specifications', () => {
+    // According to the documentation all parameters are required. However,
+    // missing values are actually accepted in my testing (Jan 2025).
     const code = `
     function main() {
       try {
@@ -2362,7 +2410,77 @@ describe('Try-catch-finally statement', () => {
       })
     }`
 
-    expect(() => transpile(code)).to.throw()
+    const expected = `
+      main:
+        steps:
+          - try1:
+              try:
+                steps:
+                  - call_http_get_1:
+                      call: http.get
+                      args:
+                        url: https://visit.dreamland.test/
+                      result: response
+                  - return1:
+                      return: \${response}
+              retry:
+                predicate: \${http.default_retry_predicate}
+                max_retries: 3
+                backoff:
+                  max_delay: 60
+              except:
+                steps:
+                  - assign1:
+                      assign:
+                        - __temp: \${log("Error!")}
+    `
+
+    assertTranspiled(code, expected)
+  })
+
+  it('accepts partial custom retry predicate specifications 2', () => {
+    const code = `
+    function main() {
+      try {
+        const response = http.get("https://visit.dreamland.test/");
+        return response;
+      } catch {
+        log("Error!");
+      }
+      retry_policy({
+        // predicate missing
+        max_retries: 3,
+        backoff: { initial_delay: 0.5, max_delay: 60, multiplier: 3 }
+      })
+    }`
+
+    const expected = `
+      main:
+        steps:
+          - try1:
+              try:
+                steps:
+                  - call_http_get_1:
+                      call: http.get
+                      args:
+                        url: https://visit.dreamland.test/
+                      result: response
+                  - return1:
+                      return: \${response}
+              retry:
+                max_retries: 3
+                backoff:
+                  initial_delay: 0.5
+                  max_delay: 60
+                  multiplier: 3
+              except:
+                steps:
+                  - assign1:
+                      assign:
+                        - __temp: \${log("Error!")}
+    `
+
+    assertTranspiled(code, expected)
   })
 
   it('throws if retry is called without arguments', () => {

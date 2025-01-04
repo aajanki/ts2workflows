@@ -715,12 +715,12 @@ export declare function retry_policy(
   params:
     | ((errormap: Record<string, any>) => void)
     | {
-        predicate: (errormap: Record<string, any>) => boolean
-        max_retries: number
+        predicate?: (errormap: Record<string, any>) => boolean
+        max_retries: number | string | null
         backoff: {
-          initial_delay: number
-          max_delay: number
-          multiplier: number
+          initial_delay?: number | string | null
+          max_delay?: number | string | null
+          multiplier?: number | string | null
         }
       },
 ): void
