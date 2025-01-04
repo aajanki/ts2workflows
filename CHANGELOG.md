@@ -1,7 +1,8 @@
 <unreleased>
 
-- Try statements support a finally block
+- The try statement support a finally block
 - Support empty body in a catch block
+- retry_policy() may now include expressions in addition to number literals
 
 Version 0.5.0 - 2024-11-09
 

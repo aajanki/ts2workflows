@@ -512,3 +512,7 @@ export function throwIfSpread<
 
   return argumentExpressions
 }
+
+export function asExpression(x: Primitive | Expression): Expression {
+  return isExpression(x) ? x : new PrimitiveExpression(x)
+}

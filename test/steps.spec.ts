@@ -15,7 +15,10 @@ import {
   WorkflowStepASTWithNamedNested,
   renderStep,
 } from '../src/ast/steps.js'
-import { PrimitiveExpression } from '../src/ast/expressions.js'
+import {
+  PrimitiveExpression,
+  VariableReferenceExpression,
+} from '../src/ast/expressions.js'
 
 describe('workflow step AST', () => {
   it('renders an assign step', () => {
@@ -296,11 +299,11 @@ describe('workflow step AST', () => {
       [knownErrors, unknownErrors],
       {
         predicate: 'http.default_retry',
-        maxRetries: 10,
+        maxRetries: new PrimitiveExpression(10),
         backoff: {
-          initialDelay: 0.5,
-          maxDelay: 60,
-          multiplier: 2,
+          initialDelay: new PrimitiveExpression(0.5),
+          maxDelay: new PrimitiveExpression(60),
+          multiplier: new VariableReferenceExpression('multiplier'),
         },
       },
       'e',
@@ -320,7 +323,7 @@ describe('workflow step AST', () => {
         backoff:
             initial_delay: 0.5
             max_delay: 60
-            multiplier: 2
+            multiplier: \${multiplier}
     except:
         as: e
         steps:
@@ -382,11 +385,11 @@ describe('workflow step AST', () => {
       [knownErrors, unknownErrors],
       {
         predicate: predicateSubworkflow.name,
-        maxRetries: 3,
+        maxRetries: new PrimitiveExpression(3),
         backoff: {
-          initialDelay: 2,
-          maxDelay: 60,
-          multiplier: 4,
+          initialDelay: new PrimitiveExpression(2),
+          maxDelay: new PrimitiveExpression(60),
+          multiplier: new PrimitiveExpression(4),
         },
       },
       'e',

@@ -2239,6 +2239,113 @@ describe('Try-catch-finally statement', () => {
     assertTranspiled(code, expected)
   })
 
+  it('retries with a custom predicate', () => {
+    const code = `
+    function main() {
+      try {
+        const response = http.get("https://visit.dreamland.test/");
+        return response;
+      } catch {
+        log("Error!");
+      }
+      retry_policy({
+        predicate: custom_predicate,
+        max_retries: 3,
+        backoff: { initial_delay: 0.5, max_delay: 60, multiplier: 2.5 }
+      })
+    }
+
+    function custom_predicate(e) {
+      return false
+    }`
+
+    const expected = `
+      main:
+        steps:
+          - try1:
+              try:
+                steps:
+                  - call_http_get_1:
+                      call: http.get
+                      args:
+                        url: https://visit.dreamland.test/
+                      result: response
+                  - return1:
+                      return: \${response}
+              retry:
+                predicate: \${custom_predicate}
+                max_retries: 3
+                backoff:
+                  initial_delay: 0.5
+                  max_delay: 60
+                  multiplier: 2.5
+              except:
+                steps:
+                  - assign1:
+                      assign:
+                        - __temp: \${log("Error!")}
+      custom_predicate:
+        params:
+          - e
+        steps:
+          - return2:
+              return: false
+    `
+
+    assertTranspiled(code, expected)
+  })
+
+  it('retry policy with numeric expressions', () => {
+    const code = `
+    function main() {
+      const multiplier = 2;
+
+      try {
+        const response = http.get("https://visit.dreamland.test/");
+        return response;
+      } catch {
+        log("Error!");
+      }
+      retry_policy({
+        predicate: http.default_retry_predicate,
+        max_retries: sys.get_env("MAX_RETRIES"),
+        backoff: { initial_delay: 0.5, max_delay: 60, multiplier: multiplier }
+      })
+    }`
+
+    const expected = `
+      main:
+        steps:
+          - assign1:
+              assign:
+                - multiplier: 2
+          - try1:
+              try:
+                steps:
+                  - call_http_get_1:
+                      call: http.get
+                      args:
+                        url: https://visit.dreamland.test/
+                      result: response
+                  - return1:
+                      return: \${response}
+              retry:
+                predicate: \${http.default_retry_predicate}
+                max_retries: \${sys.get_env("MAX_RETRIES")}
+                backoff:
+                  initial_delay: 0.5
+                  max_delay: 60
+                  multiplier: \${multiplier}
+              except:
+                steps:
+                  - assign2:
+                      assign:
+                        - __temp: \${log("Error!")}
+    `
+
+    assertTranspiled(code, expected)
+  })
+
   it('throws if not all custom retry predicate parameters are given', () => {
     const code = `
     function main() {

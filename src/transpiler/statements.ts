@@ -22,20 +22,14 @@ import {
   BinaryOperator,
   Expression,
   FunctionInvocationExpression,
-  Primitive,
   PrimitiveExpression,
   VariableName,
   VariableReferenceExpression,
-  expressionToLiteralValueOrLiteralExpression,
   isExpression,
   isFullyQualifiedName,
   isLiteral,
 } from '../ast/expressions.js'
-import {
-  InternalTranspilingError,
-  SourceCodeLocation,
-  WorkflowSyntaxError,
-} from '../errors.js'
+import { InternalTranspilingError, WorkflowSyntaxError } from '../errors.js'
 import { flatMapPair, isRecord } from '../utils.js'
 import { transformAST } from './transformations.js'
 import {
@@ -46,6 +40,7 @@ import {
   isMagicFunction,
   throwIfSpread,
   isMagicFunctionStatmentOnly,
+  asExpression,
 } from './expressions.js'
 import { blockingFunctions } from './generated/functionMetadata.js'
 
@@ -1021,115 +1016,91 @@ function parseRetryPolicy(
     return undefined
   }
 
-  let retryPolicy: string | CustomRetryPolicy | undefined = undefined
   const argumentsNode = node.arguments
   const argsLoc = argumentsNode[0].loc
   if (
     argumentsNode.length < 1 ||
     argumentsNode[0].type !== AST_NODE_TYPES.ObjectExpression
   ) {
-    throw new WorkflowSyntaxError('Expected one object parameter', argsLoc)
+    throw new WorkflowSyntaxError(
+      'Expected an object literal with "policy" or all of the following properties: "predicate", "max_retries", "backoff"',
+      argsLoc,
+    )
   }
 
   const workflowArguments = convertObjectAsExpressionValues(argumentsNode[0])
 
   if ('policy' in workflowArguments) {
-    const policyEx = workflowArguments.policy
-
-    if (isFullyQualifiedName(policyEx)) {
-      retryPolicy = policyEx.toString()
-    } else {
-      throw new WorkflowSyntaxError('"policy" must be a function name', argsLoc)
-    }
+    return retryPolicyFromFunctionName(workflowArguments.policy, argsLoc)
+  } else {
+    return retryPolicyFromParams(workflowArguments, argsLoc)
   }
+}
 
-  if (!retryPolicy) {
-    if (
-      'predicate' in workflowArguments &&
-      'max_retries' in workflowArguments &&
-      'backoff' in workflowArguments
-    ) {
-      let predicate = ''
-      const predicateEx = workflowArguments.predicate
+function retryPolicyFromFunctionName(
+  policyEx: Expression,
+  argsLoc: TSESTree.SourceLocation,
+): string {
+  if (isFullyQualifiedName(policyEx)) {
+    return policyEx.toString()
+  } else {
+    throw new WorkflowSyntaxError('"policy" must be a function name', argsLoc)
+  }
+}
 
-      if (isFullyQualifiedName(predicateEx)) {
-        predicate = predicateEx.toString()
+function retryPolicyFromParams(
+  workflowArguments: Record<string, Expression>,
+  argsLoc: TSESTree.SourceLocation,
+): CustomRetryPolicy {
+  if (
+    'predicate' in workflowArguments &&
+    'max_retries' in workflowArguments &&
+    'backoff' in workflowArguments
+  ) {
+    let predicate = ''
+    const predicateEx = workflowArguments.predicate
+
+    if (isFullyQualifiedName(predicateEx)) {
+      predicate = predicateEx.toString()
+    } else {
+      throw new WorkflowSyntaxError(
+        '"predicate" must be a function name',
+        argsLoc,
+      )
+    }
+
+    const backoffEx = workflowArguments.backoff
+
+    if (backoffEx.expressionType === 'primitive' && isRecord(backoffEx.value)) {
+      const backoffLit = backoffEx.value
+
+      if (
+        'initial_delay' in backoffLit &&
+        'max_delay' in backoffLit &&
+        'multiplier' in backoffLit
+      ) {
+        return {
+          predicate,
+          maxRetries: workflowArguments.max_retries,
+          backoff: {
+            initialDelay: asExpression(backoffLit.initial_delay),
+            maxDelay: asExpression(backoffLit.max_delay),
+            multiplier: asExpression(backoffLit.multiplier),
+          },
+        }
       } else {
         throw new WorkflowSyntaxError(
-          '"predicate" must be a function name',
+          '"backoff" must contain properties "initial_delay", "max_delay", and "multiplier"',
           argsLoc,
         )
       }
-
-      const maxRetries = parseRetryPolicyNumber(
-        workflowArguments,
-        'max_retries',
-        argsLoc,
-      )
-
-      let initialDelay = 1
-      let maxDelay = 1
-      let multiplier = 1
-
-      const backoffEx = workflowArguments.backoff
-
-      if (isLiteral(backoffEx) && backoffEx.expressionType === 'primitive') {
-        const backoffLit = backoffEx.value
-
-        if (isRecord(backoffLit)) {
-          initialDelay = parseRetryPolicyNumber(
-            backoffLit,
-            'initial_delay',
-            argsLoc,
-          )
-          maxDelay = parseRetryPolicyNumber(backoffLit, 'max_delay', argsLoc)
-          multiplier = parseRetryPolicyNumber(backoffLit, 'multiplier', argsLoc)
-        }
-      }
-
-      retryPolicy = {
-        predicate,
-        maxRetries,
-        backoff: {
-          initialDelay,
-          maxDelay,
-          multiplier,
-        },
-      }
     } else {
-      throw new WorkflowSyntaxError(
-        'Some required retry policy parameters are missing',
-        argsLoc,
-      )
+      throw new WorkflowSyntaxError('Expected an object literal', argsLoc)
     }
-  }
-
-  return retryPolicy
-}
-
-function parseRetryPolicyNumber(
-  record: Record<string, Expression | Primitive | undefined>,
-  keyName: string,
-  loc: SourceCodeLocation,
-): number {
-  const primitiveOrExpression = record[keyName]
-
-  if (!primitiveOrExpression) {
-    throw new WorkflowSyntaxError(`"${keyName}" expected`, loc)
-  }
-
-  let primitiveValue
-  if (isExpression(primitiveOrExpression)) {
-    primitiveValue = expressionToLiteralValueOrLiteralExpression(
-      primitiveOrExpression,
-    )
   } else {
-    primitiveValue = primitiveOrExpression
+    throw new WorkflowSyntaxError(
+      'Some required retry policy parameters are missing',
+      argsLoc,
+    )
   }
-
-  if (typeof primitiveValue !== 'number') {
-    throw new WorkflowSyntaxError(`"${keyName}" must be a number`, loc)
-  }
-
-  return primitiveValue
 }

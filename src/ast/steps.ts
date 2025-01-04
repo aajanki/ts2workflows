@@ -12,11 +12,11 @@ export type WorkflowParameters = Record<VariableName, Expression>
 
 export interface CustomRetryPolicy {
   predicate: string
-  maxRetries: number
+  maxRetries: Expression // number or a numeric Expression
   backoff: {
-    initialDelay: number
-    maxDelay: number
-    multiplier: number
+    initialDelay: Expression // number or a numeric Expression
+    maxDelay: Expression // number or a numeric Expression
+    multiplier: Expression // number or a numeric Expression
   }
 }
 
@@ -795,11 +795,19 @@ function renderTryStep(step: TryStepASTNamed): Record<string, unknown> {
     const predicateName = step.retryPolicy.predicate
     retry = {
       predicate: `\${${predicateName}}`,
-      max_retries: step.retryPolicy.maxRetries,
+      max_retries: expressionToLiteralValueOrLiteralExpression(
+        step.retryPolicy.maxRetries,
+      ),
       backoff: {
-        initial_delay: step.retryPolicy.backoff.initialDelay,
-        max_delay: step.retryPolicy.backoff.maxDelay,
-        multiplier: step.retryPolicy.backoff.multiplier,
+        initial_delay: expressionToLiteralValueOrLiteralExpression(
+          step.retryPolicy.backoff.initialDelay,
+        ),
+        max_delay: expressionToLiteralValueOrLiteralExpression(
+          step.retryPolicy.backoff.maxDelay,
+        ),
+        multiplier: expressionToLiteralValueOrLiteralExpression(
+          step.retryPolicy.backoff.multiplier,
+        ),
       },
     }
   }
