@@ -346,7 +346,7 @@ export declare namespace googleapis {
       interface Document {
         createTime: string
         fields: Record<string, Value>
-        name: string
+        name?: string
         updateTime: string
       }
       interface DocumentMask {
@@ -557,7 +557,7 @@ export declare namespace googleapis {
         currentDocument?: Precondition
         delete?: string
         transform?: DocumentTransform
-        update?: Document
+        update?: Pick<Document, 'fields' | 'name'>
         updateMask?: DocumentMask
         updateTransforms?: FieldTransform[]
       }
@@ -626,7 +626,7 @@ export declare namespace googleapis {
             export function createDocument(
               collectionId: string,
               parent: string,
-              body: Document,
+              body: Pick<Document, 'fields' | 'name'>,
               documentId?: string,
               mask?: DocumentMask,
             ): Document
@@ -661,7 +661,7 @@ export declare namespace googleapis {
               currentDocument: Precondition,
               mask: DocumentMask,
               updateMask: DocumentMask,
-              body: Document,
+              body: Pick<Document, 'fields' | 'name'>,
             ): Document
             export function rollback(
               database: string,
