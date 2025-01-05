@@ -83,6 +83,59 @@ describe('workflow transpiler', () => {
     expect(observed).to.deep.equal(expected)
   })
 
+  it('handles function parameters with number or boolean default values', () => {
+    const code = `
+    function test(value = 10, valid = true) {
+      return value
+    }`
+
+    const expected = YAML.parse(`
+    test:
+      params:
+        - value: 10
+        - valid: true
+      steps:
+        - return1:
+            return: \${value}
+    `) as unknown
+
+    const observed = YAML.parse(transpile(code)) as unknown
+
+    expect(observed).to.deep.equal(expected)
+  })
+
+  it('handles function parameters with falsy default values', () => {
+    const code = `
+    function test(falsyString = '', falsyNumber = 0, falsyBoolean = false, falsyNull = null) {
+      return falsyString
+    }`
+
+    const expected = YAML.parse(`
+    test:
+      params:
+        - falsyString: ''
+        - falsyNumber: 0
+        - falsyBoolean: false
+        - falsyNull: null
+      steps:
+        - return1:
+            return: \${falsyString}
+    `) as unknown
+
+    const observed = YAML.parse(transpile(code)) as unknown
+
+    expect(observed).to.deep.equal(expected)
+  })
+
+  it('list is not a valid default value', () => {
+    const code = `
+    function greeting(names = ["Bean"]) {
+      return "Hello " + names[0]
+    }`
+
+    expect(() => transpile(code)).to.throw()
+  })
+
   it('handles function with positional and optional parameters', () => {
     const code = `function my_workflow(positional_arg, optional_arg = 100) {}`
 

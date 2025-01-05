@@ -52,7 +52,7 @@ export class Subworkflow {
     if (this.params && this.params.length > 0) {
       Object.assign(body, {
         params: this.params.map((x) => {
-          if (x.default) {
+          if (x.default !== undefined) {
             return { [x.name]: x.default }
           } else {
             return x.name
