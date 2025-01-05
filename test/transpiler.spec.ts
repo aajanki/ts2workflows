@@ -3,6 +3,7 @@ import * as YAML from 'yaml'
 import * as fs from 'node:fs'
 import { spawnSync } from 'node:child_process'
 import { transpile } from '../src/transpiler/index.js'
+import { assertTranspiled } from './testutils.js'
 
 describe('Import statement', () => {
   it('accepts named import declaration on the top-level', () => {
@@ -3969,7 +3970,3 @@ describe('Sample source files', () => {
     })
   })
 })
-
-function assertTranspiled(code: string, expected: string): void {
-  expect(YAML.parse(transpile(code))).to.deep.equal(YAML.parse(expected))
-}

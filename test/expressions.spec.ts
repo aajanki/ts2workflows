@@ -3,9 +3,8 @@ import {
   LiteralValueOrLiteralExpression,
   expressionToLiteralValueOrLiteralExpression,
 } from '../src/ast/expressions.js'
-import { parseExpression } from './testutils.js'
+import { assertTranspiled, parseExpression } from './testutils.js'
 import { transpile } from '../src/transpiler/index.js'
-import * as YAML from 'yaml'
 
 describe('Literals', () => {
   it('parses null', () => {
@@ -90,9 +89,7 @@ describe('Literals', () => {
   })
 
   it('parses maps with identifier as keys', () => {
-    const ast = transpile(
-      'function test() { const x = {name: "Merkimer", race: "pig"} }',
-    )
+    const code = 'function test() { const x = {name: "Merkimer", race: "pig"} }'
     const expected = `
     test:
       steps:
@@ -103,13 +100,12 @@ describe('Literals', () => {
                   race: pig
     `
 
-    expect(YAML.parse(ast)).to.deep.equal(YAML.parse(expected))
+    assertTranspiled(code, expected)
   })
 
   it('parses maps with special characters in keys', () => {
-    const ast = transpile(
-      'function test() { const x = {"special!": 1, "\'quotes\\"in keys": 2, "...": 3} }',
-    )
+    const code =
+      'function test() { const x = {"special!": 1, "\'quotes\\"in keys": 2, "...": 3} }'
     const expected = `
     test:
       steps:
@@ -121,7 +117,7 @@ describe('Literals', () => {
                   ...: 3
     `
 
-    expect(YAML.parse(ast)).to.deep.equal(YAML.parse(expected))
+    assertTranspiled(code, expected)
   })
 
   it('parses nested maps', () => {
@@ -255,7 +251,7 @@ describe('Expressions', () => {
   it('parses expressions as map values', () => {
     // The transpiler fails to parse plain JSON objects with expressions as values. It works
     // only on assignments.
-    const ast = transpile('function test() { const _ = {"name": name} }')
+    const code = 'function test() { const _ = {"name": name} }'
     const expected = `
     test:
       steps:
@@ -265,13 +261,11 @@ describe('Expressions', () => {
                   name: \${name}
     `
 
-    expect(YAML.parse(ast)).to.deep.equal(YAML.parse(expected))
+    assertTranspiled(code, expected)
   })
 
   it('parses expressions as map values 2', () => {
-    const ast = transpile(
-      'function test() { const _ = {"age": thisYear - birthYear} }',
-    )
+    const code = 'function test() { const _ = {"age": thisYear - birthYear} }'
     const expected = `
     test:
       steps:
@@ -281,13 +275,11 @@ describe('Expressions', () => {
                   age: \${thisYear - birthYear}
     `
 
-    expect(YAML.parse(ast)).to.deep.equal(YAML.parse(expected))
+    assertTranspiled(code, expected)
   })
 
   it('parses expressions as map values 3', () => {
-    const ast = transpile(
-      'function test() { const _ = {"id": "ID-" + identifiers[2]} }',
-    )
+    const code = 'function test() { const _ = {"id": "ID-" + identifiers[2]} }'
     const expected = `
     test:
       steps:
@@ -297,13 +289,11 @@ describe('Expressions', () => {
                   id: \${"ID-" + identifiers[2]}
     `
 
-    expect(YAML.parse(ast)).to.deep.equal(YAML.parse(expected))
+    assertTranspiled(code, expected)
   })
 
   it('parses nested expression in map values', () => {
-    const ast = transpile(
-      'function test() { const _ = {"success": code in [200, 201]} }',
-    )
+    const code = 'function test() { const _ = {"success": code in [200, 201]} }'
     const expected = `
     test:
       steps:
@@ -312,13 +302,12 @@ describe('Expressions', () => {
               - _:
                   success: \${code in [200, 201]}
     `
-    expect(YAML.parse(ast)).to.deep.equal(YAML.parse(expected))
+    assertTranspiled(code, expected)
   })
 
   it('parses nested expression in map values 2', () => {
-    const ast = transpile(
-      'function test() { const _ = {"isKnownLocation": location in {"Dreamland": 1, "Maru": 2}} }',
-    )
+    const code =
+      'function test() { const _ = {"isKnownLocation": location in {"Dreamland": 1, "Maru": 2}} }'
     const expected = `
     test:
       steps:
@@ -330,13 +319,11 @@ describe('Expressions', () => {
               - _:
                   isKnownLocation: '\${location in __temp0}'
     `
-    expect(YAML.parse(ast)).to.deep.equal(YAML.parse(expected))
+    assertTranspiled(code, expected)
   })
 
   it('parses nested expression in map values 3', () => {
-    const ast = transpile(
-      'function test() { const _ = {"values": {"next": a + 1}} }',
-    )
+    const code = 'function test() { const _ = {"values": {"next": a + 1}} }'
     const expected = `
     test:
       steps:
@@ -346,7 +333,8 @@ describe('Expressions', () => {
                   values:
                       next: \${a + 1}
     `
-    expect(YAML.parse(ast)).to.deep.equal(YAML.parse(expected))
+
+    assertTranspiled(code, expected)
   })
 
   it('parses non-alphanumeric keys', () => {
@@ -387,9 +375,9 @@ describe('Expressions', () => {
   })
 
   it('transpiles optional chaining as map.get()', () => {
-    const ast = transpile(`function test(data) {
+    const code = `function test(data) {
       return data?.name;
-    }`)
+    }`
     const expected = `
     test:
       params:
@@ -399,13 +387,13 @@ describe('Expressions', () => {
             return: \${map.get(data, "name")}
     `
 
-    expect(YAML.parse(ast)).to.deep.equal(YAML.parse(expected))
+    assertTranspiled(code, expected)
   })
 
   it('transpiles nested optional chains', () => {
-    const ast = transpile(`function test(data) {
+    const code = `function test(data) {
       return data.person[3].address?.city?.id;
-    }`)
+    }`
     const expected = `
     test:
       params:
@@ -415,13 +403,13 @@ describe('Expressions', () => {
             return: \${map.get(data.person[3], ["address", "city", "id"])}
     `
 
-    expect(YAML.parse(ast)).to.deep.equal(YAML.parse(expected))
+    assertTranspiled(code, expected)
   })
 
   it('transpiles optional chains with alternativing optional and non-optional elements', () => {
-    const ast = transpile(`function test(data) {
+    const code = `function test(data) {
       return data.person?.address.city?.id;
-    }`)
+    }`
     const expected = `
     test:
       params:
@@ -431,13 +419,13 @@ describe('Expressions', () => {
             return: \${map.get(data, ["person", "address", "city", "id"])}
     `
 
-    expect(YAML.parse(ast)).to.deep.equal(YAML.parse(expected))
+    assertTranspiled(code, expected)
   })
 
   it('transpiles (data?.a).b', () => {
-    const ast = transpile(`function test(data) {
+    const code = `function test(data) {
       return (data?.a).b;
-    }`)
+    }`
     const expected = `
     test:
       params:
@@ -447,13 +435,13 @@ describe('Expressions', () => {
             return: \${map.get(data, "a").b}
     `
 
-    expect(YAML.parse(ast)).to.deep.equal(YAML.parse(expected))
+    assertTranspiled(code, expected)
   })
 
   it('transpiles (data?.a)?.b', () => {
-    const ast = transpile(`function test(data) {
+    const code = `function test(data) {
       return (data?.a)?.b;
-    }`)
+    }`
     const expected = `
     test:
       params:
@@ -463,13 +451,13 @@ describe('Expressions', () => {
             return: \${map.get(map.get(data, "a"), "b")}
     `
 
-    expect(YAML.parse(ast)).to.deep.equal(YAML.parse(expected))
+    assertTranspiled(code, expected)
   })
 
   it('transpiles optional chaining with bracket notation', () => {
-    const ast = transpile(`function test(data) {
+    const code = `function test(data) {
       return data?.["na" + "me"];
-    }`)
+    }`
     const expected = `
     test:
       params:
@@ -479,7 +467,7 @@ describe('Expressions', () => {
             return: \${map.get(data, "na" + "me")}
     `
 
-    expect(YAML.parse(ast)).to.deep.equal(YAML.parse(expected))
+    assertTranspiled(code, expected)
   })
 
   it('optional call expression is not supported', () => {

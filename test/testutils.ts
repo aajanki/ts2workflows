@@ -1,13 +1,16 @@
+import { expect } from 'chai'
 import {
   parse,
   TSESTree,
   AST_NODE_TYPES,
 } from '@typescript-eslint/typescript-estree'
+import * as YAML from 'yaml'
 import { Expression } from '../src/ast/expressions.js'
 import {
   NamedWorkflowStep,
   WorkflowStepASTWithNamedNested,
 } from '../src/ast/steps.js'
+import { transpile } from '../src/transpiler/index.js'
 import { convertExpression } from '../src/transpiler/expressions.js'
 
 export function namedStep(
@@ -62,4 +65,13 @@ function isJSONObject(val: string): boolean {
   } catch {
     return false
   }
+}
+
+/**
+ * Asserts that transpilation generates an expected output.
+ *
+ * Transpiles Typescript source in `code` and compares it to the YAML string `expected`.
+ */
+export function assertTranspiled(code: string, expected: string): void {
+  expect(YAML.parse(transpile(code))).to.deep.equal(YAML.parse(expected))
 }
