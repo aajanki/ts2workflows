@@ -2558,6 +2558,100 @@ describe('Try-catch-finally statement', () => {
     assertTranspiled(code, expected)
   })
 
+  it('applies retry policy only on one try on nested try blocks', () => {
+    const code = `
+    function main() {
+      try {
+        const response = http.get("https://visit.dreamland.test/");
+        try {
+          const a = 1;
+        } catch (e) {}
+      } catch (e) {
+        log("Error!");
+      }
+      retry_policy(http.default_retry);
+    }`
+
+    const expected = `
+    main:
+      steps:
+        - try1:
+            try:
+              steps:
+                - call_http_get_1:
+                    call: http.get
+                    args:
+                      url: https://visit.dreamland.test/
+                    result: response
+                - try2:
+                    try:
+                      steps:
+                        - assign1:
+                            assign:
+                              - a: 1
+                    except:
+                      as: e
+                      steps: []
+            retry: \${http.default_retry}
+            except:
+              as: e
+              steps:
+                - assign2:
+                    assign:
+                      - __temp: \${log("Error!")}
+  `
+
+    assertTranspiled(code, expected)
+  })
+
+  it('applies separate retry policies on nested try blocks', () => {
+    const code = `
+    function main() {
+      try {
+        const response = http.get("https://visit.dreamland.test/");
+        try {
+          const a = 1;
+        } catch (e) {}
+        retry_policy(custom_retry);
+      } catch (e) {
+        log("Error!");
+      }
+      retry_policy(http.default_retry);
+    }`
+
+    const expected = `
+    main:
+      steps:
+        - try1:
+            try:
+              steps:
+                - call_http_get_1:
+                    call: http.get
+                    args:
+                      url: https://visit.dreamland.test/
+                    result: response
+                - try2:
+                    try:
+                      steps:
+                        - assign1:
+                            assign:
+                              - a: 1
+                    retry: \${custom_retry}
+                    except:
+                      as: e
+                      steps: []
+            retry: \${http.default_retry}
+            except:
+              as: e
+              steps:
+                - assign2:
+                    assign:
+                      - __temp: \${log("Error!")}
+  `
+
+    assertTranspiled(code, expected)
+  })
+
   it('throws if retry is called without arguments', () => {
     const code = `
     function main() {
