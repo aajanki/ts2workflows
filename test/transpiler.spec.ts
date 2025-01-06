@@ -1801,13 +1801,17 @@ describe('Try-catch-finally statement', () => {
         params:
           - data
         steps:
+          - assign1:
+              assign:
+                - __t2w_finally_condition:
+                - __t2w_finally_value:
           - try1:
               try:
                 steps:
                   - try2:
                       try:
                         steps:
-                          - assign1:
+                          - assign2:
                               assign:
                                 - __temp: \${writeData(data)}
                       except:
@@ -1817,27 +1821,26 @@ describe('Try-catch-finally statement', () => {
                               call: sys.log
                               args:
                                 data: \${err}
-                  - assign2:
-                      assign:
-                        - __fin_exc:
-                            t2w_finally_tag: "no exception"
-                      next: assign3
               except:
                 as: __fin_exc
                 steps:
                   - assign3:
                       assign:
-                        - __temp: \${closeConnection()}
-                  - switch1:
-                      switch:
-                        - condition: \${map.get(__fin_exc, "t2w_finally_tag") == "no exception and return"}
-                          steps:
-                            - return1:
-                                return: \${map.get(__fin_exc, "value")}
-                        - condition: \${map.get(__fin_exc, "t2w_finally_tag") != "no exception"}
-                          steps:
-                            - raise1:
-                                raise: \${__fin_exc}
+                        - __t2w_finally_condition: raise
+                        - __t2w_finally_value: \${__fin_exc}
+          - assign4:
+              assign:
+                - __temp: \${closeConnection()}
+          - switch1:
+              switch:
+                - condition: \${__t2w_finally_condition == "return"}
+                  steps:
+                    - return1:
+                        return: \${__t2w_finally_value}
+                - condition: \${__t2w_finally_condition == "raise"}
+                  steps:
+                    - raise1:
+                        raise: \${__t2w_finally_value}
     `
 
     assertTranspiled(code, expected)
@@ -1861,19 +1864,22 @@ describe('Try-catch-finally statement', () => {
         params:
           - data
         steps:
+          - assign1:
+              assign:
+                - __t2w_finally_condition:
+                - __t2w_finally_value:
           - try1:
               try:
                 steps:
                   - try2:
                       try:
                         steps:
-                          - assign1:
+                          - assign2:
                               assign:
                                 - __temp: \${writeData(data)}
-                                - __fin_exc:
-                                    t2w_finally_tag: "no exception and return"
-                                    value: OK
-                              next: assign3
+                                - __t2w_finally_condition: return
+                                - __t2w_finally_value: OK
+                              next: assign4
                       except:
                         as: err
                         steps:
@@ -1881,27 +1887,26 @@ describe('Try-catch-finally statement', () => {
                               call: sys.log
                               args:
                                 data: \${err}
-                  - assign2:
-                      assign:
-                        - __fin_exc:
-                            t2w_finally_tag: "no exception"
-                      next: assign3
               except:
                 as: __fin_exc
                 steps:
                   - assign3:
                       assign:
-                        - __temp: \${closeConnection()}
-                  - switch1:
-                      switch:
-                        - condition: \${map.get(__fin_exc, "t2w_finally_tag") == "no exception and return"}
-                          steps:
-                            - return1:
-                                return: \${map.get(__fin_exc, "value")}
-                        - condition: \${map.get(__fin_exc, "t2w_finally_tag") != "no exception"}
-                          steps:
-                            - raise1:
-                                raise: \${__fin_exc}
+                        - __t2w_finally_condition: raise
+                        - __t2w_finally_value: \${__fin_exc}
+          - assign4:
+              assign:
+                - __temp: \${closeConnection()}
+          - switch1:
+              switch:
+                - condition: \${__t2w_finally_condition == "return"}
+                  steps:
+                    - return1:
+                        return: \${__t2w_finally_value}
+                - condition: \${__t2w_finally_condition == "raise"}
+                  steps:
+                    - raise1:
+                        raise: \${__t2w_finally_value}
     `
 
     assertTranspiled(code, expected)
@@ -1925,13 +1930,17 @@ describe('Try-catch-finally statement', () => {
         params:
           - data
         steps:
+          - assign1:
+              assign:
+                - __t2w_finally_condition:
+                - __t2w_finally_value:
           - try1:
               try:
                 steps:
                   - try2:
                       try:
                         steps:
-                          - assign1:
+                          - assign2:
                               assign:
                                 - __temp: \${writeData(data)}
                       except:
@@ -1941,33 +1950,31 @@ describe('Try-catch-finally statement', () => {
                               call: sys.log
                               args:
                                 data: \${err}
-                          - assign2:
+                          - assign3:
                               assign:
-                                - __fin_exc:
-                                    t2w_finally_tag: "no exception and return"
-                                    value: Error!
-                              next: assign4
-                  - assign3:
-                      assign:
-                        - __fin_exc:
-                            t2w_finally_tag: "no exception"
-                      next: assign4
+                                - __t2w_finally_condition: return
+                                - __t2w_finally_value: Error!
+                              next: assign5
               except:
                 as: __fin_exc
                 steps:
                   - assign4:
                       assign:
-                        - __temp: \${closeConnection()}
-                  - switch1:
-                      switch:
-                        - condition: \${map.get(__fin_exc, "t2w_finally_tag") == "no exception and return"}
-                          steps:
-                            - return1:
-                                return: \${map.get(__fin_exc, "value")}
-                        - condition: \${map.get(__fin_exc, "t2w_finally_tag") != "no exception"}
-                          steps:
-                            - raise1:
-                                raise: \${__fin_exc}
+                        - __t2w_finally_condition: raise
+                        - __t2w_finally_value: \${__fin_exc}
+          - assign5:
+              assign:
+                - __temp: \${closeConnection()}
+          - switch1:
+              switch:
+                - condition: \${__t2w_finally_condition == "return"}
+                  steps:
+                    - return1:
+                        return: \${__t2w_finally_value}
+                - condition: \${__t2w_finally_condition == "raise"}
+                  steps:
+                    - raise1:
+                        raise: \${__t2w_finally_value}
     `
 
     assertTranspiled(code, expected)
@@ -1991,13 +1998,17 @@ describe('Try-catch-finally statement', () => {
         params:
           - data
         steps:
+          - assign1:
+              assign:
+                - __t2w_finally_condition:
+                - __t2w_finally_value:
           - try1:
               try:
                 steps:
                   - try2:
                       try:
                         steps:
-                          - assign1:
+                          - assign2:
                               assign:
                                 - __temp: \${writeData(data)}
                       except:
@@ -2007,29 +2018,86 @@ describe('Try-catch-finally statement', () => {
                               call: sys.log
                               args:
                                 data: \${err}
-                  - assign2:
-                      assign:
-                        - __fin_exc:
-                            t2w_finally_tag: "no exception"
-                      next: assign3
               except:
                 as: __fin_exc
                 steps:
                   - assign3:
                       assign:
-                        - __temp: \${closeConnection()}
-                  - return1:
-                      return: 0
-                  - switch1:
-                      switch:
-                        - condition: \${map.get(__fin_exc, "t2w_finally_tag") == "no exception and return"}
-                          steps:
-                            - return2:
-                                return: \${map.get(__fin_exc, "value")}
-                        - condition: \${map.get(__fin_exc, "t2w_finally_tag") != "no exception"}
-                          steps:
-                            - raise1:
-                                raise: \${__fin_exc}
+                        - __t2w_finally_condition: raise
+                        - __t2w_finally_value: \${__fin_exc}
+          - assign4:
+              assign:
+                - __temp: \${closeConnection()}
+          - return1:
+              return: 0
+          - switch1:
+              switch:
+                - condition: \${__t2w_finally_condition == "return"}
+                  steps:
+                    - return2:
+                        return: \${__t2w_finally_value}
+                - condition: \${__t2w_finally_condition == "raise"}
+                  steps:
+                    - raise1:
+                        raise: \${__t2w_finally_value}
+    `
+
+    assertTranspiled(code, expected)
+  })
+
+  it('transpiles try-catch with an empty finally block', () => {
+    const code = `
+    function safeWrite(data) {
+      try {
+        writeData(data);
+      } catch (err) {
+        sys.log(err);
+      } finally {
+      }
+    }`
+
+    const expected = `
+      safeWrite:
+        params:
+          - data
+        steps:
+          - assign1:
+              assign:
+                - __t2w_finally_condition:
+                - __t2w_finally_value:
+          - try1:
+              try:
+                steps:
+                  - try2:
+                      try:
+                        steps:
+                          - assign2:
+                              assign:
+                                - __temp: \${writeData(data)}
+                      except:
+                        as: err
+                        steps:
+                          - call_sys_log_1:
+                              call: sys.log
+                              args:
+                                data: \${err}
+              except:
+                as: __fin_exc
+                steps:
+                  - assign3:
+                      assign:
+                        - __t2w_finally_condition: raise
+                        - __t2w_finally_value: \${__fin_exc}
+          - switch1:
+              switch:
+                - condition: \${__t2w_finally_condition == "return"}
+                  steps:
+                    - return1:
+                        return: \${__t2w_finally_value}
+                - condition: \${__t2w_finally_condition == "raise"}
+                  steps:
+                    - raise1:
+                        raise: \${__t2w_finally_value}
     `
 
     assertTranspiled(code, expected)
@@ -2088,6 +2156,10 @@ describe('Try-catch-finally statement', () => {
     const expected = `
       main:
         steps:
+          - assign1:
+              assign:
+                - __t2w_finally_condition:
+                - __t2w_finally_value:
           - try1:
               try:
                 steps:
@@ -2099,39 +2171,37 @@ describe('Try-catch-finally statement', () => {
                               args:
                                 url: https://visit.dreamland.test/
                               result: response
-                          - assign1:
+                          - assign2:
                               assign:
-                                - __fin_exc:
-                                    t2w_finally_tag: no exception and return
-                                    value: \${response}
-                              next: assign4
+                                - __t2w_finally_condition: return
+                                - __t2w_finally_value: \${response}
+                              next: assign5
                       retry: \${http.default_retry}
                       except:
                         steps:
-                          - assign2:
+                          - assign3:
                               assign:
                                 - __temp: \${log("Error!")}
-                  - assign3:
-                      assign:
-                        - __fin_exc:
-                            t2w_finally_tag: "no exception"
-                      next: assign4
               except:
                 as: __fin_exc
                 steps:
                   - assign4:
                       assign:
-                        - __temp: \${closeConnection()}
-                  - switch1:
-                      switch:
-                        - condition: \${map.get(__fin_exc, "t2w_finally_tag") == "no exception and return"}
-                          steps:
-                            - return1:
-                                return: \${map.get(__fin_exc, "value")}
-                        - condition: \${map.get(__fin_exc, "t2w_finally_tag") != "no exception"}
-                          steps:
-                            - raise1:
-                                raise: \${__fin_exc}
+                        - __t2w_finally_condition: raise
+                        - __t2w_finally_value: \${__fin_exc}
+          - assign5:
+              assign:
+                - __temp: \${closeConnection()}
+          - switch1:
+              switch:
+                - condition: \${__t2w_finally_condition == "return"}
+                  steps:
+                    - return1:
+                        return: \${__t2w_finally_value}
+                - condition: \${__t2w_finally_condition == "raise"}
+                  steps:
+                    - raise1:
+                        raise: \${__t2w_finally_value}
     `
 
     assertTranspiled(code, expected)
@@ -2146,11 +2216,16 @@ describe('Try-catch-finally statement', () => {
       } finally {
         closeConnection();
       }
+      retry_policy(http.default_retry)
     }`
 
     const expected = `
       main:
         steps:
+          - assign1:
+              assign:
+                - __t2w_finally_condition:
+                - __t2w_finally_value:
           - try1:
               try:
                 steps:
@@ -2162,33 +2237,32 @@ describe('Try-catch-finally statement', () => {
                               args:
                                 url: https://visit.dreamland.test/
                               result: response
-                          - assign1:
+                          - assign2:
                               assign:
-                                - __fin_exc:
-                                    t2w_finally_tag: no exception and return
-                                    value: \${response}
-                              next: assign3
-                  - assign2:
-                      assign:
-                        - __fin_exc:
-                            t2w_finally_tag: "no exception"
-                      next: assign3
+                                - __t2w_finally_condition: return
+                                - __t2w_finally_value: \${response}
+                              next: assign4
+                      retry: \${http.default_retry}
               except:
                 as: __fin_exc
                 steps:
                   - assign3:
                       assign:
-                        - __temp: \${closeConnection()}
-                  - switch1:
-                      switch:
-                        - condition: \${map.get(__fin_exc, "t2w_finally_tag") == "no exception and return"}
-                          steps:
-                            - return1:
-                                return: \${map.get(__fin_exc, "value")}
-                        - condition: \${map.get(__fin_exc, "t2w_finally_tag") != "no exception"}
-                          steps:
-                            - raise1:
-                                raise: \${__fin_exc}
+                        - __t2w_finally_condition: raise
+                        - __t2w_finally_value: \${__fin_exc}
+          - assign4:
+              assign:
+                - __temp: \${closeConnection()}
+          - switch1:
+              switch:
+                - condition: \${__t2w_finally_condition == "return"}
+                  steps:
+                    - return1:
+                        return: \${__t2w_finally_value}
+                - condition: \${__t2w_finally_condition == "raise"}
+                  steps:
+                    - raise1:
+                        raise: \${__t2w_finally_value}
     `
 
     assertTranspiled(code, expected)

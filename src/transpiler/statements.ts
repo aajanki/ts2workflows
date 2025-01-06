@@ -56,9 +56,8 @@ export interface ParsingContext {
   finalizerTarget?: StepName
 }
 
-const finalizerVariableName = '__fin_exc'
-const finNoException = 'no exception'
-const finNoExceptionAndReturn = 'no exception and return'
+const finalizerConditionVariableName = '__t2w_finally_condition'
+const finalizerValueVariableName = '__t2w_finally_value'
 
 export function parseStatement(
   node: TSESTree.Statement,
@@ -134,7 +133,7 @@ function parseStatementRecursively(
         retryPolicy = parseRetryPolicy(nextNode.expression)
       }
 
-      return [tryStatementToTryStep(node, retryPolicy, ctx)]
+      return tryStatementToTrySteps(node, retryPolicy, ctx)
     }
 
     case AST_NODE_TYPES.LabeledStatement:
@@ -603,7 +602,7 @@ function returnStatementToReturnStep(
   if (ctx.finalizerTarget) {
     // If we are in try statement with a finally block, return statements are
     // replaced by a jump to finally back with a captured return value.
-    return jumpToFinalizerWithDelayedReturn(ctx.finalizerTarget, value)
+    return delayedReturnAndJumpToFinalizer(ctx.finalizerTarget, value)
   }
 
   return new ReturnStepAST(value)
@@ -850,16 +849,64 @@ function continueStatementToNextStep(
   return new NextStepAST(target)
 }
 
-function tryStatementToTryStep(
+function tryStatementToTrySteps(
   node: TSESTree.TryStatement,
   retryPolicy: string | CustomRetryPolicy | undefined,
   ctx: ParsingContext,
-): TryStepAST {
-  const startOfFinalizer = new JumpTargetAST()
-  if (node.finalizer) {
+): WorkflowStepAST[] {
+  if (!node.finalizer) {
+    // Basic try-catch without a finally block
+    const baseTryStep = parseTryCatchRetry(node, ctx, retryPolicy)
+    return [baseTryStep]
+  } else {
+    // Try-finally is translated to two nested try blocks. The innermost try is
+    // the actual try body with control flow statements (return, in the future
+    // also break/continue) replaced by jumps to the finally block.
+    //
+    // The outer try's catch block saved the exception and continues to the
+    // finally block.
+    //
+    // The nested try blocks are followed by the finally block and a swith for
+    // checking if we need to perform a delayed return/raise.
+    const startOfFinalizer = new JumpTargetAST()
     ctx = Object.assign({}, ctx, { finalizerTarget: startOfFinalizer.label })
-  }
 
+    const innerTry = parseTryCatchRetry(node, ctx, retryPolicy)
+
+    const outerTry = new TryStepAST(
+      [innerTry],
+      finalizerDelayedException('__fin_exc'),
+      undefined,
+      '__fin_exc',
+    )
+
+    // Reset ctx before parsing the finally block because we don't want to
+    // transform returns in finally block in to delayed returns
+    delete ctx.finalizerTarget
+
+    const finallyBlock = parseStatement(node.finalizer, ctx)
+
+    return [
+      finalizerInitializer(
+        finalizerConditionVariableName,
+        finalizerValueVariableName,
+      ),
+      outerTry,
+      startOfFinalizer,
+      ...finallyBlock,
+      finalizerFooter(
+        finalizerConditionVariableName,
+        finalizerValueVariableName,
+      ),
+    ]
+  }
+}
+
+function parseTryCatchRetry(
+  node: TSESTree.TryStatement,
+  ctx: ParsingContext,
+  retryPolicy: string | CustomRetryPolicy | undefined,
+) {
   const trySteps = parseStatement(node.block, ctx)
 
   let exceptSteps: WorkflowStepAST[] | undefined = undefined
@@ -875,37 +922,7 @@ function tryStatementToTryStep(
     retryPolicy,
     errorVariable,
   )
-
-  if (!node.finalizer) {
-    return baseTryStep
-  } else {
-    // Try-finally is translated to two nested try blocks. The innermost try is
-    // the actual try body with control flow statements (return, in the future
-    //  also break/continue) replaced by jumps to the outer catch block.
-    //
-    // The outer try's catch block is the finally block. The outer catch runs
-    // the original finally block and re-throws an exception or returns a
-    // delayed value returned by the try block.
-    const innerTry = [
-      baseTryStep,
-      jumpToFinalizerWithDelayedReturn(startOfFinalizer.label),
-    ]
-
-    delete ctx.finalizerTarget // Reset ctx before parsing the finally block
-
-    const finalizerBlock = [
-      startOfFinalizer,
-      ...parseStatement(node.finalizer, ctx),
-      finalizerFooter(finalizerVariableName),
-    ]
-
-    return new TryStepAST(
-      innerTry,
-      finalizerBlock,
-      undefined,
-      finalizerVariableName,
-    )
-  }
+  return baseTryStep
 }
 
 function extractErrorVariableName(
@@ -926,69 +943,76 @@ function extractErrorVariableName(
 }
 
 /**
- * The common footer of a finalizer block that re-throws the exception or
+ * The shared header for try-finally for initializing the temp variables
+ */
+function finalizerInitializer(
+  conditionVariable: string,
+  valueVariable: string,
+): AssignStepAST {
+  return new AssignStepAST([
+    [conditionVariable, new PrimitiveExpression(null)],
+    [valueVariable, new PrimitiveExpression(null)],
+  ])
+}
+
+/**
+ * The shared footer of a finally block that re-throws the exception or
  * returns the value returned by the try body.
  *
  * The footer code in TypeScript:
  *
- * if (__fin_exc.t2w_finally_tag === "no exception and return") {
- *   return __fin_exc.value
- * } else if (__fin_exc.t2w_finally_tag !== "no exception") {
- *   throw __fin_exc
+ * if (__t2w_finally_condition == "return") {
+ *   return __t2w_finally_value
+ * } elseif (__t2w_finally_condition == "raise") {
+ *   throw __t2w_finally_value
  * }
  */
-function finalizerFooter(finalizerVariable: string) {
+function finalizerFooter(conditionVariable: string, valueVariable: string) {
   return new SwitchStepAST([
     {
       condition: new BinaryExpression(
-        new FunctionInvocationExpression('map.get', [
-          new VariableReferenceExpression(finalizerVariable),
-          new PrimitiveExpression('t2w_finally_tag'),
-        ]),
+        new VariableReferenceExpression(conditionVariable),
         '==',
-        new PrimitiveExpression(finNoExceptionAndReturn),
+        new PrimitiveExpression('return'),
       ),
       steps: [
-        new ReturnStepAST(
-          new FunctionInvocationExpression('map.get', [
-            new VariableReferenceExpression(finalizerVariable),
-            new PrimitiveExpression('value'),
-          ]),
-        ),
+        new ReturnStepAST(new VariableReferenceExpression(valueVariable)),
       ],
     },
     {
       condition: new BinaryExpression(
-        new FunctionInvocationExpression('map.get', [
-          new VariableReferenceExpression(finalizerVariable),
-          new PrimitiveExpression('t2w_finally_tag'),
-        ]),
-        '!=',
-        new PrimitiveExpression(finNoException),
+        new VariableReferenceExpression(conditionVariable),
+        '==',
+        new PrimitiveExpression('raise'),
       ),
-      steps: [
-        new RaiseStepAST(new VariableReferenceExpression(finalizerVariable)),
-      ],
+      steps: [new RaiseStepAST(new VariableReferenceExpression(valueVariable))],
     },
   ])
 }
 
-function jumpToFinalizerWithDelayedReturn(
+function finalizerDelayedException(
+  exceptionVariableName: string,
+): WorkflowStepAST[] {
+  return [
+    new AssignStepAST([
+      [finalizerConditionVariableName, new PrimitiveExpression('raise')],
+      [
+        finalizerValueVariableName,
+        new VariableReferenceExpression(exceptionVariableName),
+      ],
+    ]),
+  ]
+}
+
+function delayedReturnAndJumpToFinalizer(
   finalizerTarget: string,
   value?: Expression,
 ): AssignStepAST {
-  let val
-  if (value) {
-    val = {
-      t2w_finally_tag: finNoExceptionAndReturn,
-      value: value,
-    }
-  } else {
-    val = { t2w_finally_tag: finNoException }
-  }
-
   return new AssignStepAST(
-    [[finalizerVariableName, new PrimitiveExpression(val)]],
+    [
+      [finalizerConditionVariableName, new PrimitiveExpression('return')],
+      [finalizerValueVariableName, value ?? new PrimitiveExpression(null)],
+    ],
     finalizerTarget,
   )
 }
