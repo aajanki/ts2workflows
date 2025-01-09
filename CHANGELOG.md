@@ -1,4 +1,4 @@
-<unreleased>
+Version 0.6.0 - 2025-01-09
 
 Breaking changes:
 
@@ -6,10 +6,10 @@ Breaking changes:
 
 Fixes:
 
-- The try statement support a finally block
+- The try statement supports a finally block
 - Support empty body in a catch block
-- retry_policy() may now include expressions in addition to number literals
-- 0, "", false and null can now be used as workflow parameter default values
+- retry_policy() parameter values can now be expressions in addition to number literals
+- 0, "", false and null can now be used as subworkflow parameter default values
 - Type annotation fixes
 
 Version 0.5.0 - 2024-11-09
