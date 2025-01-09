@@ -1803,8 +1803,8 @@ describe('Try-catch-finally statement', () => {
         steps:
           - assign1:
               assign:
-                - __t2w_finally_condition:
-                - __t2w_finally_value:
+                - __t2w_finally_condition1:
+                - __t2w_finally_value1:
           - try1:
               try:
                 steps:
@@ -1826,21 +1826,21 @@ describe('Try-catch-finally statement', () => {
                 steps:
                   - assign3:
                       assign:
-                        - __t2w_finally_condition: raise
-                        - __t2w_finally_value: \${__fin_exc}
+                        - __t2w_finally_condition1: raise
+                        - __t2w_finally_value1: \${__fin_exc}
           - assign4:
               assign:
                 - __temp: \${closeConnection()}
           - switch1:
               switch:
-                - condition: \${__t2w_finally_condition == "return"}
+                - condition: \${__t2w_finally_condition1 == "return"}
                   steps:
                     - return1:
-                        return: \${__t2w_finally_value}
-                - condition: \${__t2w_finally_condition == "raise"}
+                        return: \${__t2w_finally_value1}
+                - condition: \${__t2w_finally_condition1 == "raise"}
                   steps:
                     - raise1:
-                        raise: \${__t2w_finally_value}
+                        raise: \${__t2w_finally_value1}
     `
 
     assertTranspiled(code, expected)
@@ -1866,8 +1866,8 @@ describe('Try-catch-finally statement', () => {
         steps:
           - assign1:
               assign:
-                - __t2w_finally_condition:
-                - __t2w_finally_value:
+                - __t2w_finally_condition1:
+                - __t2w_finally_value1:
           - try1:
               try:
                 steps:
@@ -1877,8 +1877,8 @@ describe('Try-catch-finally statement', () => {
                           - assign2:
                               assign:
                                 - __temp: \${writeData(data)}
-                                - __t2w_finally_condition: return
-                                - __t2w_finally_value: OK
+                                - __t2w_finally_condition1: return
+                                - __t2w_finally_value1: OK
                               next: assign4
                       except:
                         as: err
@@ -1892,21 +1892,21 @@ describe('Try-catch-finally statement', () => {
                 steps:
                   - assign3:
                       assign:
-                        - __t2w_finally_condition: raise
-                        - __t2w_finally_value: \${__fin_exc}
+                        - __t2w_finally_condition1: raise
+                        - __t2w_finally_value1: \${__fin_exc}
           - assign4:
               assign:
                 - __temp: \${closeConnection()}
           - switch1:
               switch:
-                - condition: \${__t2w_finally_condition == "return"}
+                - condition: \${__t2w_finally_condition1 == "return"}
                   steps:
                     - return1:
-                        return: \${__t2w_finally_value}
-                - condition: \${__t2w_finally_condition == "raise"}
+                        return: \${__t2w_finally_value1}
+                - condition: \${__t2w_finally_condition1 == "raise"}
                   steps:
                     - raise1:
-                        raise: \${__t2w_finally_value}
+                        raise: \${__t2w_finally_value1}
     `
 
     assertTranspiled(code, expected)
@@ -1932,8 +1932,8 @@ describe('Try-catch-finally statement', () => {
         steps:
           - assign1:
               assign:
-                - __t2w_finally_condition:
-                - __t2w_finally_value:
+                - __t2w_finally_condition1:
+                - __t2w_finally_value1:
           - try1:
               try:
                 steps:
@@ -1952,29 +1952,29 @@ describe('Try-catch-finally statement', () => {
                                 data: \${err}
                           - assign3:
                               assign:
-                                - __t2w_finally_condition: return
-                                - __t2w_finally_value: Error!
+                                - __t2w_finally_condition1: return
+                                - __t2w_finally_value1: Error!
                               next: assign5
               except:
                 as: __fin_exc
                 steps:
                   - assign4:
                       assign:
-                        - __t2w_finally_condition: raise
-                        - __t2w_finally_value: \${__fin_exc}
+                        - __t2w_finally_condition1: raise
+                        - __t2w_finally_value1: \${__fin_exc}
           - assign5:
               assign:
                 - __temp: \${closeConnection()}
           - switch1:
               switch:
-                - condition: \${__t2w_finally_condition == "return"}
+                - condition: \${__t2w_finally_condition1 == "return"}
                   steps:
                     - return1:
-                        return: \${__t2w_finally_value}
-                - condition: \${__t2w_finally_condition == "raise"}
+                        return: \${__t2w_finally_value1}
+                - condition: \${__t2w_finally_condition1 == "raise"}
                   steps:
                     - raise1:
-                        raise: \${__t2w_finally_value}
+                        raise: \${__t2w_finally_value1}
     `
 
     assertTranspiled(code, expected)
@@ -2000,8 +2000,8 @@ describe('Try-catch-finally statement', () => {
         steps:
           - assign1:
               assign:
-                - __t2w_finally_condition:
-                - __t2w_finally_value:
+                - __t2w_finally_condition1:
+                - __t2w_finally_value1:
           - try1:
               try:
                 steps:
@@ -2023,8 +2023,8 @@ describe('Try-catch-finally statement', () => {
                 steps:
                   - assign3:
                       assign:
-                        - __t2w_finally_condition: raise
-                        - __t2w_finally_value: \${__fin_exc}
+                        - __t2w_finally_condition1: raise
+                        - __t2w_finally_value1: \${__fin_exc}
           - assign4:
               assign:
                 - __temp: \${closeConnection()}
@@ -2032,14 +2032,14 @@ describe('Try-catch-finally statement', () => {
               return: 0
           - switch1:
               switch:
-                - condition: \${__t2w_finally_condition == "return"}
+                - condition: \${__t2w_finally_condition1 == "return"}
                   steps:
                     - return2:
-                        return: \${__t2w_finally_value}
-                - condition: \${__t2w_finally_condition == "raise"}
+                        return: \${__t2w_finally_value1}
+                - condition: \${__t2w_finally_condition1 == "raise"}
                   steps:
                     - raise1:
-                        raise: \${__t2w_finally_value}
+                        raise: \${__t2w_finally_value1}
     `
 
     assertTranspiled(code, expected)
@@ -2063,8 +2063,8 @@ describe('Try-catch-finally statement', () => {
         steps:
           - assign1:
               assign:
-                - __t2w_finally_condition:
-                - __t2w_finally_value:
+                - __t2w_finally_condition1:
+                - __t2w_finally_value1:
           - try1:
               try:
                 steps:
@@ -2086,18 +2086,18 @@ describe('Try-catch-finally statement', () => {
                 steps:
                   - assign3:
                       assign:
-                        - __t2w_finally_condition: raise
-                        - __t2w_finally_value: \${__fin_exc}
+                        - __t2w_finally_condition1: raise
+                        - __t2w_finally_value1: \${__fin_exc}
           - switch1:
               switch:
-                - condition: \${__t2w_finally_condition == "return"}
+                - condition: \${__t2w_finally_condition1 == "return"}
                   steps:
                     - return1:
-                        return: \${__t2w_finally_value}
-                - condition: \${__t2w_finally_condition == "raise"}
+                        return: \${__t2w_finally_value1}
+                - condition: \${__t2w_finally_condition1 == "raise"}
                   steps:
                     - raise1:
-                        raise: \${__t2w_finally_value}
+                        raise: \${__t2w_finally_value1}
     `
 
     assertTranspiled(code, expected)
@@ -2158,8 +2158,8 @@ describe('Try-catch-finally statement', () => {
         steps:
           - assign1:
               assign:
-                - __t2w_finally_condition:
-                - __t2w_finally_value:
+                - __t2w_finally_condition1:
+                - __t2w_finally_value1:
           - try1:
               try:
                 steps:
@@ -2173,8 +2173,8 @@ describe('Try-catch-finally statement', () => {
                               result: response
                           - assign2:
                               assign:
-                                - __t2w_finally_condition: return
-                                - __t2w_finally_value: \${response}
+                                - __t2w_finally_condition1: return
+                                - __t2w_finally_value1: \${response}
                               next: assign5
                       retry: \${http.default_retry}
                       except:
@@ -2187,21 +2187,21 @@ describe('Try-catch-finally statement', () => {
                 steps:
                   - assign4:
                       assign:
-                        - __t2w_finally_condition: raise
-                        - __t2w_finally_value: \${__fin_exc}
+                        - __t2w_finally_condition1: raise
+                        - __t2w_finally_value1: \${__fin_exc}
           - assign5:
               assign:
                 - __temp: \${closeConnection()}
           - switch1:
               switch:
-                - condition: \${__t2w_finally_condition == "return"}
+                - condition: \${__t2w_finally_condition1 == "return"}
                   steps:
                     - return1:
-                        return: \${__t2w_finally_value}
-                - condition: \${__t2w_finally_condition == "raise"}
+                        return: \${__t2w_finally_value1}
+                - condition: \${__t2w_finally_condition1 == "raise"}
                   steps:
                     - raise1:
-                        raise: \${__t2w_finally_value}
+                        raise: \${__t2w_finally_value1}
     `
 
     assertTranspiled(code, expected)
@@ -2224,8 +2224,8 @@ describe('Try-catch-finally statement', () => {
         steps:
           - assign1:
               assign:
-                - __t2w_finally_condition:
-                - __t2w_finally_value:
+                - __t2w_finally_condition1:
+                - __t2w_finally_value1:
           - try1:
               try:
                 steps:
@@ -2239,8 +2239,8 @@ describe('Try-catch-finally statement', () => {
                               result: response
                           - assign2:
                               assign:
-                                - __t2w_finally_condition: return
-                                - __t2w_finally_value: \${response}
+                                - __t2w_finally_condition1: return
+                                - __t2w_finally_value1: \${response}
                               next: assign4
                       retry: \${http.default_retry}
               except:
@@ -2248,21 +2248,296 @@ describe('Try-catch-finally statement', () => {
                 steps:
                   - assign3:
                       assign:
-                        - __t2w_finally_condition: raise
-                        - __t2w_finally_value: \${__fin_exc}
+                        - __t2w_finally_condition1: raise
+                        - __t2w_finally_value1: \${__fin_exc}
           - assign4:
               assign:
                 - __temp: \${closeConnection()}
           - switch1:
               switch:
-                - condition: \${__t2w_finally_condition == "return"}
+                - condition: \${__t2w_finally_condition1 == "return"}
                   steps:
                     - return1:
-                        return: \${__t2w_finally_value}
-                - condition: \${__t2w_finally_condition == "raise"}
+                        return: \${__t2w_finally_value1}
+                - condition: \${__t2w_finally_condition1 == "raise"}
                   steps:
                     - raise1:
-                        raise: \${__t2w_finally_value}
+                        raise: \${__t2w_finally_value1}
+    `
+
+    assertTranspiled(code, expected)
+  })
+
+  it('transpiles nested try statements with a finally block on the inner try', () => {
+    const code = `
+    function test() {
+      try {
+        try {
+          return 1;
+        } catch (err) {
+          sys.log("Error");
+        } finally {
+          cleanup();
+        }
+
+        return 2;
+      } catch (err) {
+        sys.log("Error");
+      }
+    }`
+
+    const expected = `
+      test:
+        steps:
+          - try1:
+              try:
+                steps:
+                  - assign1:
+                      assign:
+                        - __t2w_finally_condition1:
+                        - __t2w_finally_value1:
+                  - try2:
+                      try:
+                        steps:
+                          - try3:
+                              try:
+                                steps:
+                                  - assign2:
+                                      assign:
+                                        - __t2w_finally_condition1: return
+                                        - __t2w_finally_value1: 1
+                                      next: assign4
+                              except:
+                                as: err
+                                steps:
+                                  - call_sys_log_1:
+                                      call: sys.log
+                                      args:
+                                        data: Error
+                      except:
+                        as: __fin_exc
+                        steps:
+                          - assign3:
+                              assign:
+                                - __t2w_finally_condition1: raise
+                                - __t2w_finally_value1: \${__fin_exc}
+                  - assign4:
+                      assign:
+                        - __temp: \${cleanup()}
+                  - switch1:
+                      switch:
+                        - condition: \${__t2w_finally_condition1 == "return"}
+                          steps:
+                            - return1:
+                                return: \${__t2w_finally_value1}
+                        - condition: \${__t2w_finally_condition1 == "raise"}
+                          steps:
+                            - raise1:
+                                raise: \${__t2w_finally_value1}
+                  - return2:
+                      return: 2
+              except:
+                as: err
+                steps:
+                  - call_sys_log_2:
+                      call: sys.log
+                      args:
+                        data: Error
+    `
+
+    assertTranspiled(code, expected)
+  })
+
+  it('transpiles nested try statements with a finally block on the outer try', () => {
+    const code = `
+    function test() {
+      try {
+        try {
+          return 1;
+        } catch (err) {
+          sys.log("Error");
+        }
+
+        return 2;
+      } catch (err) {
+        sys.log("Error");
+      } finally {
+        cleanup();
+      }
+    }`
+
+    const expected = `
+      test:
+        steps:
+          - assign1:
+              assign:
+                - __t2w_finally_condition1:
+                - __t2w_finally_value1:
+          - try1:
+              try:
+                steps:
+                  - try2:
+                      try:
+                        steps:
+                          - try3:
+                              try:
+                                steps:
+                                  - assign2:
+                                      assign:
+                                        - __t2w_finally_condition1: return
+                                        - __t2w_finally_value1: 1
+                                      next: assign5
+                              except:
+                                as: err
+                                steps:
+                                  - call_sys_log_1:
+                                      call: sys.log
+                                      args:
+                                        data: Error
+                          - assign3:
+                              assign:
+                                - __t2w_finally_condition1: return
+                                - __t2w_finally_value1: 2
+                              next: assign5
+                      except:
+                        as: err
+                        steps:
+                          - call_sys_log_2:
+                              call: sys.log
+                              args:
+                                data: Error
+              except:
+                as: __fin_exc
+                steps:
+                  - assign4:
+                      assign:
+                        - __t2w_finally_condition1: raise
+                        - __t2w_finally_value1: \${__fin_exc}
+          - assign5:
+              assign:
+                - __temp: \${cleanup()}
+          - switch1:
+              switch:
+                - condition: \${__t2w_finally_condition1 == "return"}
+                  steps:
+                    - return1:
+                        return: \${__t2w_finally_value1}
+                - condition: \${__t2w_finally_condition1 == "raise"}
+                  steps:
+                    - raise1:
+                        raise: \${__t2w_finally_value1}
+    `
+
+    assertTranspiled(code, expected)
+  })
+
+  it('transpiles nested try statements with finally blocks on all tries', () => {
+    const code = `
+    function test() {
+      try {
+        try {
+          return 1;
+        } catch (err) {
+          sys.log("Error");
+        } finally {
+          cleanup1();
+        }
+
+        return 2;
+      } catch (err) {
+        sys.log("Error");
+      } finally {
+        cleanup2();
+      }
+    }`
+
+    const expected = `
+      test:
+        steps:
+          - assign1:
+              assign:
+                - __t2w_finally_condition1:
+                - __t2w_finally_value1:
+          - try1:
+              try:
+                steps:
+                  - try2:
+                      try:
+                        steps:
+                          - assign2:
+                              assign:
+                                - __t2w_finally_condition2:
+                                - __t2w_finally_value2:
+                          - try3:
+                              try:
+                                steps:
+                                  - try4:
+                                      try:
+                                        steps:
+                                          - assign3:
+                                              assign:
+                                                - __t2w_finally_condition2: return
+                                                - __t2w_finally_value2: 1
+                                              next: assign5
+                                      except:
+                                        as: err
+                                        steps:
+                                          - call_sys_log_1:
+                                              call: sys.log
+                                              args:
+                                                data: Error
+                              except:
+                                as: __fin_exc
+                                steps:
+                                  - assign4:
+                                      assign:
+                                        - __t2w_finally_condition2: raise
+                                        - __t2w_finally_value2: \${__fin_exc}
+                          - assign5:
+                              assign:
+                                - __temp: \${cleanup1()}
+                          - switch1:
+                              switch:
+                                - condition: \${__t2w_finally_condition2 == "return"}
+                                  steps:
+                                    - return1:
+                                        return: \${__t2w_finally_value2}
+                                - condition: \${__t2w_finally_condition2 == "raise"}
+                                  steps:
+                                    - raise1:
+                                        raise: \${__t2w_finally_value2}
+                          - assign6:
+                              assign:
+                                - __t2w_finally_condition1: return
+                                - __t2w_finally_value1: 2
+                              next: assign8
+                      except:
+                        as: err
+                        steps:
+                          - call_sys_log_2:
+                              call: sys.log
+                              args:
+                                data: Error
+              except:
+                as: __fin_exc
+                steps:
+                  - assign7:
+                      assign:
+                        - __t2w_finally_condition1: raise
+                        - __t2w_finally_value1: \${__fin_exc}
+          - assign8:
+              assign:
+                - __temp: \${cleanup2()}
+          - switch2:
+              switch:
+                - condition: \${__t2w_finally_condition1 == "return"}
+                  steps:
+                    - return2:
+                        return: \${__t2w_finally_value1}
+                - condition: \${__t2w_finally_condition1 == "raise"}
+                  steps:
+                    - raise2:
+                        raise: \${__t2w_finally_value1}
     `
 
     assertTranspiled(code, expected)
@@ -3222,6 +3497,82 @@ describe('Loops', () => {
     assertTranspiled(code, expected)
   })
 
+  it('transpiles nested for loops with continue on the outer loop', () => {
+    const code = `
+    function main() {
+      let total = 0;
+      for (let x of [1, 2]) {
+        for (let y of [3, 4]) {
+          total += y;
+        }
+
+        continue;
+      }
+    }`
+
+    const expected = `
+    main:
+      steps:
+        - assign1:
+            assign:
+              - total: 0
+        - for1:
+            for:
+              value: x
+              in: [1, 2]
+              steps:
+                - for2:
+                    for:
+                      value: y
+                      in: [3, 4]
+                      steps:
+                        - assign2:
+                            assign:
+                              - total: \${total + y}
+                - next1:
+                    next: continue
+    `
+
+    assertTranspiled(code, expected)
+  })
+
+  it('transpiles nested for loops with continue on the inner loop', () => {
+    const code = `
+    function main() {
+      let total = 0;
+      for (let x of [1, 2]) {
+        for (let y of [3, 4]) {
+          total += y;
+          continue;
+        }
+      }
+    }`
+
+    const expected = `
+    main:
+      steps:
+        - assign1:
+            assign:
+              - total: 0
+        - for1:
+            for:
+              value: x
+              in: [1, 2]
+              steps:
+                - for2:
+                    for:
+                      value: y
+                      in: [3, 4]
+                      steps:
+                        - assign2:
+                            assign:
+                              - total: \${total + y}
+                            next: continue
+    `
+
+    assertTranspiled(code, expected)
+  })
+
   it('transpiles a while loop', () => {
     const code = `
     function main() {
@@ -3656,6 +4007,133 @@ describe('Loops', () => {
                 next: switch1
         - return1:
             return: \${x}
+    `
+
+    assertTranspiled(code, expected)
+  })
+
+  it('transpiles nested while loops with continue on the outer loop', () => {
+    const code = `
+    function main() {
+      let x = 0;
+
+      while (x < 5) {
+        continue;
+
+        while (x < 5) {
+          x += 1;
+        }
+      }
+    }`
+
+    const expected = `
+    main:
+      steps:
+        - assign1:
+            assign:
+              - x: 0
+        - switch1:
+            switch:
+              - condition: \${x < 5}
+                steps:
+                  - next1:
+                      next: switch1
+                  - switch2:
+                      switch:
+                        - condition: \${x < 5}
+                          steps:
+                            - assign2:
+                                assign:
+                                  - x: \${x + 1}
+                                next: switch2
+                  - next2:
+                      next: switch1
+    `
+
+    assertTranspiled(code, expected)
+  })
+
+  it('transpiles nested while loops with continue on the inner loop', () => {
+    const code = `
+    function main() {
+      let x = 0;
+
+      while (x < 5) {
+        while (x < 5) {
+          continue;
+
+          x += 1;
+        }
+      }
+    }`
+
+    const expected = `
+    main:
+      steps:
+        - assign1:
+            assign:
+              - x: 0
+        - switch1:
+            switch:
+              - condition: \${x < 5}
+                steps:
+                  - switch2:
+                      switch:
+                        - condition: \${x < 5}
+                          steps:
+                            - next1:
+                                next: switch2
+                            - assign2:
+                                assign:
+                                  - x: \${x + 1}
+                                next: switch2
+                  - next2:
+                      next: switch1
+    `
+
+    assertTranspiled(code, expected)
+  })
+
+  it('transpiles nested while loops with continue on all levels', () => {
+    const code = `
+    function main() {
+      let x = 0;
+
+      while (x < 5) {
+        continue;
+
+        while (x < 5) {
+          continue;
+
+          x += 1;
+        }
+      }
+    }`
+
+    const expected = `
+    main:
+      steps:
+        - assign1:
+            assign:
+              - x: 0
+        - switch1:
+            switch:
+              - condition: \${x < 5}
+                steps:
+                  - next1:
+                      next: switch1
+                  - switch2:
+                      switch:
+                        - condition: \${x < 5}
+                          steps:
+                            - next2:
+                                next: switch2
+                            - assign2:
+                                assign:
+                                  - x: \${x + 1}
+                                next: switch2
+                  - next3:
+                      next: switch1
     `
 
     assertTranspiled(code, expected)

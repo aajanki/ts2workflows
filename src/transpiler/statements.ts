@@ -51,13 +51,11 @@ export interface ParsingContext {
   // a jump target for an unlabeled continue statement
   continueTarget?: StepName
   // a jump target of a return statement, for delaying a return until a finally block.
+  // Array of nested try-finally blocks, the inner most block is last.
   // This also used as a flag to indicate that we are in a try or catch block
   // that has a related finally block.
-  finalizerTarget?: StepName
+  finalizerTargets?: StepName[]
 }
-
-const finalizerConditionVariableName = '__t2w_finally_condition'
-const finalizerValueVariableName = '__t2w_finally_value'
 
 export function parseStatement(
   node: TSESTree.Statement,
@@ -599,10 +597,10 @@ function returnStatementToReturnStep(
 ): ReturnStepAST | AssignStepAST {
   const value = node.argument ? convertExpression(node.argument) : undefined
 
-  if (ctx.finalizerTarget) {
+  if (ctx.finalizerTargets && ctx.finalizerTargets.length > 0) {
     // If we are in try statement with a finally block, return statements are
     // replaced by a jump to finally back with a captured return value.
-    return delayedReturnAndJumpToFinalizer(ctx.finalizerTarget, value)
+    return delayedReturnAndJumpToFinalizer(value, ctx)
   }
 
   return new ReturnStepAST(value)
@@ -803,7 +801,7 @@ function breakStatementToNextStep(
   node: TSESTree.BreakStatement,
   ctx: ParsingContext,
 ): NextStepAST {
-  if (ctx.finalizerTarget) {
+  if (ctx.finalizerTargets) {
     // TODO: would need to detect if this breaks out of the try or catch block,
     // execute the finally block first and then do the break.
     throw new WorkflowSyntaxError(
@@ -828,7 +826,7 @@ function continueStatementToNextStep(
   node: TSESTree.ContinueStatement,
   ctx: ParsingContext,
 ): NextStepAST {
-  if (ctx.finalizerTarget) {
+  if (ctx.finalizerTargets) {
     // TODO: would need to detect if continue breaks out of the try or catch block,
     // execute the finally block first and then do the continue.
     throw new WorkflowSyntaxError(
@@ -869,37 +867,49 @@ function tryStatementToTrySteps(
     // The nested try blocks are followed by the finally block and a swith for
     // checking if we need to perform a delayed return/raise.
     const startOfFinalizer = new JumpTargetAST()
-    ctx = Object.assign({}, ctx, { finalizerTarget: startOfFinalizer.label })
+
+    const targets = ctx.finalizerTargets ?? []
+    targets.push(startOfFinalizer.label)
+    ctx = Object.assign({}, ctx, { finalizerTargets: targets })
+
+    const [conditionVariable, valueVariable] = finalizerVariables(ctx)
 
     const innerTry = parseTryCatchRetry(node, ctx, retryPolicy)
 
     const outerTry = new TryStepAST(
       [innerTry],
-      finalizerDelayedException('__fin_exc'),
+      finalizerDelayedException('__fin_exc', conditionVariable, valueVariable),
       undefined,
       '__fin_exc',
     )
 
     // Reset ctx before parsing the finally block because we don't want to
     // transform returns in finally block in to delayed returns
-    delete ctx.finalizerTarget
+    if (ctx.finalizerTargets && ctx.finalizerTargets.length <= 1) {
+      delete ctx.finalizerTargets
+    } else {
+      ctx.finalizerTargets?.pop()
+    }
 
     const finallyBlock = parseStatement(node.finalizer, ctx)
 
     return [
-      finalizerInitializer(
-        finalizerConditionVariableName,
-        finalizerValueVariableName,
-      ),
+      finalizerInitializer(conditionVariable, valueVariable),
       outerTry,
       startOfFinalizer,
       ...finallyBlock,
-      finalizerFooter(
-        finalizerConditionVariableName,
-        finalizerValueVariableName,
-      ),
+      finalizerFooter(conditionVariable, valueVariable),
     ]
   }
+}
+
+function finalizerVariables(ctx: ParsingContext): [string, string] {
+  const targets = ctx.finalizerTargets ?? []
+  const nestingLevel = targets.length > 0 ? `${targets.length}` : ''
+  const conditionVariable = `__t2w_finally_condition${nestingLevel}`
+  const valueVariable = `__t2w_finally_value${nestingLevel}`
+
+  return [conditionVariable, valueVariable]
 }
 
 function parseTryCatchRetry(
@@ -992,12 +1002,14 @@ function finalizerFooter(conditionVariable: string, valueVariable: string) {
 
 function finalizerDelayedException(
   exceptionVariableName: string,
+  conditionVariableName: string,
+  valueVariableName: string,
 ): WorkflowStepAST[] {
   return [
     new AssignStepAST([
-      [finalizerConditionVariableName, new PrimitiveExpression('raise')],
+      [conditionVariableName, new PrimitiveExpression('raise')],
       [
-        finalizerValueVariableName,
+        valueVariableName,
         new VariableReferenceExpression(exceptionVariableName),
       ],
     ]),
@@ -1005,13 +1017,19 @@ function finalizerDelayedException(
 }
 
 function delayedReturnAndJumpToFinalizer(
-  finalizerTarget: string,
-  value?: Expression,
+  value: Expression | undefined,
+  ctx: ParsingContext,
 ): AssignStepAST {
+  const finalizerTarget =
+    ctx.finalizerTargets && ctx.finalizerTargets.length > 0
+      ? ctx.finalizerTargets[ctx.finalizerTargets.length - 1]
+      : undefined
+  const [conditionVariable, valueVariable] = finalizerVariables(ctx)
+
   return new AssignStepAST(
     [
-      [finalizerConditionVariableName, new PrimitiveExpression('return')],
-      [finalizerValueVariableName, value ?? new PrimitiveExpression(null)],
+      [conditionVariable, new PrimitiveExpression('return')],
+      [valueVariable, value ?? new PrimitiveExpression(null)],
     ],
     finalizerTarget,
   )
