@@ -1,3 +1,7 @@
+<unreleased>
+
+- typeof operator
+
 Version 0.6.0 - 2025-01-09
 
 Breaking changes:

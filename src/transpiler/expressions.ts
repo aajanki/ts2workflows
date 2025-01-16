@@ -229,6 +229,7 @@ function convertUnaryExpression(
   }
 
   let op: '+' | '-' | 'not' | undefined
+  let istypeof = false
   switch (instance.operator) {
     case '+':
       op = '+'
@@ -248,6 +249,11 @@ function convertUnaryExpression(
       op = undefined
       break
 
+    case 'typeof':
+      op = undefined
+      istypeof = true
+      break
+
     case undefined:
       op = undefined
       break
@@ -260,7 +266,27 @@ function convertUnaryExpression(
   }
 
   const ex = convertExpression(instance.argument)
-  return op ? new UnaryExpression(op, ex) : ex
+
+  if (istypeof) {
+    return convertTypeOfExpression(ex)
+  } else if (op) {
+    return new UnaryExpression(op, ex)
+  } else {
+    return ex
+  }
+}
+
+function convertTypeOfExpression(value: Expression): Expression {
+  // Note for future rectoring: evalute value only once (in case it has side effects)
+  return new FunctionInvocationExpression('text.replace_all_regex', [
+    new FunctionInvocationExpression('text.replace_all_regex', [
+      new FunctionInvocationExpression('get_type', [value]),
+      new PrimitiveExpression('^(bytes|list|map|null)$'),
+      new PrimitiveExpression('object'),
+    ]),
+    new PrimitiveExpression('^(double|integer)$'),
+    new PrimitiveExpression('number'),
+  ])
 }
 
 export function convertMemberExpression(

@@ -79,6 +79,7 @@ sys.get_env('GOOGLE_CLOUD_PROJECT_ID')
 | ??           | nullish coalescing                           |
 | ?.           | optional chaining                            |
 | ? :          | conditional operator                         |
+| typeof       | return the type of the operand as a string   |
 
 The [precendence order of operators](https://cloud.google.com/workflows/docs/reference/syntax/datatypes#order-operations) is the same as in GCP Workflows.
 
@@ -129,6 +130,23 @@ is converted to a [map.get() expression](https://cloud.google.com/workflows/docs
 ```yaml
 ${map.get(data, ["user", "name"])}
 ```
+
+### typeof operator
+
+Returns the type of the operand as a string. The return values are the same ones that Javascript typeof operation returns. The following table shows the possible values for different operand types.
+
+| Operand | Result    |
+| ------- | --------- |
+| boolean | "boolean" |
+| bytes   | "object"  |
+| double  | "number"  |
+| integer | "number"  |
+| list    | "object"  |
+| map     | "object"  |
+| string  | "string"  |
+| null    | "object"  |
+
+The typeof operator is useful as a type guard in Typescript (e.g. `typeof x === "string"`). For other use cases, consider the [get_type function](https://cloud.google.com/workflows/docs/reference/stdlib/expression-helpers#type_functions) from the Workflows standard library. It makes finer distinctions between types. It, for example, returns distinct values for lists and maps.
 
 ## Template literals
 

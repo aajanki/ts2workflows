@@ -160,7 +160,7 @@ describe('Literals', () => {
   })
 })
 
-describe('Expressions', () => {
+describe('Expressions and operators', () => {
   it('parses binary operators', () => {
     assertExpression('0', 0)
     assertExpression('1 + 2', '${1 + 2}')
@@ -476,6 +476,23 @@ describe('Expressions', () => {
     }`
 
     expect(() => transpile(code)).to.throw()
+  })
+
+  it('transpiles typeof', () => {
+    const code = `function typeof2(x) {
+      return typeof x;
+    }`
+
+    const expected = `
+    typeof2:
+      params:
+        - x
+      steps:
+        - return1:
+            return: \${text.replace_all_regex(text.replace_all_regex(get_type(x), "^(bytes|list|map|null)$", "object"), "^(double|integer)$", "number")}
+    `
+
+    assertTranspiled(code, expected)
   })
 })
 
