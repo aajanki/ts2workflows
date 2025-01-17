@@ -37,12 +37,22 @@ export declare namespace base64 {
 }
 
 export declare namespace events {
-  function await_callback(
+  function await_callback<ResponseType = unknown>(
     callback: {
       url: string
     },
     timeout?: number,
-  ): object
+  ): {
+    http_request: {
+      body: ResponseType | null
+      headers: Record<string, string>
+      method: string
+      query: Record<string, string>
+      url: string
+    }
+    received_time: string
+    type: string
+  }
   function create_callback_endpoint(http_callback_method: string): {
     url: string
   }
