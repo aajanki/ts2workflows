@@ -14,5 +14,5 @@ function main() {
 
   // Invoking a function with a call step and named arguments
   // instead of an ${} expression
-  call_step(sys.log, { severity: 'DEBUG', json: response.body })
+  call_step(sys.log, { severity: 'DEBUG', text: response.body })
 }

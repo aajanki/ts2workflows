@@ -4,12 +4,12 @@ import { http, retry_policy, sys } from '../types/workflowslib'
 
 export function get_url(url: string) {
   try {
-    return http.get(url)
+    return http.get<string>(url)
   } catch (err) {
     if ((err as { code: number }).code === 404) {
       sys.log('Page not found', 'ERROR')
     }
-    return { body: {} }
+    return { body: '' }
   }
   retry_policy({
     predicate: http.default_retry_predicate,

@@ -69,7 +69,7 @@ export declare namespace http {
   export function default_retry_predicate_non_idempotent(
     errormap: Record<string, any>,
   ): boolean
-  function _delete(
+  function _delete<ResponseType = unknown>(
     url: string,
     timeout?: number,
     body?: unknown,
@@ -82,11 +82,11 @@ export declare namespace http {
     private_service_name?: string,
     ca_certificate?: string,
   ): {
-    body: unknown
+    body: ResponseType
     code: number
     headers: Record<string, string>
   }
-  export function get(
+  export function get<ResponseType = unknown>(
     url: string,
     timeout?: number,
     headers?: Record<string, string>,
@@ -98,28 +98,11 @@ export declare namespace http {
     private_service_name?: string,
     ca_certificate?: string,
   ): {
-    body: unknown
+    body: ResponseType
     code: number
     headers: Record<string, string>
   }
-  export function patch(
-    url: string,
-    timeout?: number,
-    body?: unknown,
-    headers?: Record<string, string>,
-    query?: Record<
-      string,
-      string | number | boolean | (string | number | boolean)[]
-    >,
-    auth?: Record<string, string>,
-    private_service_name?: string,
-    ca_certificate?: string,
-  ): {
-    body: unknown
-    code: number
-    headers: Record<string, string>
-  }
-  export function post(
+  export function patch<ResponseType = unknown>(
     url: string,
     timeout?: number,
     body?: unknown,
@@ -132,11 +115,11 @@ export declare namespace http {
     private_service_name?: string,
     ca_certificate?: string,
   ): {
-    body: unknown
+    body: ResponseType
     code: number
     headers: Record<string, string>
   }
-  export function put(
+  export function post<ResponseType = unknown>(
     url: string,
     timeout?: number,
     body?: unknown,
@@ -149,11 +132,28 @@ export declare namespace http {
     private_service_name?: string,
     ca_certificate?: string,
   ): {
-    body: unknown
+    body: ResponseType
     code: number
     headers: Record<string, string>
   }
-  export function request(
+  export function put<ResponseType = unknown>(
+    url: string,
+    timeout?: number,
+    body?: unknown,
+    headers?: Record<string, string>,
+    query?: Record<
+      string,
+      string | number | boolean | (string | number | boolean)[]
+    >,
+    auth?: Record<string, string>,
+    private_service_name?: string,
+    ca_certificate?: string,
+  ): {
+    body: ResponseType
+    code: number
+    headers: Record<string, string>
+  }
+  export function request<ResponseType = unknown>(
     method: string,
     url: string,
     timeout?: number,
@@ -167,7 +167,7 @@ export declare namespace http {
     private_service_name?: string,
     ca_certificate?: string,
   ): {
-    body: unknown
+    body: ResponseType
     code: number
     headers: Record<string, string>
   }
