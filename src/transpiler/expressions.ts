@@ -485,7 +485,15 @@ function convertTemplateLiteralToExpression(
   const stringTerms = node.quasis
     .map((x) => x.value.cooked)
     .map((x) => new PrimitiveExpression(x))
-  const templateTerms = node.expressions.map(convertExpression)
+  const templateTerms = node.expressions
+    .map(convertExpression)
+    .map(
+      (ex) =>
+        new FunctionInvocationExpression('default', [
+          ex,
+          new PrimitiveExpression('null'),
+        ]),
+    )
 
   // interleave string parts and the expression parts starting with strings
   const interleavedTerms: Expression[] = stringTerms
@@ -504,12 +512,10 @@ function convertTemplateLiteralToExpression(
 
   if (interleavedTerms.length === 0) {
     return new PrimitiveExpression('')
-  } else if (interleavedTerms.length === 1) {
-    return interleavedTerms[0]
   } else {
-    return interleavedTerms.reduce((previous, current) => {
-      return new BinaryExpression(previous, '+', current)
-    })
+    return interleavedTerms.reduce(
+      (previous, current) => new BinaryExpression(previous, '+', current),
+    )
   }
 }
 

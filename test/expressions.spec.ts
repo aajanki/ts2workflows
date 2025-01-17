@@ -133,18 +133,28 @@ describe('Literals', () => {
   it('template literals', () => {
     assertExpression('``', '')
     assertExpression('`abc`', 'abc')
-    assertExpression('`Hello ${name}!`', '${"Hello " + name + "!"}')
+    assertExpression(
+      '`Hello ${name}!`',
+      '${"Hello " + default(name, "null") + "!"}',
+    )
     assertExpression(
       '`Value of ${name} is ${value}.`',
-      '${"Value of " + name + " is " + value + "."}',
+      '${"Value of " + default(name, "null") + " is " + default(value, "null") + "."}',
     )
-    assertExpression('`${a}${b}`', '${"" + a + "" + b}')
-    assertExpression('`The sum is ${x + y}`', '${"The sum is " + x + y}')
+    assertExpression(
+      '`${a}${b}`',
+      '${"" + default(a, "null") + "" + default(b, "null")}',
+    )
+    assertExpression(
+      '`The sum is ${x + y}`',
+      '${"The sum is " + default(x + y, "null")}',
+    )
     assertExpression(
       '`Logarithm of 4 is ${log(4)}`',
-      '${"Logarithm of 4 is " + log(4)}',
+      '${"Logarithm of 4 is " + default(log(4), "null")}',
     )
-    assertExpression('`value:\\t${x}`', '${"value:\\t" + x}')
+    assertExpression('`value:\\t${x}`', '${"value:\\t" + default(x, "null")}')
+    assertExpression('`${null}`', '${"" + default(null, "null")}')
   })
 
   it('rejects BigInt literals', () => {

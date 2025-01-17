@@ -1,6 +1,7 @@
 <unreleased>
 
 - typeof operator
+- null is allowed as interpolated value in template literal `${null}`
 
 Version 0.6.0 - 2025-01-09
 

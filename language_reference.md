@@ -152,7 +152,7 @@ The typeof operator is useful as a type guard in Typescript (e.g. `typeof x === 
 
 Template literals are strings that support string interpolation. For example, `Hello ${name}`.
 
-⚠️ Interpolated values can (only) be numbers, strings or booleans. Other types will throw a TypeError at runtime.
+⚠️ Interpolated values can (only) be numbers, strings, booleans or nulls. Other types will throw a TypeError at runtime.
 
 ## Subworkflow definitions
 
