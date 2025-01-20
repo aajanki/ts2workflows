@@ -1,11 +1,13 @@
+export {}
+
 // Type annotations for GCP Workflows expression helpers, standard library
 // functions and (some) connectors
 
 // An opaque bytes type.
 // This should really be defined in the transpiler, not here.
-declare const tag: unique symbol
+declare const __bytes_tag: unique symbol
 export interface bytes {
-  readonly [tag]: 'bytes'
+  readonly [__bytes_tag]: 'bytes'
 }
 
 // GCP Workflows expression helpers
