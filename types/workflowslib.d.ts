@@ -183,7 +183,8 @@ export declare namespace json {
       | boolean
       | unknown[]
       | Record<string, unknown>
-      | null,
+      | null
+      | undefined,
     indent?:
       | boolean
       | {
@@ -198,7 +199,8 @@ export declare namespace json {
       | boolean
       | unknown[]
       | Record<string, unknown>
-      | null,
+      | null
+      | undefined,
     indent?:
       | boolean
       | {
@@ -726,7 +728,7 @@ export declare function retry_policy(
     | ((errormap: Record<string, any>) => void)
     | {
         predicate?: (errormap: Record<string, any>) => boolean
-        max_retries: number | string | null
+        max_retries?: number | string | null
         backoff: {
           initial_delay?: number | string | null
           max_delay?: number | string | null
