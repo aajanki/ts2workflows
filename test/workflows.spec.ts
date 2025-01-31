@@ -115,6 +115,24 @@ describe('workflow transpiler', () => {
     assertTranspiled(code, expected)
   })
 
+  it('accepts undefined as function default value (and outputs it as null)', () => {
+    const code = `
+    function test(name: string | undefined = undefined): string {
+      return name ?? ""
+    }`
+
+    const expected = `
+    test:
+      params:
+        - name: null
+      steps:
+        - return1:
+            return: \${default(name, "")}
+    `
+
+    assertTranspiled(code, expected)
+  })
+
   it('throws if the default value is a list', () => {
     const code = `
     function greeting(names = ["Bean"]) {

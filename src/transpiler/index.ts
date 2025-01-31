@@ -84,36 +84,7 @@ function parseSubworkflows(
         return { name: param.name }
 
       case AST_NODE_TYPES.AssignmentPattern:
-        if (param.left.type !== AST_NODE_TYPES.Identifier) {
-          throw new WorkflowSyntaxError(
-            'The default value must be an identifier',
-            param.left.loc,
-          )
-        }
-        if (param.right.type !== AST_NODE_TYPES.Literal) {
-          throw new WorkflowSyntaxError(
-            'The default value must be a literal',
-            param.right.loc,
-          )
-        }
-        if (
-          !(
-            typeof param.right.value === 'string' ||
-            typeof param.right.value === 'number' ||
-            typeof param.right.value === 'boolean' ||
-            param.right.value === null
-          )
-        ) {
-          throw new WorkflowSyntaxError(
-            'The default value must be a string, number, boolean or null',
-            param.left.loc,
-          )
-        }
-
-        return {
-          name: param.left.name,
-          default: param.right.value,
-        }
+        return parseSubworkflowDefaultArgument(param)
 
       default:
         throw new WorkflowSyntaxError(
@@ -126,4 +97,40 @@ function parseSubworkflows(
   const steps = parseStatement(node.body, {})
 
   return new SubworkflowAST(node.id.name, steps, workflowParams)
+}
+
+function parseSubworkflowDefaultArgument(param: TSESTree.AssignmentPattern) {
+  if (param.left.type !== AST_NODE_TYPES.Identifier) {
+    throw new WorkflowSyntaxError(
+      'The default value must be an identifier',
+      param.left.loc,
+    )
+  }
+  const name = param.left.name
+
+  let defaultValue: string | number | boolean | null
+  if (
+    param.right.type === AST_NODE_TYPES.Identifier &&
+    param.right.name === 'undefined'
+  ) {
+    defaultValue = null
+  } else if (
+    param.right.type === AST_NODE_TYPES.Literal &&
+    (typeof param.right.value === 'string' ||
+      typeof param.right.value === 'number' ||
+      typeof param.right.value === 'boolean' ||
+      param.right.value === null)
+  ) {
+    defaultValue = param.right.value
+  } else {
+    throw new WorkflowSyntaxError(
+      'The default value must be a literal number, string, boolean, null, or undefined',
+      param.right.loc,
+    )
+  }
+
+  return {
+    name,
+    default: defaultValue,
+  }
 }

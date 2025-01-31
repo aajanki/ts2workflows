@@ -1,7 +1,8 @@
 <unreleased>
 
-- typeof operator
-- null is allowed as interpolated value in template literal `${null}`
+- `typeof` operator
+- `null` is allowed as interpolated value in template literal `${null}`
+- Accept `undefined` as a function argument default argument
 
 Version 0.6.0 - 2025-01-09
 
