@@ -133,6 +133,33 @@ describe('workflow transpiler', () => {
     assertTranspiled(code, expected)
   })
 
+  it('accepts optional function arguments', () => {
+    const code = `
+    function test(name?: string): string {
+      return name ?? ""
+    }`
+
+    const expected = `
+    test:
+      params:
+        - name: null
+      steps:
+        - return1:
+            return: \${default(name, "")}
+    `
+
+    assertTranspiled(code, expected)
+  })
+
+  it('rejects optional function argument with default value', () => {
+    const code = `
+    function test(name?: string = "Bean"): string {
+      return name ?? ""
+    }`
+
+    expect(() => transpile(code)).to.throw()
+  })
+
   it('throws if the default value is a list', () => {
     const code = `
     function greeting(names = ["Bean"]) {

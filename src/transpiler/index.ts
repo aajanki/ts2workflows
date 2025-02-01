@@ -81,7 +81,11 @@ function parseSubworkflows(
   const workflowParams: WorkflowParameter[] = nodeParams.map((param) => {
     switch (param.type) {
       case AST_NODE_TYPES.Identifier:
-        return { name: param.name }
+        if (param.optional) {
+          return { name: param.name, default: null }
+        } else {
+          return { name: param.name }
+        }
 
       case AST_NODE_TYPES.AssignmentPattern:
         return parseSubworkflowDefaultArgument(param)
@@ -103,6 +107,12 @@ function parseSubworkflowDefaultArgument(param: TSESTree.AssignmentPattern) {
   if (param.left.type !== AST_NODE_TYPES.Identifier) {
     throw new WorkflowSyntaxError(
       'The default value must be an identifier',
+      param.left.loc,
+    )
+  }
+  if (param.left.optional) {
+    throw new WorkflowSyntaxError(
+      "Parameter can't have default value and initializer",
       param.left.loc,
     )
   }

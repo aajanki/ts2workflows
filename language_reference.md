@@ -173,7 +173,7 @@ function anotherWorkflow(): number {
 }
 ```
 
-Workflows can have parameters:
+Subworkflows can have parameters:
 
 ```typescript
 function multiply(firstFactor: number, secondFactor: number): number {
@@ -181,10 +181,18 @@ function multiply(firstFactor: number, secondFactor: number): number {
 }
 ```
 
-Parameters can be optional and have a default value that is used if a value is not provided in a subworkflow call:
+Parameters can be optional. If a value is not provided on the call site, the value is set to `null` during the subworkflow execution. The following subworkflow can be called as `greet()` or `greet("Bean")`.
 
 ```typescript
-function log(x, base = 10) {
+function greet(name?: string): string {
+  return 'Hello, ${name ?? "world"}'
+}
+```
+
+Parameters can have default values. The default value is used if a value is not provided in a subworkflow call. The following subworkflow can be called with one parameter (`log(3)`) or with two parameters (`log(3, 2)`).
+
+```typescript
+function log(x: number, base: number = 10) {
   return 'Should compute the logarithm of x'
 }
 ```

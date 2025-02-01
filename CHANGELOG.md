@@ -2,7 +2,8 @@
 
 - `typeof` operator
 - `null` is allowed as interpolated value in template literal `${null}`
-- Accept `undefined` as a function argument default argument
+- Accept `undefined` as a function argument default argument: `func(a: number | undefined = undefined)`
+- Optional function arguments: `func(a?: number)`
 
 Version 0.6.0 - 2025-01-09
 
