@@ -34,11 +34,13 @@ Map keys can be identifiers or strings: `{temperature: -12}` or `{"temperature":
 
 ### Bytes type
 
-It is not possible to construct a bytes object expect by calling a function that returns bytes (e.g. base64.decode). It is not possible to do anything else with a bytes object than to assign it to a variable and to pass it one of the functions that take bytes type as input variable (e.g. base64.encode).
+A `bytes` object can only be constructed by calling a function that returns bytes (e.g. `base64.decode`). The only things that can be done with a `bytes` object is to assign it to variable and to pass the `bytes` object to one of the functions that take `bytes` type as input variable (e.g. `base64.encode`).
 
 ### null type
 
-In addition to the literal `null`, the Typescript `undefined` value is also treated as `null` in Workflows YAML.
+In addition to the literal `null`, the Typescript `undefined` value is also translated to `null` in Workflows YAML.
+
+Note that on Typescript-level typechecking `null` and `undefined` are considered distinct types.
 
 ### Implicit type conversions
 
@@ -99,7 +101,7 @@ is converted to an [if() expression](https://cloud.google.com/workflows/docs/ref
 ${if(x > 0, "positive", "not positive")}
 ```
 
-⚠️ Note that Workflows always evaluates both expression branches unlike Typescript which evaluates only the branch that gets executed.
+⚠️ Workflows always evaluates both expression branches unlike Typescript which evaluates only the branch that gets executed.
 
 ### Nullish coalescing operator
 
@@ -115,7 +117,7 @@ is converted to a [default() expression](https://cloud.google.com/workflows/docs
 ${default(x, "default value")}
 ```
 
-⚠️ Note that Workflows always evaluates the right-hand side expression unlike Typescript which evaluates the right-hand side only if the left-hand side is `null` or `undefined`.
+⚠️ Workflows always evaluates the right-hand side expression unlike Typescript which evaluates the right-hand side only if the left-hand side is `null` or `undefined`.
 
 ### Optional chaining
 
@@ -181,7 +183,7 @@ function multiply(firstFactor: number, secondFactor: number): number {
 }
 ```
 
-Parameters can be optional. If a value is not provided on the call site, the value is set to `null` during the subworkflow execution. The following subworkflow can be called as `greet()` or `greet("Bean")`.
+Optional parameters can be specified with a question mark. If a value is not provided on the call site, the value is set to `null` during the subworkflow execution. The following subworkflow can be called as `greet()` or `greet("Tiabeanie")`.
 
 ```typescript
 function greet(name?: string): string {
@@ -227,7 +229,7 @@ is converted to an [assign step](https://cloud.google.com/workflows/docs/referen
 
 This syntax can be used to call [standard library functions](https://cloud.google.com/workflows/docs/reference/stdlib/overview), subworkflows or connectors. Note that Javascript runtime functions (such as `fetch()`, `console.error()` or `new XMLHttpRequest()`) are not available on Workflows.
 
-GCP Workflows language has two ways of calling functions and subworkflows: as expression in an [assign step](https://cloud.google.com/workflows/docs/reference/syntax/variables#assign-step) or as [call step](https://cloud.google.com/workflows/docs/reference/syntax/calls). They can mostly be used interchangeably. However, [blocking calls](https://cloud.google.com/workflows/docs/reference/syntax/expressions#blocking-calls) must be made as call steps. The transpiler tries to automatically output a call step when necessary.
+GCP Workflows language has two ways of calling functions and subworkflows: as expression in an [assign step](https://cloud.google.com/workflows/docs/reference/syntax/variables#assign-step) or as [call step](https://cloud.google.com/workflows/docs/reference/syntax/calls). They can mostly be used interchangeably. However, [blocking calls](https://cloud.google.com/workflows/docs/reference/syntax/expressions#blocking-calls) must be made as call steps. The ts2workflows transpiler tries to automatically output a call step when necessary.
 
 It is also possible to force a function to be called as call step. This might be useful, if the transpiler fails to output call step when it should, or if you want to use named parameters. For example, the following Typescript program
 
@@ -764,7 +766,7 @@ is converted to a step with the label `setName`:
 
 ## Type annotations for standard library functions
 
-Type annotations for GCP Workflows standard library functions and expression helpers are provided by importing "ts2workflows/types/workflowslib".
+Type annotations for [GCP Workflows standard library functions and expression helpers](https://cloud.google.com/workflows/docs/reference/stdlib/overview) are provided by importing "ts2workflows/types/workflowslib".
 
 ```typescript
 import { sys } from 'ts2workflows/types/workflowslib'
