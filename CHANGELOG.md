@@ -1,4 +1,4 @@
-<unreleased>
+Version 0.7.0 - 2025-02-02
 
 - `typeof` operator
 - `null` is allowed as interpolated value in template literal `${null}`
