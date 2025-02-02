@@ -60,6 +60,15 @@ export declare namespace events {
   }
 }
 
+export declare namespace hash {
+  export function compute_checksum(data: bytes, algorithm: string): bytes
+  export function compute_hmac(
+    key: bytes,
+    data: bytes,
+    algorithm: string,
+  ): bytes
+}
+
 export declare namespace http {
   export function default_retry(errormap: Record<string, any>): void
   export function default_retry_non_idempotent(
