@@ -80,6 +80,61 @@ describe('Type annotations', () => {
   })
 })
 
+describe('Generics', () => {
+  it('accepts generics in function calls', () => {
+    const code = `function main() {
+      const city = http.get<CityResponse>("https://example.com/cities/LON")
+    }`
+
+    const expected = `
+    main:
+      steps:
+        - call_http_get_1:
+            call: http.get
+            args:
+              url: https://example.com/cities/LON
+            result: city
+    `
+
+    assertTranspiled(code, expected)
+  })
+
+  it('accepts generics in assignment steps', () => {
+    const code = `function main() {
+      const name = getName<string>()
+    }`
+
+    const expected = `
+    main:
+      steps:
+        - assign1:
+            assign:
+              - name: \${getName()}
+    `
+
+    assertTranspiled(code, expected)
+  })
+
+  it('transpiles type instantiation expressions', () => {
+    const code = `function main() {
+      const city = call_step(http.get<CityResponse>, { url: "https://example.com/cities/LON" })
+
+    }`
+
+    const expected = `
+    main:
+      steps:
+        - call_http_get_1:
+            call: http.get
+            args:
+              url: https://example.com/cities/LON
+            result: city
+    `
+
+    assertTranspiled(code, expected)
+  })
+})
+
 describe('Function definition', () => {
   it('accepts "export function"', () => {
     const code = `export function main() { return 1; }`
