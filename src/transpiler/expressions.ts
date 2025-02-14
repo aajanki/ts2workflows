@@ -129,6 +129,9 @@ function convertExpressionOrPrimitive(
     case AST_NODE_TYPES.AwaitExpression:
       return convertExpressionOrPrimitive(instance.argument)
 
+    case AST_NODE_TYPES.TSInstantiationExpression:
+      return convertExpressionOrPrimitive(instance.expression)
+
     default:
       throw new WorkflowSyntaxError(
         `Not implemented expression type: ${instance.type}`,

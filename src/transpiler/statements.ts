@@ -363,15 +363,19 @@ function createCallStep(
   }
 
   let functionName: string
-  if (argumentsNode[0].type === AST_NODE_TYPES.Identifier) {
-    functionName = argumentsNode[0].name
-  } else if (argumentsNode[0].type === AST_NODE_TYPES.MemberExpression) {
-    const memberExp = convertMemberExpression(argumentsNode[0])
+  const argNode =
+    argumentsNode[0].type === AST_NODE_TYPES.TSInstantiationExpression
+      ? argumentsNode[0].expression
+      : argumentsNode[0]
+  if (argNode.type === AST_NODE_TYPES.Identifier) {
+    functionName = argNode.name
+  } else if (argNode.type === AST_NODE_TYPES.MemberExpression) {
+    const memberExp = convertMemberExpression(argNode)
 
     if (!isFullyQualifiedName(memberExp)) {
       throw new WorkflowSyntaxError(
         'Function name must be a fully-qualified name',
-        argumentsNode[0].loc,
+        argNode.loc,
       )
     }
 
@@ -379,7 +383,7 @@ function createCallStep(
   } else {
     throw new WorkflowSyntaxError(
       'Expected an identifier or a member expression',
-      argumentsNode[0].loc,
+      argNode.loc,
     )
   }
 

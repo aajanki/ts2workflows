@@ -1,3 +1,7 @@
+<unreleased>
+
+- Accept instantiation expressions `func<TYPE>`
+
 Version 0.7.0 - 2025-02-02
 
 - `typeof` operator

@@ -116,9 +116,26 @@ describe('Generics', () => {
   })
 
   it('transpiles type instantiation expressions', () => {
+    // Note that this would fail at run time because functions are not
+    // first-class object in Workflows, but we still transpile it.
+    const code = `function main() {
+      const func = getName<string>
+    }`
+
+    const expected = `
+    main:
+      steps:
+        - assign1:
+            assign:
+              - func: \${getName}
+    `
+
+    assertTranspiled(code, expected)
+  })
+
+  it('transpiles type instantiation expressions in call_step', () => {
     const code = `function main() {
       const city = call_step(http.get<CityResponse>, { url: "https://example.com/cities/LON" })
-
     }`
 
     const expected = `
