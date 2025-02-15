@@ -45,6 +45,22 @@ describe('Assignment statement', () => {
     assertTranspiled(code, expected)
   })
 
+  it('transpiles a sequence of const assignments', () => {
+    const code = 'function main() { const a = 1, b=2, c=3; }'
+
+    const expected = `
+    main:
+      steps:
+        - assign1:
+            assign:
+              - a: 1
+              - b: 2
+              - c: 3
+    `
+
+    assertTranspiled(code, expected)
+  })
+
   it('transpiles an assignment expression', () => {
     const code = 'function main() { let a; a = 1; }'
 
