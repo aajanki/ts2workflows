@@ -303,9 +303,8 @@ describe('Sample source files', () => {
   it('transpiles sample files', () => {
     fs.readdirSync(samplesdir).forEach((file) => {
       if (file.endsWith('.ts')) {
-        const code = fs.readFileSync(`${samplesdir}/${file}`, {
-          encoding: 'utf-8',
-        })
+        const fullPath = `${samplesdir}/${file}`
+        const code = fs.readFileSync(fullPath, { encoding: 'utf-8' })
 
         expect(() => transpile(code)).not.to.throw()
       }
@@ -316,9 +315,7 @@ describe('Sample source files', () => {
     fs.readdirSync(samplesdir).forEach((file) => {
       if (file.endsWith('.ts')) {
         const fullPath = `${samplesdir}/${file}`
-        const code = fs.readFileSync(fullPath, {
-          encoding: 'utf-8',
-        })
+        const code = fs.readFileSync(fullPath, { encoding: 'utf-8' })
 
         expect(() =>
           transpile(code, fullPath, 'samples/tsconfig.json'),
