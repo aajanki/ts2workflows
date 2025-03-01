@@ -287,7 +287,7 @@ describe('Sample source files', () => {
   const samplesdir = './samples'
 
   it('type checks samples files', () => {
-    const res = spawnSync('tsc', ['--project', 'tsconfig.workflows.json'])
+    const res = spawnSync('tsc', ['--project', 'samples/tsconfig.json'])
     const stdoutString = res.stdout.toString('utf-8')
     const stderrString = res.stderr.toString('utf-8')
 
@@ -308,6 +308,21 @@ describe('Sample source files', () => {
         })
 
         expect(() => transpile(code)).not.to.throw()
+      }
+    })
+  })
+
+  it('transpiles sample files with project', () => {
+    fs.readdirSync(samplesdir).forEach((file) => {
+      if (file.endsWith('.ts')) {
+        const fullPath = `${samplesdir}/${file}`
+        const code = fs.readFileSync(fullPath, {
+          encoding: 'utf-8',
+        })
+
+        expect(() =>
+          transpile(code, fullPath, 'samples/tsconfig.json'),
+        ).not.to.throw()
       }
     })
   })

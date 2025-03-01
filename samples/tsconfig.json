@@ -8,8 +8,8 @@
     "noEmit": true,
     "strict": true,
     "types": [],
-    "typeRoots": ["./types"],
+    "typeRoots": ["../types"],
     "skipLibCheck": true
   },
-  "include": ["samples/*.ts", "types/*.ts"]
+  "include": ["*.ts", "../types/*.ts"]
 }

@@ -6,6 +6,10 @@ import { transpile } from './transpiler/index.js'
 import { SourceCodeLocation, WorkflowSyntaxError } from './errors.js'
 import { TSError } from '@typescript-eslint/typescript-estree'
 
+interface CLIOptions {
+  project?: string
+}
+
 function parseArgs() {
   program
     .name('ts2workflow')
@@ -13,12 +17,18 @@ function parseArgs() {
     .description(
       'Transpile a Typescript program into GCP Workflows YAML syntax.',
     )
+    .option(
+      '--project <path>',
+      'path to TSConfig for the Typescript sources files',
+    )
     .argument(
       '[FILES]',
       'Path to source file(s) to compile. If not given, reads from stdin.',
     )
-  program.parse()
+    .parse()
+
   return {
+    options: program.opts<CLIOptions>(),
     sourceFiles: program.args,
   }
 }
@@ -39,7 +49,7 @@ function cliMain() {
 
     try {
       sourceCode = fs.readFileSync(inp, 'utf8')
-      console.log(transpile(sourceCode))
+      console.log(transpile(sourceCode, inputFile, args.options.project))
     } catch (err) {
       if (isIoError(err, 'ENOENT')) {
         console.error(`Error: "${inp}" not found`)

@@ -29,10 +29,10 @@ One benefit of writing the workflow programs in Typescript is that the sources c
 This example command shows how to type check source files in the [samples](samples) directory using the standard Typescript compiler `tsc`. The command prints typing errors or finishes silently, if there are no errors.
 
 ```sh
-npx tsc --project tsconfig.workflows.json
+npx tsc --project samples/tsconfig.json
 ```
 
-The file [tsconfig.workflows.json](tsconfig.workflows.json) contains a sample configuration for type checking workflow sources.
+The file [samples/tsconfig.json](samples/tsconfig.json) contains a sample configuration for type checking workflow sources.
 
 Type annotations for [Workflows standard library functions and expression helpers](https://cloud.google.com/workflows/docs/reference/stdlib/overview) and for some [connectors](https://cloud.google.com/workflows/docs/reference/googleapis) are provided in [types/workflowslib.d.ts](types/workflowslib.d.ts). They are also included in the published npm module. To import type annotations in a project that has ts2workflows module as a dependency, use the following import command:
 

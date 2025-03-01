@@ -1,7 +1,8 @@
 import {
-  parse,
-  TSESTree,
   AST_NODE_TYPES,
+  parseAndGenerateServices,
+  TSESTree,
+  TSESTreeOptions,
 } from '@typescript-eslint/typescript-estree'
 import * as YAML from 'yaml'
 import { SubworkflowAST } from '../ast/steps.js'
@@ -10,14 +11,25 @@ import { WorkflowParameter } from '../ast/workflows.js'
 import { generateStepNames } from '../ast/stepnames.js'
 import { parseStatement } from './statements.js'
 
-export function transpile(code: string): string {
-  const parserOptions = {
+export function transpile(
+  code: string,
+  inputFile?: string,
+  tsconfigPath?: string,
+): string {
+  const parserOptions: TSESTreeOptions = {
     jsDocParsingMode: 'none' as const,
     loc: true,
     range: false,
   }
 
-  const ast = parse(code, parserOptions)
+  if (tsconfigPath && inputFile && inputFile != '-') {
+    parserOptions.filePath = inputFile
+    parserOptions.projectService = {
+      defaultProject: tsconfigPath,
+    }
+  }
+
+  const { ast } = parseAndGenerateServices(code, parserOptions)
   const workflowAst = { subworkflows: ast.body.flatMap(parseTopLevelStatement) }
   const workflow = generateStepNames(workflowAst)
   return YAML.stringify(workflow.render(), { lineWidth: 100 })
