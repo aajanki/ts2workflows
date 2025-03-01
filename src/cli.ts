@@ -22,7 +22,7 @@ function parseArgs() {
       'path to TSConfig for the Typescript sources files',
     )
     .argument(
-      '[FILES]',
+      '[FILES...]',
       'Path to source file(s) to compile. If not given, reads from stdin.',
     )
     .parse()
