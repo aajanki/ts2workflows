@@ -20,7 +20,7 @@
     "lint": "eslint src test scripts",
     "format": "prettier . --write",
     "test": "mocha",
-    "prepare": "husky"
+    "prepare": "husky && npm run build"
   },
   "lint-staged": {
     "src/**/*.ts": [
