@@ -15,7 +15,7 @@ interface CLIOptions {
 function parseArgs() {
   program
     .name('ts2workflow')
-    .version('0.1.0')
+    .version(process.env.npm_package_version ?? '<???>')
     .description(
       'Transpile a Typescript program into GCP Workflows YAML syntax.',
     )
