@@ -61,8 +61,8 @@ function cliMain() {
         process.exit(1)
       }
     } catch (err) {
-      if (isIoError(err, 'ENOENT')) {
-        console.error(`Error: "${inputFile}" not found`)
+      if (isIoError(err, 'ENOENT') && isIoError(err, 'EACCES')) {
+        console.error(err.message)
         process.exit(1)
       } else if (isIoError(err, 'EISDIR')) {
         console.error(`Error: "${inputFile}" is a directory`)
@@ -124,7 +124,7 @@ function createOutputFilename(inputFile: string, outdir: string): string {
   })
 }
 
-function isIoError(err: unknown, errorCode: string): boolean {
+function isIoError(err: unknown, errorCode: string): err is Error {
   return err instanceof Error && 'code' in err && err.code == errorCode
 }
 
