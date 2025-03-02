@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import * as fs from 'node:fs'
+import * as path from 'node:path'
 import { program } from 'commander'
 import { transpile } from './transpiler/index.js'
 import { SourceCodeLocation, WorkflowSyntaxError } from './errors.js'
@@ -8,6 +9,7 @@ import { TSError } from '@typescript-eslint/typescript-estree'
 
 interface CLIOptions {
   project?: string
+  outdir?: string
 }
 
 function parseArgs() {
@@ -19,7 +21,11 @@ function parseArgs() {
     )
     .option(
       '--project <path>',
-      'path to TSConfig for the Typescript sources files',
+      'Path to TSConfig for the Typescript sources files.',
+    )
+    .option(
+      '--outdir <path>',
+      'Specify an output directory for where transpilation result are written.',
     )
     .argument(
       '[FILES...]',
@@ -44,33 +50,77 @@ function cliMain() {
   }
 
   files.forEach((inputFile) => {
-    const inp = inputFile === '-' ? process.stdin.fd : inputFile
-    let sourceCode = ''
-
     try {
-      sourceCode = fs.readFileSync(inp, 'utf8')
-      console.log(transpile(sourceCode, inputFile, args.options.project))
+      const success = transpileAndOutput(
+        inputFile,
+        args.options.project,
+        args.options.outdir,
+      )
+
+      if (!success) {
+        process.exit(1)
+      }
     } catch (err) {
       if (isIoError(err, 'ENOENT')) {
-        console.error(`Error: "${inp}" not found`)
+        console.error(`Error: "${inputFile}" not found`)
         process.exit(1)
       } else if (isIoError(err, 'EISDIR')) {
-        console.error(`Error: "${inp}" is a directory`)
+        console.error(`Error: "${inputFile}" is a directory`)
         process.exit(1)
-      } else if (isIoError(err, 'EAGAIN') && inp === process.stdin.fd) {
+      } else if (isIoError(err, 'EAGAIN') && inputFile === '-') {
         // Reading from stdin if there's no input causes error. This is a bug in node
         console.error('Error: Failed to read from stdin')
-        process.exit(1)
-      } else if (err instanceof WorkflowSyntaxError) {
-        prettyPrintSyntaxError(err, inputFile, sourceCode)
-        process.exit(1)
-      } else if (err instanceof TSError) {
-        prettyPrintSyntaxError(err, inputFile, sourceCode)
         process.exit(1)
       } else {
         throw err
       }
     }
+  })
+}
+
+function transpileAndOutput(
+  inputFile: string,
+  project?: string,
+  outdir?: string,
+): boolean {
+  const inp = inputFile === '-' ? process.stdin.fd : inputFile
+  const sourceCode = fs.readFileSync(inp, 'utf8')
+
+  try {
+    const transpiled = transpile(sourceCode, inputFile, project)
+
+    if (outdir !== undefined) {
+      if (!fs.existsSync(outdir)) {
+        fs.mkdirSync(outdir, { recursive: true })
+      }
+
+      const outputFile = createOutputFilename(inputFile, outdir)
+      fs.writeFileSync(outputFile, transpiled)
+    } else {
+      process.stdout.write(transpiled)
+    }
+
+    return true
+  } catch (err) {
+    if (err instanceof WorkflowSyntaxError) {
+      prettyPrintSyntaxError(err, inputFile, sourceCode)
+      return false
+    } else if (err instanceof TSError) {
+      prettyPrintSyntaxError(err, inputFile, sourceCode)
+      return false
+    } else {
+      throw err
+    }
+  }
+}
+
+function createOutputFilename(inputFile: string, outdir: string): string {
+  const parsedInput = path.parse(inputFile)
+
+  return path.format({
+    dir: outdir,
+    name: parsedInput.name,
+    ext: '.yaml',
   })
 }
 

@@ -16,6 +16,12 @@ Converting Typescript code in a file samples/sample1.ts into GCP Workflows YAML 
 npx ts2workflows samples/sample1.ts
 ```
 
+Compile multiple files and write result to an output directory `workflowsfiles`. This will write one output file corresponding to each input file in a directory given by the `--outdir` argument. The output files are named similarly to the input files but using `.yaml` as the file extension. The output directory will be created if it doesn't exist. Supplying the TSConfig with the `--project` argument makes compiling multiple files faster.
+
+```sh
+npx ts2workflows --project samples/tsconfig.json --outdir workflowsfiles samples/*.ts
+```
+
 When developing ts2workflows, you can run the transpiler directly from the source directory:
 
 ```sh
