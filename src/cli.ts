@@ -2,6 +2,7 @@
 
 import * as fs from 'node:fs'
 import * as path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { program } from 'commander'
 import { transpile } from './transpiler/index.js'
 import { SourceCodeLocation, WorkflowSyntaxError } from './errors.js'
@@ -15,7 +16,7 @@ interface CLIOptions {
 function parseArgs() {
   program
     .name('ts2workflow')
-    .version(process.env.npm_package_version ?? '<???>')
+    .version(versionFromPackageJson())
     .description(
       'Transpile a Typescript program into GCP Workflows YAML syntax.',
     )
@@ -203,6 +204,16 @@ function highlightedSourceCodeLine(
   const markerLine = `${' '.repeat(start)}${'^'.repeat(markerLength)}`
 
   return `${sourceLine}\n${markerLine}`
+}
+
+function versionFromPackageJson(): string {
+  const currentFile = fileURLToPath(import.meta.url)
+  const currentDir = path.dirname(currentFile)
+  const packagePath = path.join(currentDir, '..', 'package.json')
+  const pjson = JSON.parse(fs.readFileSync(packagePath, 'utf-8')) as {
+    version?: string
+  }
+  return pjson.version ?? '???'
 }
 
 if (
