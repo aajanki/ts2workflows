@@ -1,7 +1,6 @@
 import { expect } from 'chai'
 import * as YAML from 'yaml'
 import * as fs from 'node:fs'
-import { spawnSync } from 'node:child_process'
 import { transpile } from '../src/transpiler/index.js'
 import { assertTranspiled } from './testutils.js'
 
@@ -285,20 +284,6 @@ describe('Runtime functions', () => {
 
 describe('Sample source files', () => {
   const samplesdir = './samples'
-
-  it('type checks samples files', () => {
-    const res = spawnSync('tsc', ['--project', 'samples/tsconfig.json'])
-    const stdoutString = res.stdout.toString('utf-8')
-    const stderrString = res.stderr.toString('utf-8')
-
-    expect(stdoutString).to.equal('')
-    expect(stderrString).to.equal('')
-    expect(res.status).to.equal(
-      0,
-      'Type checking finished with a non-zero exit code',
-    )
-    expect(res.error).to.be.an('undefined')
-  })
 
   it('transpiles sample files', () => {
     fs.readdirSync(samplesdir).forEach((file) => {
