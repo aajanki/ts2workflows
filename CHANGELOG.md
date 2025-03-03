@@ -1,4 +1,6 @@
-_unreleased_
+# ts2workflows changelog
+
+## Version 0.8.0 - 2025-03-03
 
 - Multiple input files can be given on the command line
 - Argument `--outdir` sets the output directory
@@ -7,14 +9,14 @@ _unreleased_
 - `--version` prints the correct version number
 - Accept instantiation expressions `func<TYPE>`
 
-Version 0.7.0 - 2025-02-02
+## Version 0.7.0 - 2025-02-02
 
 - `typeof` operator
 - `null` is allowed as interpolated value in template literal `${null}`
 - Accept `undefined` as a function argument default argument: `func(a: number | undefined = undefined)`
 - Optional function arguments: `func(a?: number)`
 
-Version 0.6.0 - 2025-01-09
+## Version 0.6.0 - 2025-01-09
 
 Breaking changes:
 
@@ -28,12 +30,12 @@ Fixes:
 - 0, "", false and null can now be used as subworkflow parameter default values
 - Type annotation fixes
 
-Version 0.5.0 - 2024-11-09
+## Version 0.5.0 - 2024-11-09
 
 - Move nested map expressions to assign steps where necessary
 - Array.isArray() is transformed correcly in nested expressions
 
-Version 0.4.0 - 2024-11-05
+## Version 0.4.0 - 2024-11-05
 
 - Optional chaining a?.b is converted to map.get(a, "b")
 - Non-null assertions person!.name is accepted but ignored to the transpiler
@@ -43,13 +45,13 @@ Version 0.4.0 - 2024-11-05
 - parallel() and retry_policy() special functions can only be used as statements
 - Better error messages on RegExp, BigInt, spread syntax and other non-supported Javascript features
 
-Version 0.3.0 - 2024-10-19
+## Version 0.3.0 - 2024-10-19
 
 - Function invocations no longer generate invalid empty variable names
 - Include more utility types: ReturnType, Partial, Required, etc.
 - Type annotation fixes
 
-Version 0.2.0 - 2024-10-09
+## Version 0.2.0 - 2024-10-09
 
 - Reduce cases where maps are needlessly split off into assign statements
 - Accept (but ignore) "declare function"
