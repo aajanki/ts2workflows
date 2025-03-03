@@ -74,15 +74,17 @@ function cliMain() {
 
       writeOutput(transpiled, inputFile, args.outdir)
     } catch (err) {
-      if (isIoError(err, 'ENOENT') && isIoError(err, 'EACCES')) {
-        console.error(err.message)
-        process.exit(1)
-      } else if (isIoError(err, 'EISDIR')) {
-        console.error(`Error: "${inputFile}" is a directory`)
-        process.exit(1)
-      } else if (isIoError(err, 'EAGAIN') && inputFile === '-') {
-        // Reading from stdin if there's no input causes error. This is a bug in node
-        console.error('Error: Failed to read from stdin')
+      if (isIoError(err)) {
+        let message: string
+        if ('code' in err && err.code === 'EAGAIN' && inputFile === '-') {
+          // Reading from stdin if there's no input causes error. This is a bug in node
+          message = 'Error: Failed to read from stdin'
+        } else if ('code' in err && err.code === 'EISDIR') {
+          message = `Error: "${inputFile}" is a directory`
+        } else {
+          message = err.message
+        }
+        console.error(message)
         process.exit(1)
       } else {
         throw err
@@ -152,8 +154,8 @@ function generatedFileComment(inputFile: string): string {
   )
 }
 
-function isIoError(err: unknown, errorCode: string): err is Error {
-  return err instanceof Error && 'code' in err && err.code == errorCode
+function isIoError(err: unknown): err is Error {
+  return err instanceof Error && 'code' in err
 }
 
 function prettyPrintSyntaxError(
