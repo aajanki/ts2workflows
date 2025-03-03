@@ -1,8 +1,10 @@
-<unreleased>
+_unreleased_
 
 - Multiple input files can be given on the command line
 - Argument `--outdir` sets the output directory
-- Argument `--project` defines TSCOnfig for the source files
+- Argument `--project` defines the TSConfig location for the source files
+- `--(no-)generated-file-comment`: optionally include a comment about the output file being generated
+- `--version` prints the correct version number
 - Accept instantiation expressions `func<TYPE>`
 
 Version 0.7.0 - 2025-02-02
