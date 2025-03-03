@@ -62,16 +62,17 @@ function cliMain() {
 
   files.forEach((inputFile) => {
     try {
-      const success = transpileAndOutput(
+      const transpiled = generateTranspiledText(
         inputFile,
         args.generatedFileComment,
         args.project,
-        args.outdir,
       )
 
-      if (!success) {
+      if (transpiled === undefined) {
         process.exit(1)
       }
+
+      writeOutput(transpiled, inputFile, args.outdir)
     } catch (err) {
       if (isIoError(err, 'ENOENT') && isIoError(err, 'EACCES')) {
         console.error(err.message)
@@ -90,12 +91,11 @@ function cliMain() {
   })
 }
 
-function transpileAndOutput(
+function generateTranspiledText(
   inputFile: string,
   addGeneratedFileComment: boolean,
   project?: string,
-  outdir?: string,
-): boolean {
+): string | undefined {
   const inputIsStdIn = inputFile === '-'
   const inp = inputIsStdIn ? process.stdin.fd : inputFile
   const sourceCode = fs.readFileSync(inp, 'utf8')
@@ -104,30 +104,34 @@ function transpileAndOutput(
     const needsHeader = addGeneratedFileComment && !inputIsStdIn
     const header = needsHeader ? generatedFileComment(inputFile) : ''
     const transpiled = transpile(sourceCode, inputFile, project)
-    const output = `${header}${transpiled}`
-
-    if (outdir !== undefined) {
-      if (!fs.existsSync(outdir)) {
-        fs.mkdirSync(outdir, { recursive: true })
-      }
-
-      const outputFile = createOutputFilename(inputFile, outdir)
-      fs.writeFileSync(outputFile, output)
-    } else {
-      process.stdout.write(output)
-    }
-
-    return true
+    return `${header}${transpiled}`
   } catch (err) {
     if (err instanceof WorkflowSyntaxError) {
       prettyPrintSyntaxError(err, inputFile, sourceCode)
-      return false
+      return undefined
     } else if (err instanceof TSError) {
       prettyPrintSyntaxError(err, inputFile, sourceCode)
-      return false
+      return undefined
     } else {
       throw err
     }
+  }
+}
+
+function writeOutput(
+  transpiled: string,
+  inputFile: string,
+  outdir?: string,
+): void {
+  if (outdir !== undefined) {
+    if (!fs.existsSync(outdir)) {
+      fs.mkdirSync(outdir, { recursive: true })
+    }
+
+    const outputFile = createOutputFilename(inputFile, outdir)
+    fs.writeFileSync(outputFile, transpiled)
+  } else {
+    process.stdout.write(transpiled)
   }
 }
 
