@@ -5,7 +5,7 @@
   "homepage": "https://github.com/aajanki/ts2workflows",
   "repository": {
     "type": "git",
-    "url": "https://github.com/aajanki/ts2workflows.git"
+    "url": "git+https://github.com/aajanki/ts2workflows.git"
   },
   "bugs": "https://github.com/aajanki/ts2workflows/issues",
   "main": "dist/index.js",
@@ -39,7 +39,9 @@
       "prettier --write"
     ]
   },
-  "bin": "./dist/cli.js",
+  "bin": {
+    "ts2workflows": "./dist/cli.js"
+  },
   "files": [
     "dist",
     "types",
