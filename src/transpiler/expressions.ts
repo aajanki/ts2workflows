@@ -82,7 +82,7 @@ function convertExpressionOrPrimitive(
         throw new WorkflowSyntaxError('RegExp is not supported', instance.loc)
       }
       if (typeof instance.value === 'bigint') {
-        throw new WorkflowSyntaxError('BigInt in not supported', instance.loc)
+        throw new WorkflowSyntaxError('BigInt is not supported', instance.loc)
       }
 
       return instance.value
@@ -151,7 +151,7 @@ function convertArrayExpression(instance: TSESTree.ArrayExpression) {
 function convertBinaryExpression(
   instance: TSESTree.BinaryExpression | TSESTree.LogicalExpression,
 ): Expression {
-  // Special case for nullish coalescing becuase the result is a function call
+  // Special case for nullish coalescing because the result is a function call
   // expression, not a binary expression
   if (instance.operator === '??') {
     return nullishCoalescingExpression(instance.left, instance.right)
@@ -280,7 +280,7 @@ function convertUnaryExpression(
 }
 
 function convertTypeOfExpression(value: Expression): Expression {
-  // Note for future rectoring: evalute value only once (in case it has side effects)
+  // Note for future refactoring: evalute value only once (in case it has side effects)
   return new FunctionInvocationExpression('text.replace_all_regex', [
     new FunctionInvocationExpression('text.replace_all_regex', [
       new FunctionInvocationExpression('get_type', [value]),
