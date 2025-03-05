@@ -160,15 +160,15 @@ function blockingCallsAsCallSteps(steps: WorkflowStepAST[]): WorkflowStepAST[] {
   const transformer = (ex: Expression): [WorkflowStepAST[], Expression] => {
     const generateTemporaryVariableName = createTempVariableGenerator()
     const { transformedExpression, callSteps } = replaceBlockingCalls(
-      ex,
       generateTemporaryVariableName,
+      ex,
     )
 
     return [callSteps, transformedExpression]
   }
 
   return steps.reduce((acc: WorkflowStepAST[], current: WorkflowStepAST) => {
-    const transformedSteps = transformStepExpressions(current, transformer)
+    const transformedSteps = transformStepExpressions(transformer, current)
     acc.push(...transformedSteps)
 
     return acc
@@ -181,8 +181,8 @@ function createTempVariableGenerator(): () => string {
 }
 
 function replaceBlockingCalls(
-  expression: Expression,
   generateName: () => string,
+  expression: Expression,
 ): { transformedExpression: Expression; callSteps: CallStepAST[] } {
   function replaceBlockingFunctionInvocations(
     ex: Expression,
@@ -190,7 +190,7 @@ function replaceBlockingCalls(
     if (ex.expressionType === 'functionInvocation') {
       const callStepsForArguments: CallStepAST[] = []
       const replacedArguments = ex.arguments.map((ex) => {
-        const replaced = replaceBlockingCalls(ex, generateName)
+        const replaced = replaceBlockingCalls(generateName, ex)
         callStepsForArguments.push(...replaced.callSteps)
         return replaced.transformedExpression
       })
@@ -228,8 +228,8 @@ function replaceBlockingCalls(
 
   return {
     transformedExpression: transformExpression(
-      expression,
       replaceBlockingFunctionInvocations,
+      expression,
     ),
     callSteps,
   }
@@ -243,27 +243,27 @@ function replaceBlockingCalls(
  * transformation might extract blocking call expressions into call steps.
  */
 function transformStepExpressions(
-  step: WorkflowStepAST,
   transform: (ex: Expression) => [WorkflowStepAST[], Expression],
+  step: WorkflowStepAST,
 ): WorkflowStepAST[] {
   switch (step.tag) {
     case 'assign':
-      return transformExpressionsAssign(step, transform)
+      return transformExpressionsAssign(transform, step)
 
     case 'call':
-      return transformExpressionsCall(step, transform)
+      return transformExpressionsCall(transform, step)
 
     case 'for':
-      return transformExpressionsFor(step, transform)
+      return transformExpressionsFor(transform, step)
 
     case 'raise':
-      return transformExpressionsRaise(step, transform)
+      return transformExpressionsRaise(transform, step)
 
     case 'return':
-      return transformExpressionsReturn(step, transform)
+      return transformExpressionsReturn(transform, step)
 
     case 'switch':
-      return transformExpressionsSwitch(step, transform)
+      return transformExpressionsSwitch(transform, step)
 
     case 'next':
     case 'parallel':
@@ -275,8 +275,8 @@ function transformStepExpressions(
 }
 
 function transformExpressionsAssign(
-  step: AssignStepAST,
   transform: (ex: Expression) => [WorkflowStepAST[], Expression],
+  step: AssignStepAST,
 ): WorkflowStepAST[] {
   if (step.assignments) {
     const newSteps: WorkflowStepAST[] = []
@@ -293,8 +293,8 @@ function transformExpressionsAssign(
 }
 
 function transformExpressionsCall(
-  step: CallStepAST,
   transform: (ex: Expression) => [WorkflowStepAST[], Expression],
+  step: CallStepAST,
 ): WorkflowStepAST[] {
   if (step.args) {
     const newSteps: WorkflowStepAST[] = []
@@ -311,8 +311,8 @@ function transformExpressionsCall(
 }
 
 function transformExpressionsFor(
-  step: ForStepAST,
   transform: (ex: Expression) => [WorkflowStepAST[], Expression],
+  step: ForStepAST,
 ): WorkflowStepAST[] {
   if (step.listExpression) {
     const [newSteps, newListExpression] = transform(step.listExpression)
@@ -334,8 +334,8 @@ function transformExpressionsFor(
 }
 
 function transformExpressionsRaise(
-  step: RaiseStepAST,
   transform: (ex: Expression) => [WorkflowStepAST[], Expression],
+  step: RaiseStepAST,
 ): WorkflowStepAST[] {
   if (step.value) {
     const [newSteps, newEx] = transform(step.value)
@@ -347,8 +347,8 @@ function transformExpressionsRaise(
 }
 
 function transformExpressionsReturn(
-  step: ReturnStepAST,
   transform: (ex: Expression) => [WorkflowStepAST[], Expression],
+  step: ReturnStepAST,
 ): WorkflowStepAST[] {
   if (step.value) {
     const [newSteps, newEx] = transform(step.value)
@@ -360,8 +360,8 @@ function transformExpressionsReturn(
 }
 
 function transformExpressionsSwitch(
-  step: SwitchStepAST,
   transform: (ex: Expression) => [WorkflowStepAST[], Expression],
+  step: SwitchStepAST,
 ): WorkflowStepAST[] {
   const newSteps: WorkflowStepAST[] = []
   const newBranches = step.branches.map((cond) => {
@@ -380,8 +380,8 @@ function transformExpressionsSwitch(
 }
 
 function transformExpression(
-  ex: Expression,
   transform: ExpressionTransformer,
+  ex: Expression,
 ): Expression {
   const transformed = transform(ex)
 
@@ -395,23 +395,23 @@ function transformExpression(
         if (isLiteral(ex)) {
           return ex
         } else {
-          const newPrimitive = transformPrimitive(ex.value, transform)
+          const newPrimitive = transformPrimitive(transform, ex.value)
           return newPrimitive === ex.value
             ? ex
             : new PrimitiveExpression(newPrimitive)
         }
 
       case 'binary':
-        return transformBinaryExpression(ex, transform)
+        return transformBinaryExpression(transform, ex)
 
       case 'functionInvocation':
-        return transformFunctionInvocationExpression(ex, transform)
+        return transformFunctionInvocationExpression(transform, ex)
 
       case 'member':
-        return transformMemberExpression(ex, transform)
+        return transformMemberExpression(transform, ex)
 
       case 'unary':
-        return transformUnaryExpression(ex, transform)
+        return transformUnaryExpression(transform, ex)
 
       case 'variableReference':
         return ex
@@ -420,13 +420,13 @@ function transformExpression(
 }
 
 function transformPrimitive(
-  val: Primitive,
   transform: ExpressionTransformer,
+  val: Primitive,
 ): Primitive {
   const tranformVal = R.ifElse(
     isExpression,
-    (x) => transformExpression(x, transform),
-    (x) => transformPrimitive(x, transform),
+    (x) => transformExpression(transform, x),
+    (x) => transformPrimitive(transform, x),
   )
 
   if (Array.isArray(val)) {
@@ -439,12 +439,12 @@ function transformPrimitive(
 }
 
 function transformBinaryExpression(
-  ex: BinaryExpression,
   transform: ExpressionTransformer,
+  ex: BinaryExpression,
 ): BinaryExpression {
   // Transform left first to keep the correct order of execution of sub-expressions
-  const newLeft = transformExpression(ex.left, transform)
-  const newRight = transformExpression(ex.right, transform)
+  const newLeft = transformExpression(transform, ex.left)
+  const newRight = transformExpression(transform, ex.right)
 
   if (newLeft === ex.left && newRight === ex.right) {
     return ex
@@ -454,11 +454,11 @@ function transformBinaryExpression(
 }
 
 function transformFunctionInvocationExpression(
-  ex: FunctionInvocationExpression,
   transform: ExpressionTransformer,
+  ex: FunctionInvocationExpression,
 ): FunctionInvocationExpression {
   const newArguments = ex.arguments.map((x) =>
-    transformExpression(x, transform),
+    transformExpression(transform, x),
   )
   if (newArguments.every((x, i) => x === ex.arguments[i])) {
     return ex
@@ -468,11 +468,11 @@ function transformFunctionInvocationExpression(
 }
 
 function transformMemberExpression(
-  ex: MemberExpression,
   transform: ExpressionTransformer,
+  ex: MemberExpression,
 ): Expression {
-  const newObject = transformExpression(ex.object, transform)
-  const newProperty = transformExpression(ex.property, transform)
+  const newObject = transformExpression(transform, ex.object)
+  const newProperty = transformExpression(transform, ex.property)
 
   if (newObject === ex.object && newProperty === ex.property) {
     return ex
@@ -482,10 +482,10 @@ function transformMemberExpression(
 }
 
 function transformUnaryExpression(
-  ex: UnaryExpression,
   transform: ExpressionTransformer,
+  ex: UnaryExpression,
 ): Expression {
-  const newValue = transformExpression(ex.value, transform)
+  const newValue = transformExpression(transform, ex.value)
   return newValue === ex.value ? ex : new UnaryExpression(ex.operator, newValue)
 }
 
@@ -510,7 +510,7 @@ function transformUnaryExpression(
  */
 function mapLiteralsAsAssignSteps(steps: WorkflowStepAST[]): WorkflowStepAST[] {
   return steps.flatMap((step) =>
-    transformStepExpressions(step, transformNestedMaps),
+    transformStepExpressions(transformNestedMaps, step),
   )
 }
 
@@ -764,10 +764,10 @@ function runtimeFunctionImplementation(
   steps: WorkflowStepAST[],
 ): WorkflowStepAST[] {
   return steps.flatMap((current) =>
-    transformStepExpressions(current, (ex) => [
-      [],
-      transformExpression(ex, replaceIsArray),
-    ]),
+    transformStepExpressions(
+      (ex) => [[], transformExpression(replaceIsArray, ex)],
+      current,
+    ),
   )
 }
 
