@@ -216,20 +216,22 @@ export class UnaryExpression {
   }
 }
 
+// Convert an Expression or Primitive to a string representation.
+// Does not add ${}.
+const expressionOrPrimitiveToString: (x: Expression | Primitive) => string =
+  R.ifElse(isExpression, (x) => x.toString(), primitiveToString)
+
 // Convert a Primitive to a string representation.
 // Does not add ${}.
 function primitiveToString(val: Primitive): string {
-  if (Array.isArray(val)) {
-    const elements = val.map((x) => {
-      return isExpression(x) ? x.toString() : primitiveToString(x)
-    })
+  const valuesToString = R.map(expressionOrPrimitiveToString)
 
-    return `[${elements.join(', ')}]`
+  if (Array.isArray(val)) {
+    return `[${valuesToString(val).join(', ')}]`
   } else if (val !== null && typeof val === 'object') {
-    const items = Object.entries(val).map(([k, v]) => {
-      return [k, isExpression(v) ? v.toString() : primitiveToString(v)]
-    })
-    const elements = items.map(([k, v]) => `"${k}":${v}`)
+    const elements = Object.values(valuesToString(val)).map(
+      ([k, v]) => `"${k}":${v}`,
+    )
 
     return `{${elements.join(',')}}`
   } else {
@@ -347,15 +349,14 @@ export function isLiteral(ex: Expression): boolean {
   }
 }
 
+const expressionOrPrimitiveIsLiteral: (x: Primitive | Expression) => boolean =
+  R.ifElse(isExpression, isLiteral, primitiveIsLiteral)
+
 function primitiveIsLiteral(value: Primitive): boolean {
   if (Array.isArray(value)) {
-    return value.every((x) => {
-      return isExpression(x) ? isLiteral(x) : primitiveIsLiteral(x)
-    })
+    return value.every(expressionOrPrimitiveIsLiteral)
   } else if (isRecord(value)) {
-    return Object.values(value).every((x) => {
-      return isExpression(x) ? isLiteral(x) : primitiveIsLiteral(x)
-    })
+    return Object.values(value).every(expressionOrPrimitiveIsLiteral)
   } else {
     return (
       typeof value === 'string' ||
