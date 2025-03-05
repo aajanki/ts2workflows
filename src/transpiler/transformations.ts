@@ -167,12 +167,7 @@ function blockingCallsAsCallSteps(steps: WorkflowStepAST[]): WorkflowStepAST[] {
     return [callSteps, transformedExpression]
   }
 
-  return steps.reduce((acc: WorkflowStepAST[], current: WorkflowStepAST) => {
-    const transformedSteps = transformStepExpressions(transformer, current)
-    acc.push(...transformedSteps)
-
-    return acc
-  }, [])
+  return steps.flatMap((step) => transformStepExpressions(transformer, step))
 }
 
 function createTempVariableGenerator(): () => string {
@@ -763,10 +758,10 @@ function extractNestedMapUnary(
 function runtimeFunctionImplementation(
   steps: WorkflowStepAST[],
 ): WorkflowStepAST[] {
-  return steps.flatMap((current) =>
+  return steps.flatMap((step) =>
     transformStepExpressions(
       (ex) => [[], transformExpression(replaceIsArray, ex)],
-      current,
+      step,
     ),
   )
 }
