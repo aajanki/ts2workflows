@@ -1,4 +1,5 @@
-import { isRecord, mapRecordValues } from '../utils.js'
+import * as R from 'ramda'
+import { isRecord } from '../utils.js'
 
 export type VariableName = string
 export type BinaryOperator =
@@ -302,7 +303,7 @@ function primitiveExpressionToLiteralValueOrLiteralExpression(
       }
     })
   } else if (isRecord(ex.value)) {
-    return mapRecordValues(ex.value, (v) => {
+    const mapRecord = R.map((v: Primitive | Expression) => {
       if (isExpression(v)) {
         return expressionToLiteralValueOrLiteralExpression(v)
       } else if (Array.isArray(v) || isRecord(v)) {
@@ -320,6 +321,8 @@ function primitiveExpressionToLiteralValueOrLiteralExpression(
         return `\${${primitiveToString(v)}}`
       }
     })
+
+    return mapRecord(ex.value)
   } else {
     return `\${${ex.toString()}}`
   }

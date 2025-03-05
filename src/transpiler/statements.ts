@@ -1,3 +1,4 @@
+import * as R from 'ramda'
 import { AST_NODE_TYPES, TSESTree } from '@typescript-eslint/typescript-estree'
 import {
   AssignStepAST,
@@ -31,7 +32,7 @@ import {
   isLiteral,
 } from '../ast/expressions.js'
 import { InternalTranspilingError, WorkflowSyntaxError } from '../errors.js'
-import { flatMapPair, isRecord, mapRecordValues } from '../utils.js'
+import { flatMapPair, isRecord } from '../utils.js'
 import { transformAST } from './transformations.js'
 import {
   convertExpression,
@@ -1083,7 +1084,7 @@ function retryPolicyFromParams(
   paramsObject: Record<string, Primitive | Expression>,
   argsLoc: TSESTree.SourceLocation,
 ): CustomRetryPolicy {
-  const params = mapRecordValues(paramsObject, asExpression)
+  const params = R.map(asExpression, paramsObject)
   if ('backoff' in params) {
     let predicate: string | undefined = ''
     const predicateEx = params.predicate

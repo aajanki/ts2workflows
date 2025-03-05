@@ -1,4 +1,5 @@
-import { isRecord, mapRecordValues } from '../utils.js'
+import * as R from 'ramda'
+import { isRecord } from '../utils.js'
 import {
   Expression,
   VariableName,
@@ -534,10 +535,10 @@ function namedStepsParallel(
 
     steps = forStep
   } else {
-    steps = mapRecordValues(step.steps, (step) => {
+    steps = R.map((step) => {
       const named = step.steps.map((x) => namedSteps(x, generateName))
       return new StepsStepASTNamed(named)
-    })
+    }, step.steps)
   }
 
   return {
@@ -747,9 +748,7 @@ function renderCallStep(step: CallStepAST): Record<string, unknown> {
     | Record<string, null | string | number | boolean | object>
     | undefined = undefined
   if (step.args) {
-    args = mapRecordValues(step.args, (v) =>
-      expressionToLiteralValueOrLiteralExpression(v),
-    )
+    args = R.map(expressionToLiteralValueOrLiteralExpression, step.args)
   }
 
   return {

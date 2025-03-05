@@ -11,7 +11,7 @@ import {
   WorkflowStepAST,
 } from '../ast/steps.js'
 import { InternalTranspilingError } from '../errors.js'
-import { isRecord, mapRecordValues } from '../utils.js'
+import { isRecord } from '../utils.js'
 import {
   BinaryExpression,
   Expression,
@@ -298,11 +298,11 @@ function transformExpressionsCall(
 ): WorkflowStepAST[] {
   if (step.args) {
     const newSteps: WorkflowStepAST[] = []
-    const newArgs = mapRecordValues(step.args, (ex) => {
+    const newArgs = R.map((ex) => {
       const [steps2, ex2] = transform(ex)
       newSteps.push(...steps2)
       return ex2
-    })
+    }, step.args)
     newSteps.push(new CallStepAST(step.call, newArgs, step.result, step.label))
     return newSteps
   } else {
@@ -432,7 +432,7 @@ function transformPrimitive(
   if (Array.isArray(val)) {
     return val.map(tranformVal)
   } else if (isRecord(val)) {
-    return mapRecordValues(val, tranformVal)
+    return R.map(tranformVal, val)
   } else {
     return val
   }

@@ -5,16 +5,6 @@ export function isRecord(
 }
 
 /**
- * Apply f to values of obj and return the result
- */
-export function mapRecordValues<T, U>(
-  obj: Record<string, T>,
-  f: (t: T) => U,
-): Record<string, U> {
-  return Object.fromEntries(Object.entries(obj).map(([k, v]) => [k, f(v)]))
-}
-
-/**
  * Like arr.flatMap() but the callback takes two consecutive array elements.
  *
  * During the last execution of the callback, the second argument (which would

@@ -1,3 +1,4 @@
+import * as R from 'ramda'
 import { TSESTree, AST_NODE_TYPES } from '@typescript-eslint/typescript-estree'
 import {
   BinaryExpression,
@@ -13,7 +14,6 @@ import {
   isFullyQualifiedName,
 } from '../ast/expressions.js'
 import { InternalTranspilingError, WorkflowSyntaxError } from '../errors.js'
-import { mapRecordValues } from '../utils.js'
 
 export function convertExpression(instance: TSESTree.Expression): Expression {
   const expOrPrimitive = convertExpressionOrPrimitive(instance)
@@ -64,7 +64,7 @@ export function convertObjectAsExpressionValues(
   node: TSESTree.ObjectExpression,
 ): Record<string, Expression> {
   // Convert Primitive values to PrimitiveExpressions
-  return mapRecordValues(convertObjectExpression(node), asExpression)
+  return R.map(asExpression, convertObjectExpression(node))
 }
 
 function convertExpressionOrPrimitive(
