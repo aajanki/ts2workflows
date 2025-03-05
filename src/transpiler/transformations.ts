@@ -157,7 +157,7 @@ function flattenNextToCondition(step: SwitchStepAST): SwitchStepAST {
  *     return: ${__temp0}
  */
 function blockingCallsAsCallSteps(steps: WorkflowStepAST[]): WorkflowStepAST[] {
-  const transformer = (ex: Expression): [WorkflowStepAST[], Expression] => {
+  const transform = transformStepExpressions((ex) => {
     const generateTemporaryVariableName = createTempVariableGenerator()
     const { transformedExpression, callSteps } = replaceBlockingCalls(
       generateTemporaryVariableName,
@@ -165,9 +165,9 @@ function blockingCallsAsCallSteps(steps: WorkflowStepAST[]): WorkflowStepAST[] {
     )
 
     return [callSteps, transformedExpression]
-  }
+  })
 
-  return steps.flatMap((step) => transformStepExpressions(transformer, step))
+  return R.chain(transform, steps)
 }
 
 function createTempVariableGenerator(): () => string {
@@ -237,7 +237,7 @@ function replaceBlockingCalls(
  * additional steps constructed during the transformation. For example, a
  * transformation might extract blocking call expressions into call steps.
  */
-function transformStepExpressions(
+const transformStepExpressions = R.curry(function (
   transform: (ex: Expression) => [WorkflowStepAST[], Expression],
   step: WorkflowStepAST,
 ): WorkflowStepAST[] {
@@ -267,7 +267,7 @@ function transformStepExpressions(
     case 'jumptarget':
       return [step]
   }
-}
+})
 
 function transformExpressionsAssign(
   transform: (ex: Expression) => [WorkflowStepAST[], Expression],
@@ -504,9 +504,10 @@ function transformUnaryExpression(
  *     return: ${__temp0.value}
  */
 function mapLiteralsAsAssignSteps(steps: WorkflowStepAST[]): WorkflowStepAST[] {
-  return steps.flatMap((step) =>
-    transformStepExpressions(transformNestedMaps, step),
-  )
+  const transformNestedMapsInExpressions =
+    transformStepExpressions(transformNestedMaps)
+
+  return R.chain(transformNestedMapsInExpressions, steps)
 }
 
 function transformNestedMaps(ex: Expression): [WorkflowStepAST[], Expression] {
@@ -758,12 +759,11 @@ function extractNestedMapUnary(
 function runtimeFunctionImplementation(
   steps: WorkflowStepAST[],
 ): WorkflowStepAST[] {
-  return steps.flatMap((step) =>
-    transformStepExpressions(
-      (ex) => [[], transformExpression(replaceIsArray, ex)],
-      step,
-    ),
-  )
+  const tr = transformStepExpressions((ex) => [
+    [],
+    transformExpression(replaceIsArray, ex),
+  ])
+  return R.chain(tr, steps)
 }
 
 function replaceIsArray(ex: Expression): Expression | Unmodified {
