@@ -1,3 +1,4 @@
+import * as R from 'ramda'
 import {
   AssignStepAST,
   CallStepAST,
@@ -35,15 +36,14 @@ type ExpressionTransformer = (x: Expression) => Expression | Unmodified
  * This flat list of steps and does not recurse into nested steps. This gets
  * called on each nesting level separately.
  */
-export function transformAST(steps: WorkflowStepAST[]): WorkflowStepAST[] {
-  return blockingCallsAsCallSteps(
-    runtimeFunctionImplementation(
-      flattenPlainNextConditions(
-        mergeAssignSteps(mapLiteralsAsAssignSteps(steps)),
-      ),
-    ),
+export const transformAST: (steps: WorkflowStepAST[]) => WorkflowStepAST[] =
+  R.pipe(
+    mapLiteralsAsAssignSteps,
+    mergeAssignSteps,
+    flattenPlainNextConditions,
+    runtimeFunctionImplementation,
+    blockingCallsAsCallSteps,
   )
-}
 
 /**
  * Merge consecutive assign steps into one assign step
@@ -177,8 +177,7 @@ function blockingCallsAsCallSteps(steps: WorkflowStepAST[]): WorkflowStepAST[] {
 
 function createTempVariableGenerator(): () => string {
   let i = 0
-  const generator = () => `__temp${i++}`
-  return generator
+  return () => `__temp${i++}`
 }
 
 function replaceBlockingCalls(
@@ -424,18 +423,16 @@ function transformPrimitive(
   val: Primitive,
   transform: ExpressionTransformer,
 ): Primitive {
+  const tranformVal = R.ifElse(
+    isExpression,
+    (x) => transformExpression(x, transform),
+    (x) => transformPrimitive(x, transform),
+  )
+
   if (Array.isArray(val)) {
-    return val.map((x) =>
-      isExpression(x)
-        ? transformExpression(x, transform)
-        : transformPrimitive(x, transform),
-    )
+    return val.map(tranformVal)
   } else if (isRecord(val)) {
-    return mapRecordValues(val, (x) =>
-      isExpression(x)
-        ? transformExpression(x, transform)
-        : transformPrimitive(x, transform),
-    )
+    return mapRecordValues(val, tranformVal)
   } else {
     return val
   }
