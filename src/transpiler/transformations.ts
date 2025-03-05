@@ -763,15 +763,12 @@ function extractNestedMapUnary(
 function runtimeFunctionImplementation(
   steps: WorkflowStepAST[],
 ): WorkflowStepAST[] {
-  return steps.reduce((acc: WorkflowStepAST[], current: WorkflowStepAST) => {
-    const transformedSteps = transformStepExpressions(current, (ex) => [
+  return steps.flatMap((current) =>
+    transformStepExpressions(current, (ex) => [
       [],
       transformExpression(ex, replaceIsArray),
-    ])
-    acc.push(...transformedSteps)
-
-    return acc
-  }, [])
+    ]),
+  )
 }
 
 function replaceIsArray(ex: Expression): Expression | Unmodified {
