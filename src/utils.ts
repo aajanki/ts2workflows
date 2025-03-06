@@ -1,3 +1,5 @@
+import * as R from 'ramda'
+
 export function isRecord(
   object: unknown,
 ): object is Record<keyof never, unknown> {
@@ -10,20 +12,12 @@ export function isRecord(
  * During the last execution of the callback, the second argument (which would
  * be element after the last array element) will be undefined.
  */
-export function flatMapPair<T, U>(
-  arr: T[],
+export function chainPairs<T, U>(
   callback: (val: T, next: T | undefined) => U[],
+  arr: readonly T[],
 ): U[] {
-  if (arr.length <= 0) {
-    return []
-  }
-
-  const mapped: U[] = []
-  for (let i = 0; i < arr.length - 1; i++) {
-    mapped.push(...callback(arr[i], arr[i + 1]))
-  }
-
-  mapped.push(...callback(arr[arr.length - 1], undefined))
-
-  return mapped
+  return R.chain(
+    R.apply(callback),
+    R.zip(arr, R.append(undefined, R.tail(arr))),
+  )
 }

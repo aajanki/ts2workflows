@@ -32,7 +32,7 @@ import {
   isLiteral,
 } from '../ast/expressions.js'
 import { InternalTranspilingError, WorkflowSyntaxError } from '../errors.js'
-import { flatMapPair, isRecord } from '../utils.js'
+import { chainPairs, isRecord } from '../utils.js'
 import { transformAST } from './transformations.js'
 import {
   convertExpression,
@@ -74,8 +74,9 @@ function parseStatementRecursively(
 ): WorkflowStepAST[] {
   switch (node.type) {
     case AST_NODE_TYPES.BlockStatement:
-      return flatMapPair(node.body, (statement, nextStatement) =>
-        parseStatementRecursively(statement, nextStatement, ctx),
+      return chainPairs(
+        R.partialRight(parseStatementRecursively, [ctx]),
+        node.body,
       )
 
     case AST_NODE_TYPES.VariableDeclaration:
