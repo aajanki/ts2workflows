@@ -425,7 +425,7 @@ function transformPrimitive(
   )
 
   if (Array.isArray(val)) {
-    return val.map(tranformVal)
+    return R.map(tranformVal, val)
   } else if (isRecord(val)) {
     return R.map(tranformVal, val)
   } else {

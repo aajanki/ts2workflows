@@ -43,6 +43,7 @@ import {
   throwIfSpread,
   isMagicFunctionStatmentOnly,
   asExpression,
+  safeAsExpression,
 } from './expressions.js'
 import { blockingFunctions } from './generated/functionMetadata.js'
 
@@ -1086,47 +1087,46 @@ function retryPolicyFromParams(
   argsLoc: TSESTree.SourceLocation,
 ): CustomRetryPolicy {
   const params = R.map(asExpression, paramsObject)
-  if ('backoff' in params) {
-    let predicate: string | undefined = ''
-    const predicateEx = params.predicate
 
-    if (predicateEx === undefined) {
-      predicate = undefined
-    } else if (isFullyQualifiedName(predicateEx)) {
-      predicate = predicateEx.toString()
-    } else {
-      throw new WorkflowSyntaxError(
-        '"predicate" must be a function name',
-        argsLoc,
-      )
-    }
+  if (!('backoff' in params)) {
+    throw new WorkflowSyntaxError(
+      'Required parameter "backoff" missing',
+      argsLoc,
+    )
+  } else if (
+    params.backoff.expressionType !== 'primitive' ||
+    !isRecord(params.backoff.value)
+  ) {
+    throw new WorkflowSyntaxError(
+      'Expected "backoff" to be an object literal',
+      argsLoc,
+    )
+  }
 
-    const backoffEx = params.backoff
+  const backoff = params.backoff.value
 
-    if (backoffEx.expressionType === 'primitive' && isRecord(backoffEx.value)) {
-      const backoffLit = backoffEx.value
+  return {
+    predicate: predicateFromRetryParams(params, argsLoc),
+    maxRetries: params.max_retries,
+    backoff: {
+      initialDelay: safeAsExpression(backoff.initial_delay),
+      maxDelay: safeAsExpression(backoff.max_delay),
+      multiplier: safeAsExpression(backoff.multiplier),
+    },
+  }
+}
 
-      return {
-        predicate,
-        maxRetries: params.max_retries,
-        backoff: {
-          initialDelay: backoffLit.initial_delay
-            ? asExpression(backoffLit.initial_delay)
-            : undefined,
-          maxDelay: backoffLit.max_delay
-            ? asExpression(backoffLit.max_delay)
-            : undefined,
-          multiplier: backoffLit.multiplier
-            ? asExpression(backoffLit.multiplier)
-            : undefined,
-        },
-      }
-    } else {
-      throw new WorkflowSyntaxError('Expected an object literal', argsLoc)
-    }
+function predicateFromRetryParams(
+  params: Record<string, Expression>,
+  argsLoc: TSESTree.SourceLocation,
+): string | undefined {
+  if (!('predicate' in params)) {
+    return undefined
+  } else if (isFullyQualifiedName(params.predicate)) {
+    return params.predicate.toString()
   } else {
     throw new WorkflowSyntaxError(
-      'Some required retry policy parameters are missing',
+      '"predicate" must be a function name',
       argsLoc,
     )
   }

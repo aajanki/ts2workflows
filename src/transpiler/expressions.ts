@@ -549,3 +549,9 @@ export function throwIfSpread<
 export function asExpression(x: Primitive | Expression): Expression {
   return isExpression(x) ? x : new PrimitiveExpression(x)
 }
+
+export function safeAsExpression(
+  x: Primitive | Expression | undefined,
+): Expression | undefined {
+  return x === undefined ? undefined : asExpression(x)
+}
