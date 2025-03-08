@@ -26,10 +26,6 @@ import {
 } from '../ast/expressions.js'
 import { blockingFunctions } from './generated/functionMetadata.js'
 
-const Unmodified = Symbol()
-type Unmodified = typeof Unmodified
-type ExpressionTransformer = (x: Expression) => Expression | Unmodified
-
 /**
  * Performs various transformations on the AST.
  *
@@ -179,43 +175,41 @@ function replaceBlockingCalls(
   generateName: () => string,
   expression: Expression,
 ): { transformedExpression: Expression; callSteps: CallStepAST[] } {
-  function replaceBlockingFunctionInvocations(
-    ex: Expression,
-  ): Expression | Unmodified {
-    if (ex.expressionType === 'functionInvocation') {
-      const callStepsForArguments: CallStepAST[] = []
-      const replacedArguments = ex.arguments.map((ex) => {
-        const replaced = replaceBlockingCalls(generateName, ex)
-        callStepsForArguments.push(...replaced.callSteps)
-        return replaced.transformedExpression
-      })
+  function replaceBlockingFunctionInvocations(ex: Expression): Expression {
+    if (ex.expressionType !== 'functionInvocation') {
+      return ex
+    }
 
-      const blockingCallArgumentNames = blockingFunctions.get(ex.functionName)
-      if (blockingCallArgumentNames) {
-        if (replacedArguments.length > blockingCallArgumentNames.length) {
-          throw new InternalTranspilingError(
-            'FunctionInvocationTerm has more arguments than metadata allows!',
-          )
-        }
+    const callStepsForArguments: CallStepAST[] = []
+    const replacedArguments = ex.arguments.map((ex) => {
+      const replaced = replaceBlockingCalls(generateName, ex)
+      callStepsForArguments.push(...replaced.callSteps)
+      return replaced.transformedExpression
+    })
 
-        const nameAndValue = replacedArguments.map(
-          (val, i) => [blockingCallArgumentNames[i], val] as const,
+    const blockingCallArgumentNames = blockingFunctions.get(ex.functionName)
+    if (blockingCallArgumentNames) {
+      if (replacedArguments.length > blockingCallArgumentNames.length) {
+        throw new InternalTranspilingError(
+          'FunctionInvocationTerm has more arguments than metadata allows!',
         )
-        const args: WorkflowParameters = Object.fromEntries(nameAndValue)
-        const tempCallResultVariable = generateName()
-
-        callSteps.push(...callStepsForArguments)
-        callSteps.push(
-          new CallStepAST(ex.functionName, args, tempCallResultVariable),
-        )
-
-        // replace function invocation with a reference to the temporary variable
-        return new VariableReferenceExpression(tempCallResultVariable)
-      } else {
-        return Unmodified
       }
+
+      const nameAndValue = replacedArguments.map(
+        (val, i) => [blockingCallArgumentNames[i], val] as const,
+      )
+      const args: WorkflowParameters = Object.fromEntries(nameAndValue)
+      const tempCallResultVariable = generateName()
+
+      callSteps.push(...callStepsForArguments)
+      callSteps.push(
+        new CallStepAST(ex.functionName, args, tempCallResultVariable),
+      )
+
+      // replace function invocation with a reference to the temporary variable
+      return new VariableReferenceExpression(tempCallResultVariable)
     } else {
-      return Unmodified
+      return ex
     }
   }
 
@@ -374,48 +368,56 @@ function transformExpressionsSwitch(
   return newSteps
 }
 
+/**
+ * Apply transform to expressions recursively.
+ * Transform leaf expresionssins first.
+ */
 function transformExpression(
-  transform: ExpressionTransformer,
+  transform: (x: Expression) => Expression,
   ex: Expression,
 ): Expression {
-  const transformed = transform(ex)
+  return transform(transformNestedExpressions(transform, ex))
+}
 
-  if (transformed !== Unmodified) {
-    // Use the transformed version of this term
-    return transformed
-  } else {
-    // Otherwise, recurse into the nested expression
-    switch (ex.expressionType) {
-      case 'primitive':
-        if (isLiteral(ex)) {
-          return ex
-        } else {
-          const newPrimitive = transformPrimitive(transform, ex.value)
-          return newPrimitive === ex.value
-            ? ex
-            : new PrimitiveExpression(newPrimitive)
-        }
+function transformNestedExpressions(
+  transform: (x: Expression) => Expression,
+  ex: Expression,
+): Expression {
+  const tr = (y: Expression) => transformExpression(transform, y)
 
-      case 'binary':
-        return transformBinaryExpression(transform, ex)
-
-      case 'functionInvocation':
-        return transformFunctionInvocationExpression(transform, ex)
-
-      case 'member':
-        return transformMemberExpression(transform, ex)
-
-      case 'unary':
-        return transformUnaryExpression(transform, ex)
-
-      case 'variableReference':
+  switch (ex.expressionType) {
+    case 'primitive':
+      if (isLiteral(ex)) {
         return ex
-    }
+      } else {
+        const newPrimitive = transformPrimitive(transform, ex.value)
+        return newPrimitive === ex.value
+          ? ex
+          : new PrimitiveExpression(newPrimitive)
+      }
+
+    case 'binary':
+      return new BinaryExpression(tr(ex.left), ex.binaryOperator, tr(ex.right))
+
+    case 'variableReference':
+      return ex
+
+    case 'functionInvocation':
+      return new FunctionInvocationExpression(
+        ex.functionName,
+        ex.arguments.map(tr),
+      )
+
+    case 'member':
+      return new MemberExpression(tr(ex.object), tr(ex.property), ex.computed)
+
+    case 'unary':
+      return new UnaryExpression(ex.operator, tr(ex.value))
   }
 }
 
 function transformPrimitive(
-  transform: ExpressionTransformer,
+  transform: (x: Expression) => Expression,
   val: Primitive,
 ): Primitive {
   const tranformVal = R.ifElse(
@@ -431,57 +433,6 @@ function transformPrimitive(
   } else {
     return val
   }
-}
-
-function transformBinaryExpression(
-  transform: ExpressionTransformer,
-  ex: BinaryExpression,
-): BinaryExpression {
-  // Transform left first to keep the correct order of execution of sub-expressions
-  const newLeft = transformExpression(transform, ex.left)
-  const newRight = transformExpression(transform, ex.right)
-
-  if (newLeft === ex.left && newRight === ex.right) {
-    return ex
-  } else {
-    return new BinaryExpression(newLeft, ex.binaryOperator, newRight)
-  }
-}
-
-function transformFunctionInvocationExpression(
-  transform: ExpressionTransformer,
-  ex: FunctionInvocationExpression,
-): FunctionInvocationExpression {
-  const newArguments = ex.arguments.map((x) =>
-    transformExpression(transform, x),
-  )
-  if (newArguments.every((x, i) => x === ex.arguments[i])) {
-    return ex
-  } else {
-    return new FunctionInvocationExpression(ex.functionName, newArguments)
-  }
-}
-
-function transformMemberExpression(
-  transform: ExpressionTransformer,
-  ex: MemberExpression,
-): Expression {
-  const newObject = transformExpression(transform, ex.object)
-  const newProperty = transformExpression(transform, ex.property)
-
-  if (newObject === ex.object && newProperty === ex.property) {
-    return ex
-  } else {
-    return new MemberExpression(newObject, newProperty, ex.computed)
-  }
-}
-
-function transformUnaryExpression(
-  transform: ExpressionTransformer,
-  ex: UnaryExpression,
-): Expression {
-  const newValue = transformExpression(transform, ex.value)
-  return newValue === ex.value ? ex : new UnaryExpression(ex.operator, newValue)
 }
 
 /**
@@ -766,7 +717,7 @@ function runtimeFunctionImplementation(
   return R.chain(tr, steps)
 }
 
-function replaceIsArray(ex: Expression): Expression | Unmodified {
+function replaceIsArray(ex: Expression): Expression {
   if (
     ex.expressionType === 'functionInvocation' &&
     ex.functionName === 'Array.isArray'
@@ -777,6 +728,6 @@ function replaceIsArray(ex: Expression): Expression | Unmodified {
       new PrimitiveExpression('list'),
     )
   } else {
-    return Unmodified
+    return ex
   }
 }

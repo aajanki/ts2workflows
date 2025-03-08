@@ -292,14 +292,14 @@ describe('Call statement', () => {
             call: http.get
             args:
               url: https://visit.dreamland.test/elfo.html
-            result: __temp1
+            result: __temp0
         - call_http_get_2:
             call: http.get
             args:
               url: https://visit.dreamland.test/luci.html
-            result: __temp2
+            result: __temp1
         - return1:
-            return: \${"response:" + map.get(__temp1, "body") + __temp2.body}
+            return: \${"response:" + map.get(__temp0, "body") + __temp1.body}
     `
 
     assertTranspiled(code, expected)
@@ -347,9 +347,9 @@ describe('Call statement', () => {
             call: http.get
             args:
               url: https://example.com/redirected.json
-            result: __temp3
+            result: __temp0
         - return1:
-            return: \${map.get(map.get(__temp3, "body"), "value")}
+            return: \${map.get(map.get(__temp0, "body"), "value")}
     `
 
     assertTranspiled(code, expected)

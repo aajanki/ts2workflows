@@ -280,6 +280,24 @@ describe('Runtime functions', () => {
 
     assertTranspiled(code, expected)
   })
+
+  it('nested Array.isArray() calls', () => {
+    const code = `
+    function main(x) {
+      return Array.isArray(Array.isArray(x))
+    }`
+
+    const expected = `
+    main:
+      params:
+        - x
+      steps:
+        - return1:
+            return: \${get_type(get_type(x) == "list") == "list"}
+    `
+
+    assertTranspiled(code, expected)
+  })
 })
 
 describe('Sample source files', () => {
