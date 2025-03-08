@@ -7,7 +7,6 @@ import {
   ReturnStepAST,
   SwitchStepAST,
   VariableAssignment,
-  WorkflowParameters,
   WorkflowStepAST,
 } from '../ast/steps.js'
 import { InternalTranspilingError } from '../errors.js'
@@ -180,30 +179,20 @@ function replaceBlockingCalls(
       return ex
     }
 
-    const callStepsForArguments: CallStepAST[] = []
-    const replacedArguments = ex.arguments.map((ex) => {
-      const replaced = replaceBlockingCalls(generateName, ex)
-      callStepsForArguments.push(...replaced.callSteps)
-      return replaced.transformedExpression
-    })
-
     const blockingCallArgumentNames = blockingFunctions.get(ex.functionName)
     if (blockingCallArgumentNames) {
-      if (replacedArguments.length > blockingCallArgumentNames.length) {
+      if (ex.arguments.length > blockingCallArgumentNames.length) {
         throw new InternalTranspilingError(
           'FunctionInvocationTerm has more arguments than metadata allows!',
         )
       }
 
-      const nameAndValue = replacedArguments.map(
-        (val, i) => [blockingCallArgumentNames[i], val] as const,
-      )
-      const args: WorkflowParameters = Object.fromEntries(nameAndValue)
+      const nameAndValue = R.zip(blockingCallArgumentNames, ex.arguments)
+      const callArgs = R.fromPairs(nameAndValue)
       const tempCallResultVariable = generateName()
 
-      callSteps.push(...callStepsForArguments)
       callSteps.push(
-        new CallStepAST(ex.functionName, args, tempCallResultVariable),
+        new CallStepAST(ex.functionName, callArgs, tempCallResultVariable),
       )
 
       // replace function invocation with a reference to the temporary variable
