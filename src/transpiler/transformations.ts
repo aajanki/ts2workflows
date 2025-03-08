@@ -152,16 +152,7 @@ function flattenNextToCondition(step: SwitchStepAST): SwitchStepAST {
  *     return: ${__temp0}
  */
 function blockingCallsAsCallSteps(steps: WorkflowStepAST[]): WorkflowStepAST[] {
-  const transform = transformStepExpressions((ex) => {
-    const generateTemporaryVariableName = createTempVariableGenerator()
-    const { transformedExpression, callSteps } = replaceBlockingCalls(
-      generateTemporaryVariableName,
-      ex,
-    )
-
-    return [callSteps, transformedExpression]
-  })
-
+  const transform = transformStepExpressions(replaceBlockingCalls)
   return R.chain(transform, steps)
 }
 
@@ -171,9 +162,8 @@ function createTempVariableGenerator(): () => string {
 }
 
 function replaceBlockingCalls(
-  generateName: () => string,
   expression: Expression,
-): { transformedExpression: Expression; callSteps: CallStepAST[] } {
+): [CallStepAST[], Expression] {
   function replaceBlockingFunctionInvocations(ex: Expression): Expression {
     if (ex.expressionType !== 'functionInvocation') {
       return ex
@@ -202,15 +192,13 @@ function replaceBlockingCalls(
     }
   }
 
+  const generateName = createTempVariableGenerator()
   const callSteps: CallStepAST[] = []
 
-  return {
-    transformedExpression: transformExpression(
-      replaceBlockingFunctionInvocations,
-      expression,
-    ),
+  return [
     callSteps,
-  }
+    transformExpression(replaceBlockingFunctionInvocations, expression),
+  ]
 }
 
 /**
