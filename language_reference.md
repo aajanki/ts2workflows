@@ -1,14 +1,14 @@
 # Language reference
 
-ts2workflow converts Typescript source code to GCP Workflows YAML syntax. Only a subset of Typescript language features are supported. This page documents supported Typescript features and shows examples of the generted Workflows YAML output.
+ts2workflow converts Typescript source code to GCP Workflows YAML syntax. Only a subset of Typescript language features are supported. This page documents supported Typescript features and shows examples of how Typescript code snippets look when converted to Workflows YAML.
 
 Most functions provided by a Javascript runtime (`console.log()`, `setInterval()`, etc) are not available.
 
-Type annotations are allowed. Type checking is done by the compiler but the types dont't affect the generated Workflows code.
+One of the benefits of writing workflows on Typescript is that the source code can be type checked and potential, and potential problems can be caught early. Type checking can be done with the standard Typescript compiler tsc. ts2workflows itself ignores all types, and types don't affect the generated Workflows YAML.
 
 Semicolon can be used as optional statement delimitter.
 
-⚠️ Semantics of certain operations are different from Typescript semantics. These differences are highlighted with the warning icon ⚠️ on this documentation.
+⚠️ Semantics of certain operations in GCP Workflows are different from Typescript semantics. These differences are highlighted with the warning icon ⚠️ on this documentation.
 
 ## Data types
 
@@ -22,7 +22,7 @@ Semicolon can be used as optional statement delimitter.
 
 ### Array type
 
-⚠️ Arrays are not objects. In particular, methods like `[].map()` and `[].concat()` are not available.
+⚠️ Arrays are not objects in GCP Workflows. In particular, methods like `[].map()` and `[].concat()` are not available.
 
 ⚠️ Accessing out-of-bounds index will cause an IndexError at runtime unlike in Typescript where out-of-bounds access would return `undefined`.
 
@@ -34,19 +34,19 @@ Map keys can be identifiers or strings: `{temperature: -12}` or `{"temperature":
 
 ### Bytes type
 
-A `bytes` object can only be constructed by calling a function that returns bytes (e.g. `base64.decode`). The only things that can be done with a `bytes` object is to assign it to variable and to pass the `bytes` object to one of the functions that take `bytes` type as input variable (e.g. `base64.encode`).
+A `bytes` object can only be constructed by calling a function that returns `bytes` (e.g. `base64.decode`). The only things that can be done with a `bytes` object is to assign it to variable and to pass the `bytes` object to one of the functions that take `bytes` type as input variable (e.g. `base64.encode`).
 
 ### null type
 
-In addition to the literal `null`, the Typescript `undefined` value is also translated to `null` in Workflows YAML.
+`null` is used to signify absence of a value. In addition to the literal `null`, ts2workflows also translates the Typescript `undefined` to `null` in Workflows YAML output.
 
-Note that on Typescript-level typechecking `null` and `undefined` are considered distinct types.
+Note that `null` and `undefined` still are distinct types on the type checking step.
 
 ### Implicit type conversions
 
 Expressions that combine variables with operators such as `+`, `>`, `==` perform implict type conversions according to the [rules listed on GCP Workflows documentation](https://cloud.google.com/workflows/docs/reference/syntax/datatypes#implicit-conversions). For example, applying `+` to a string and a number concatenates the values into a string.
 
-⚠️ Checking if a variable is null or not must be done by an explicit comparison: `if (var != null) {...}`. Relying in an implicit conversion, such as `if (var) {...}`, results in a TypeError at runtime.
+⚠️ Checking if a variable is null or not must be done by an explicit comparison: `if (var != null) {...}`. Relying on an implicit conversion (`if (var) {...}` where `var` is not a boolean) results in a TypeError at runtime.
 
 ## Expressions
 
@@ -66,68 +66,68 @@ sys.get_env('GOOGLE_CLOUD_PROJECT_ID')
 
 ## Operators
 
-| Operator     | Description                                  |
-| ------------ | -------------------------------------------- |
-| +            | arithmetic addition and string concatenation |
-| -            | arithmetic subtraction or unary negation     |
-| \*           | multiplication                               |
-| /            | float division                               |
-| %            | remainder division                           |
-| ==, ===      | equal to (both mean strict equality)         |
-| !=, !==      | not equal to (both mean strict equality)     |
-| <, >, <=, >= | inequality comparisons                       |
-| &&, \|\|, !  | logical operators                            |
-| in           | check if a property is present in an object  |
-| ??           | nullish coalescing                           |
-| ?.           | optional chaining                            |
-| ? :          | conditional operator                         |
-| typeof       | return the type of the operand as a string   |
+| Operator     | Description                                        |
+| ------------ | -------------------------------------------------- |
+| +            | arithmetic addition and string concatenation       |
+| -            | arithmetic subtraction or unary negation           |
+| \*           | multiplication                                     |
+| /            | float division                                     |
+| %            | remainder division                                 |
+| ==, ===      | equal to (both mean strict equality)               |
+| !=, !==      | not equal to (both mean strict equality)           |
+| <, >, <=, >= | inequality comparisons                             |
+| &&, \|\|, !  | logical and, or, not                               |
+| in           | check if a property is present in an object        |
+| ??           | nullish coalescing                                 |
+| ?.           | optional chaining                                  |
+| ? :          | conditional operator                               |
+| typeof       | return a string representation of the operand type |
 
 The [precendence order of operators](https://cloud.google.com/workflows/docs/reference/syntax/datatypes#order-operations) is the same as in GCP Workflows.
 
-See [expression in GCP Workflows](https://cloud.google.com/workflows/docs/reference/syntax/expressions) for more information.
+See [the GCP documentation about expressions](https://cloud.google.com/workflows/docs/reference/syntax/expressions) for more information.
 
 ### Conditional (ternary) operator
 
-The expression
+ts2workflows converts the Typescript expression
 
 ```javascript
 x > 0 ? 'positive' : 'not positive'
 ```
 
-is converted to an [if() expression](https://cloud.google.com/workflows/docs/reference/stdlib/expression-helpers#conditional_functions):
+to an [if() expression](https://cloud.google.com/workflows/docs/reference/stdlib/expression-helpers#conditional_functions):
 
 ```yaml
 ${if(x > 0, "positive", "not positive")}
 ```
 
-⚠️ Workflows always evaluates both expression branches unlike Typescript which evaluates only the branch that gets executed.
+⚠️ Workflows always evaluates both branches unlike Typescript which evaluates only the branch that gets executed.
 
 ### Nullish coalescing operator
 
-The expression
+ts2workflows converts, the Typescript expression
 
 ```javascript
 x ?? 'default value'
 ```
 
-is converted to a [default() expression](https://cloud.google.com/workflows/docs/reference/stdlib/expression-helpers#conditional_functions):
+to a [default() expression](https://cloud.google.com/workflows/docs/reference/stdlib/expression-helpers#conditional_functions):
 
 ```yaml
 ${default(x, "default value")}
 ```
 
-⚠️ Workflows always evaluates the right-hand side expression unlike Typescript which evaluates the right-hand side only if the left-hand side is `null` or `undefined`.
+⚠️ Workflows always evaluates the right-hand side expression. This is different from Typescript, which evaluates the right-hand side only if the left-hand side is `null` or `undefined`.
 
 ### Optional chaining
 
-The optional chaining expression
+ts2workflows converte the Typescript optional chaining expression
 
 ```javascript
 data.user?.name
 ```
 
-is converted to a [map.get() expression](https://cloud.google.com/workflows/docs/reference/stdlib/map/get):
+to a [map.get() expression](https://cloud.google.com/workflows/docs/reference/stdlib/map/get):
 
 ```yaml
 ${map.get(data, ["user", "name"])}
@@ -152,21 +152,21 @@ The typeof operator is useful as a type guard in Typescript (e.g. `typeof x === 
 
 ## Template literals
 
-Template literals are strings that support string interpolation. For example, `Hello ${name}`.
+String literals can include interpolated variables. The syntax is same as in Typescript. For example, `Hello ${name}`.
 
 ⚠️ Interpolated values can (only) be numbers, strings, booleans or nulls. Other types will throw a TypeError at runtime.
 
 ## Subworkflow definitions
 
-Typescript `function`s are converted to subworkflow definitions.
+ts2workflows converts Typescript `function`s to subworkflow definitions.
 
-The program code must be written inside workflow blocks. Only `function` and `import` declarations are allowed on the top level of a source code file. Functions can only be defined at the top level of a source file, not inside functions or in other nested scopes.
+The program code must be written inside functions. Only `function` and `import` declarations are allowed on the top level of a source code file. Functions can only be defined at the top level of a source file, not inside other functions.
 
 The workflow execution starts from the subworkflow called "main".
 
 ```typescript
 function main(): void {
-  const a = 1
+  const a = anotherWorkflow()
 }
 
 function anotherWorkflow(): number {
@@ -213,13 +213,13 @@ return firstFactor * secondFactor
 
 ## Calling functions and subworkflows
 
-The statement
+ts2workflows converts the Typescript statement
 
 ```typescript
 const projectId = sys.get_env('GOOGLE_CLOUD_PROJECT_ID')
 ```
 
-is converted to an [assign step](https://cloud.google.com/workflows/docs/reference/syntax/variables#assign-step):
+to an [assign step](https://cloud.google.com/workflows/docs/reference/syntax/variables#assign-step):
 
 ```yaml
 - assign1:
@@ -227,11 +227,11 @@ is converted to an [assign step](https://cloud.google.com/workflows/docs/referen
       - projectId: ${sys.get_env("GOOGLE_CLOUD_PROJECT_ID")}
 ```
 
-This syntax can be used to call [standard library functions](https://cloud.google.com/workflows/docs/reference/stdlib/overview), subworkflows or connectors. Note that Javascript runtime functions (such as `fetch()`, `console.error()` or `new XMLHttpRequest()`) are not available on Workflows.
+This syntax can be used to call subworkflows (defined with the `function` keyword), [standard library functions](https://cloud.google.com/workflows/docs/reference/stdlib/overview) or connectors. Note that Javascript runtime functions (such as `fetch()`, `console.error()` or `new XMLHttpRequest()`) are not available on Workflows.
 
-GCP Workflows language has two ways of calling functions and subworkflows: as expression in an [assign step](https://cloud.google.com/workflows/docs/reference/syntax/variables#assign-step) or as [call step](https://cloud.google.com/workflows/docs/reference/syntax/calls). They can mostly be used interchangeably. However, [blocking calls](https://cloud.google.com/workflows/docs/reference/syntax/expressions#blocking-calls) must be made as call steps. The ts2workflows transpiler tries to automatically output a call step when necessary.
+GCP Workflows language has two ways of calling functions and subworkflows: as an function call expression or as [call step](https://cloud.google.com/workflows/docs/reference/syntax/calls). They can mostly be used interchangeably. However, [blocking calls](https://cloud.google.com/workflows/docs/reference/syntax/expressions#blocking-calls) must be made as call steps. ts2workflows tries to automatically output a call step when necessary.
 
-It is also possible to force a function to be called as call step. This might be useful, if the transpiler fails to output call step when it should, or if you want to use named parameters. For example, the following Typescript program
+It is also possible to force a function to be called as call step. This might be useful, if ts2workflows fails to output call step when it should, or if you want to use named parameters. For example, the following Typescript program
 
 ```typescript
 import { call_step, sys } from 'ts2workflows/types/workflowslib'
@@ -337,7 +337,7 @@ is converted to a [switch step](https://cloud.google.com/workflows/docs/referenc
 
 ## Switch statements
 
-Typescript switch statements are transpiled to chains of conditions. For example, this statement
+Typescript switch statements are converted to chains of conditions. For example, this statement
 
 ```typescript
 let b
@@ -470,7 +470,7 @@ for (i of [1, 2, 3, 4]) {
 
 ## Parallel branches
 
-The special function `parallel` can be used to execute several code branches in parallel. The code blocks to be executed in parallel are given as an array of `() => void` functions. For example, the following code
+A special intrinsic `parallel` can be used to execute code branches in parallel. The code blocks to be executed in parallel are given as an array of `() => void` functions. For example, the following code
 
 ```javascript
 parallel([
@@ -518,7 +518,7 @@ The branches can also be subworkflow names:
 parallel([my_subworkflow1, my_subworkflow2, my_subworklfow3])
 ```
 
-An optional second parameter is an object that can define shared variables and concurrency limits:
+An optional second parameter is an object that can define shared variables and concurrency limits. See the GCP documentation for more information.
 
 ```javascript
 let numPosts = 0
@@ -601,7 +601,7 @@ try {
 }
 ```
 
-is compiled to the following [try/except structure](https://cloud.google.com/workflows/docs/reference/syntax/catching-errors)
+is converted to the following [try/except structure](https://cloud.google.com/workflows/docs/reference/syntax/catching-errors)
 
 ```yaml
 - try1:
@@ -632,15 +632,17 @@ try {
 }
 ```
 
-If an exception gets thrown inside a try block, the stack trace in Workflows logs will misleadingly show the exception originating from inside the finally block. This happens because the implementation of the finally block catches the original exception and later throws an identical exception. The original source location of the exception is lost.
+If an exception gets thrown inside a try block, the stack trace in Workflows logs will misleadingly show the exception originating from inside the finally block. This happens because the finally block is implemented by catching and re-throwing the original exception. The original source location of the exception is lost while re-throwing the exception.
 
 ⚠️ At the moment, break and continue are not supported in a try or a catch block if there is a related finally block.
 
 ## Retrying on errors
 
-It is possible to set a retry policy for a try-catch statement. Because Typescript does not have `retry` keyword, the retry is implemented by a special `retry_policy` function. It must be called immediately after a try-catch block. A call to the `retry_policy` is ignored elsewhere.
+It is possible to set a retry policy for a try-catch statement. Because Typescript does not have `retry` keyword, the retry is implemented by a special `retry_policy` intrinsic function. It must be called immediately after a try-catch block. `retry_policy` is ignored elsewhere.
 
-Finally and catch blocks are run after possible retry attempts. The following sample retries `http.get()` if it throws an exception and executes `sys.log('Error!')` and `closeConnection()` after retry attempts.
+The arguments of `retry_policy` specify which errors are retried and how many times. The arguments can be either a policy provided by GCP Workflows or a custom retry policy as explained in the next sections.
+
+If an exception gets thrown in a try block and the retry policy covers the exception, the try block is executed again. Finally and catch blocks are run after possible retry attempts. The following sample retries `http.get()` if it throws an HTTP error and executes `sys.log('Error!')` and `closeConnection()` after retry attempts.
 
 ```javascript
 import { http, retry_policy, sys } from 'ts2workflows/types/workflowslib'
@@ -657,11 +659,9 @@ function main() {
 }
 ```
 
-The `retry_policy` function must be called with a parameter that defines the retry policy. It can be either a policy provided by GCP Workflows or a custom retry policy.
-
 ### GCP-provided retry policy
 
-GCP retry policy must be either `http.default_retry` or `http.default_retry_non_idempotent`. Their effects are described by the [GCP documentation](https://cloud.google.com/workflows/docs/reference/syntax/retrying#default-retry-policy).
+GCP provides some retry policies. A GCP policy can be set by `retry_policy(http.default_retry)` or by `retry_policy(http.default_retry_non_idempotent)`. Their effects are described in the [GCP documentation](https://cloud.google.com/workflows/docs/reference/syntax/retrying#default-retry-policy).
 
 ```javascript
 import { http, retry_policy } from 'ts2workflows/types/workflowslib'
@@ -703,7 +703,7 @@ function main() {
 }
 ```
 
-The above is compiled to the following [try/except structure](https://cloud.google.com/workflows/docs/reference/syntax/catching-errors)
+ts2workflows converts the above to the following [try step](https://cloud.google.com/workflows/docs/reference/syntax/catching-errors)
 
 ```yaml
 main:
@@ -737,7 +737,7 @@ The statement
 throw 'Error!'
 ```
 
-is compiled to the following [raise block](https://cloud.google.com/workflows/docs/reference/syntax/raising-errors)
+is converted to the following [raise block](https://cloud.google.com/workflows/docs/reference/syntax/raising-errors)
 
 ```yaml
 - raise1:
@@ -750,7 +750,7 @@ Thrown errors can be handled by a try statement.
 
 ## Labeled steps
 
-The transpiler labels output steps with the step type and sequential numbering by default: e.g. `assign1`, `assign2`, etc. The automatic labels can be overridden by using Typescript labeled statements.
+ts2workflows labels output steps with the step type and sequential numbering by default: e.g. `assign1`, `assign2`, etc. The automatic labels can be overridden by using Typescript labeled statements.
 
 ```typescript
 setName: const name = 'Bean'
@@ -788,11 +788,11 @@ This section describes the few standard Javascript runtime functions that are av
 Array.isArray(arg: any): arg is any[]
 ```
 
-Gets converted to the comparison `get_type(arg) == "list"`. Unlike a direct call to `get_type()`, `Array.isArray()` allows the type inference to learn if `arg` is array or not.
+Gets converted to the comparison `get_type(arg) == "list"`. Unlike a direct call to `get_type()`, `Array.isArray()` acts a type guard and allows narrowing the `arg` type to an array.
 
-## Language extension functions
+## Compiler intrinsics
 
-ts2workflows provides some special functions for implementing features that are not directly supported by Typescript language features. The type annotations for these functions can be imported from ts2workflows/types/workflowslib:
+ts2workflows has some special intrinsic functions that are implemented directly by the ts2workflows transpiler instead of converting to Workflows code using the usual semantics. These are needed for implementing features that are not directly supported by Typescript language features. The type annotations for these functions can be imported from ts2workflows/types/workflowslib:
 
 ```typescript
 import {
@@ -801,6 +801,8 @@ import {
   retry_policy,
 } from 'ts2workflows/types/workflowslib'
 ```
+
+The compiler intrinsics are documented below.
 
 ### call_step()
 
@@ -826,7 +828,7 @@ function parallel(
 ): void
 ```
 
-The `parallel` function executes code blocks in parallel (using [parallel step](https://cloud.google.com/workflows/docs/reference/syntax/parallel-steps)). See the previous sections covering parallel branches and iteration.
+The `parallel` function executes code blocks in parallel using a [parallel step](https://cloud.google.com/workflows/docs/reference/syntax/parallel-steps). See the previous sections covering parallel branches and iteration.
 
 ### retry_policy()
 
@@ -846,7 +848,9 @@ function retry_policy(
 ): void
 ```
 
-The `retry_policy` function can called right after a `try`-`catch` block to specify a retry policy. See the section on [retrying errors](#retrying-on-errors).
+A retry policy can be attached to a `try`-`catch` block be calling `retry_policy` as the next statement after the `try`-`catch`. ts2workflows ignores `retry_policy` everywhere else except after a `try`-`catch`.
+
+See the section on [retrying errors](#retrying-on-errors).
 
 ## Source code comments
 
