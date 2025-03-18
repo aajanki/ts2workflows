@@ -588,3 +588,112 @@ describe('Assignment statement', () => {
     assertTranspiled(code, expected)
   })
 })
+
+describe('Destructing', () => {
+  it('destructures array elements', () => {
+    const code = `
+    function main() {
+      const [a, b] = getValues();
+    }`
+
+    const expected = `
+    main:
+      steps:
+        - assign1:
+            assign:
+              - __temp: \${getValues()}
+              - a: \${__temp[0]}
+              - b: \${__temp[1]}
+    `
+
+    assertTranspiled(code, expected)
+  })
+
+  it('array destructuring overwriting itself', () => {
+    const code = `
+    function main() {
+      const arr = [1, 2, 3];
+      [arr[1], arr[0]] = arr;
+    }`
+
+    const expected = `
+    main:
+      steps:
+        - assign1:
+            assign:
+              - arr: [1, 2, 3]
+              - arr[1]: \${arr[0]}
+              - arr[0]: \${arr[1]}
+    `
+
+    assertTranspiled(code, expected)
+  })
+
+  it('array destructuring with skipped elements', () => {
+    const code = `
+    function main() {
+      const arr = [1, 2, 3, 4];
+      const [a, , , b] = arr;
+    }`
+
+    const expected = `
+    main:
+      steps:
+        - assign1:
+            assign:
+              - arr: [1, 2, 3, 4]
+              - a: \${arr[0]}
+              - b: \${arr[3]}
+    `
+
+    assertTranspiled(code, expected)
+  })
+
+  it('variable swap trick', () => {
+    const code = `
+    function main() {
+      let a = 1;
+      let b = 2;
+      [a, b] = [b, a];
+    }`
+
+    const expected = `
+    main:
+      steps:
+        - assign1:
+            assign:
+              - a: 1
+              - b: 2
+              - __temp:
+                  - \${b}
+                  - \${a}
+              - a: \${__temp[0]}
+              - b: \${__temp[1]}
+    `
+
+    assertTranspiled(code, expected)
+  })
+
+  it('array elements swap trick', () => {
+    const code = `
+    function main() {
+      const arr = [1, 2, 3];
+      [arr[2], arr[1]] = [arr[1], arr[2]];
+    }`
+
+    const expected = `
+    main:
+      steps:
+        - assign1:
+            assign:
+              - arr: [1, 2, 3]
+              - __temp:
+                  - \${arr[1]}
+                  - \${arr[2]}
+              - arr[2]: \${__temp[0]}
+              - arr[1]: \${__temp[1]}
+    `
+
+    assertTranspiled(code, expected)
+  })
+})

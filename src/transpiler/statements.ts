@@ -15,6 +15,7 @@ import {
   SwitchConditionAST,
   SwitchStepAST,
   TryStepAST,
+  VariableAssignment,
   WorkflowParameters,
   WorkflowStepAST,
 } from '../ast/steps.js'
@@ -23,6 +24,7 @@ import {
   BinaryOperator,
   Expression,
   FunctionInvocationExpression,
+  MemberExpression,
   Primitive,
   PrimitiveExpression,
   VariableName,
@@ -168,34 +170,92 @@ function convertVariableDeclarations(
   ctx: ParsingContext,
 ): WorkflowStepAST[] {
   return declarations.flatMap((decl) => {
-    if (decl.id.type !== AST_NODE_TYPES.Identifier) {
-      throw new WorkflowSyntaxError('Expected Identifier', decl.loc)
-    }
-
-    const targetName = decl.id.name
-
-    if (decl.init?.type === AST_NODE_TYPES.CallExpression) {
-      const calleeName =
-        decl.init.callee.type === AST_NODE_TYPES.Identifier
-          ? decl.init.callee.name
-          : undefined
-      if (calleeName && isMagicFunctionStatmentOnly(calleeName)) {
-        throw new WorkflowSyntaxError(
-          `"${calleeName}" can't be called as part of an expression`,
-          decl.init.callee.loc,
-        )
-      }
-
-      return callExpressionToStep(decl.init, targetName, ctx)
+    if (decl.id.type === AST_NODE_TYPES.Identifier) {
+      return convertInitializer(decl.id.name, decl.init, ctx)
+    } else if (decl.id.type === AST_NODE_TYPES.ArrayPattern) {
+      return convertArrayDestructionDeclarator(decl.id, decl.init, ctx)
     } else {
-      const value =
-        decl.init == null
-          ? new PrimitiveExpression(null)
-          : convertExpression(decl.init)
-
-      return [new AssignStepAST([[targetName, value]])]
+      throw new WorkflowSyntaxError('Unsupported pattern', decl.loc)
     }
   })
+}
+
+function convertInitializer(
+  targetVariableName: string,
+  initializer: TSESTree.Expression | null,
+  ctx: ParsingContext,
+): WorkflowStepAST[] {
+  if (initializer?.type === AST_NODE_TYPES.CallExpression) {
+    const calleeName =
+      initializer.callee.type === AST_NODE_TYPES.Identifier
+        ? initializer.callee.name
+        : undefined
+    if (calleeName && isMagicFunctionStatmentOnly(calleeName)) {
+      throw new WorkflowSyntaxError(
+        `"${calleeName}" can't be called as part of an expression`,
+        initializer.callee.loc,
+      )
+    }
+
+    return callExpressionToStep(initializer, targetVariableName, ctx)
+  } else {
+    const value =
+      initializer === null
+        ? new PrimitiveExpression(null)
+        : convertExpression(initializer)
+
+    return [new AssignStepAST([[targetVariableName, value]])]
+  }
+}
+
+function convertArrayDestructionDeclarator(
+  arrayPattern: TSESTree.ArrayPattern,
+  initializer: TSESTree.Expression | null,
+  ctx: ParsingContext,
+): WorkflowStepAST[] {
+  let initName: string
+  const steps: WorkflowStepAST[] = []
+  if (initializer?.type === AST_NODE_TYPES.Identifier) {
+    // If the initializer is an Identifier (array variable?), use it directly.
+    // This ensures that the recursive variables gets initialized in the correct order.
+    // For example:
+    // const arr = [1, 2]
+    // [arr[1], arr[0]] = arr
+    initName = initializer.name
+  } else {
+    // Otherwise, assign the expression to a temporary variable first.
+    initName = '__temp'
+    steps.push(...convertInitializer(initName, initializer, ctx))
+  }
+
+  const assignments: VariableAssignment[] = arrayPattern.elements.flatMap(
+    (pat, i) => {
+      if (pat === null) {
+        return []
+      } else {
+        let targetName: string
+        if (pat.type === AST_NODE_TYPES.Identifier) {
+          targetName = pat.name
+        } else if (pat.type == AST_NODE_TYPES.MemberExpression) {
+          targetName = convertExpression(pat).toString()
+        } else {
+          throw new WorkflowSyntaxError('Unsupported pattern', pat.loc)
+        }
+
+        const valueEx = new MemberExpression(
+          new VariableReferenceExpression(initName),
+          new PrimitiveExpression(i),
+          true,
+        )
+
+        return [[targetName, valueEx]]
+      }
+    },
+  )
+
+  steps.push(new AssignStepAST(assignments))
+
+  return steps
 }
 
 function assignmentExpressionToSteps(
@@ -241,6 +301,17 @@ function assignmentExpressionToSteps(
         `Operator ${node.operator} is not supported in assignment expressions`,
         node.loc,
       )
+  }
+
+  if (node.left.type === AST_NODE_TYPES.ArrayPattern) {
+    if (node.operator === '=') {
+      return convertArrayDestructionDeclarator(node.left, node.right, ctx)
+    } else {
+      throw new WorkflowSyntaxError(
+        `Operator ${node.operator} can not be applied to an array pattern`,
+        node.left.loc,
+      )
+    }
   }
 
   const targetExpression = convertExpression(node.left)

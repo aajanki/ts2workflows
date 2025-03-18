@@ -243,7 +243,7 @@ describe('Function definition', () => {
   })
 })
 
-describe('Runtime functions', () => {
+describe('Compiler intrinsics', () => {
   it('Array.isArray(x) is converted to get_type(x) == "list"', () => {
     const code = `
     function main(x) {
