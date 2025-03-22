@@ -228,34 +228,103 @@ function convertArrayDestructionDeclarator(
     steps.push(...convertInitializer(initName, initializer, ctx))
   }
 
-  const assignments: VariableAssignment[] = arrayPattern.elements.flatMap(
-    (pat, i) => {
-      if (pat === null) {
+  const targetNames = arrayPattern.elements.map((pat) => {
+    if (pat === null) {
+      return null
+    } else if (pat.type === AST_NODE_TYPES.Identifier) {
+      return pat.name
+    } else if (pat.type == AST_NODE_TYPES.MemberExpression) {
+      return convertExpression(pat).toString()
+    } else {
+      throw new WorkflowSyntaxError('Unsupported pattern', pat.loc)
+    }
+  })
+
+  steps.push(...arrayDestructuringSteps(targetNames, initName))
+
+  return steps
+}
+
+function arrayDestructuringSteps(
+  targetNames: (string | null)[],
+  initializerName: string,
+): WorkflowStepAST[] {
+  const branches: SwitchConditionAST<WorkflowStepAST>[] = targetNames.flatMap(
+    (target, i) => {
+      if (target === null) {
         return []
       } else {
-        let targetName: string
-        if (pat.type === AST_NODE_TYPES.Identifier) {
-          targetName = pat.name
-        } else if (pat.type == AST_NODE_TYPES.MemberExpression) {
-          targetName = convertExpression(pat).toString()
-        } else {
-          throw new WorkflowSyntaxError('Unsupported pattern', pat.loc)
-        }
-
-        const valueEx = new MemberExpression(
-          new VariableReferenceExpression(initName),
-          new PrimitiveExpression(i),
-          true,
-        )
-
-        return [[targetName, valueEx]]
+        return [
+          {
+            condition: new BinaryExpression(
+              new VariableReferenceExpression('__temp_len'),
+              '>=',
+              new PrimitiveExpression(targetNames.length - i),
+            ),
+            steps: [
+              assignFromArray(
+                targetNames,
+                initializerName,
+                targetNames.length - i,
+              ),
+            ],
+          },
+        ]
       }
     },
   )
 
-  steps.push(new AssignStepAST(assignments))
+  branches.push({
+    condition: new PrimitiveExpression(true),
+    steps: [
+      new AssignStepAST(
+        targetNames
+          .filter((name) => name !== null)
+          .map((name) => [name, new PrimitiveExpression(null)]),
+      ),
+    ],
+  })
 
-  return steps
+  return [
+    new AssignStepAST([
+      [
+        '__temp_len',
+        new FunctionInvocationExpression('len', [
+          new VariableReferenceExpression(initializerName),
+        ]),
+      ],
+    ]),
+    new SwitchStepAST(branches),
+  ]
+}
+
+function assignFromArray(
+  targetNames: (string | null)[],
+  initializerName: string,
+  take: number,
+) {
+  const assignments: VariableAssignment[] = targetNames.flatMap((name, i) => {
+    if (name !== null) {
+      if (i < take) {
+        return [
+          [
+            name,
+            new MemberExpression(
+              new VariableReferenceExpression(initializerName),
+              new PrimitiveExpression(i),
+              true,
+            ),
+          ],
+        ]
+      } else {
+        return [[name, new PrimitiveExpression(null)]]
+      }
+    } else {
+      return [] as VariableAssignment[]
+    }
+  })
+
+  return new AssignStepAST(assignments)
 }
 
 function assignmentExpressionToSteps(

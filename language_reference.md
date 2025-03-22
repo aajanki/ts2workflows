@@ -292,6 +292,33 @@ is converted to
       - total: ${total + 1}
 ```
 
+## Destructuring
+
+Array destructuring unpacks values from an array or an array expression into variables. The following statement assigns the first two values from `arr` to variables `a` and `b`, respectively.
+
+```typescript
+const arr: number[] = [1, 2, 3]
+const [a, b] = arr
+```
+
+Elements from the array can be skipped:
+
+```typescript
+const arr: number[] = [1, 2, 3]
+const [a, , b] = arr
+```
+
+If there are more output variables than elements in the input array, the surplus variables are set to `null`. For example, in the following sample, `a` will be 1 and `b` will be `null`.
+
+```typescript
+const arr: number[] = [1]
+const [a, b] = arr
+```
+
+⚠️ Setting surplus variables to `null` is different from TypeScript in cases where an array is destructured to elements of itself. The snippet `let arr = [4]; [arr[1], arr[0]] = arr;` will set `arr` to `[null, 4]` in ts2workflows, whereas in TypeScript `arr` would be `[4, 4]`.
+
+Object destructuring syntax and rest elements in array destructuring are not supported, yet.
+
 ## Conditional statements
 
 The statement

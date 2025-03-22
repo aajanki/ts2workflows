@@ -602,8 +602,57 @@ describe('Destructing', () => {
         - assign1:
             assign:
               - __temp: \${getValues()}
-              - a: \${__temp[0]}
-              - b: \${__temp[1]}
+              - __temp_len: \${len(__temp)}
+        - switch1:
+            switch:
+              - condition: \${__temp_len >= 2}
+                steps:
+                  - assign2:
+                      assign:
+                        - a: \${__temp[0]}
+                        - b: \${__temp[1]}
+              - condition: \${__temp_len >= 1}
+                steps:
+                  - assign3:
+                      assign:
+                        - a: \${__temp[0]}
+                        - b: null
+              - condition: true
+                steps:
+                  - assign4:
+                      assign:
+                        - a: null
+                        - b: null
+    `
+
+    assertTranspiled(code, expected)
+  })
+
+  it('destructuring the head of array', () => {
+    const code = `
+    function main() {
+      const [head] = getValues();
+    }`
+
+    const expected = `
+    main:
+      steps:
+        - assign1:
+            assign:
+              - __temp: \${getValues()}
+              - __temp_len: \${len(__temp)}
+        - switch1:
+            switch:
+              - condition: \${__temp_len >= 1}
+                steps:
+                  - assign2:
+                      assign:
+                        - head: \${__temp[0]}
+              - condition: true
+                steps:
+                  - assign3:
+                      assign:
+                        - head: null
     `
 
     assertTranspiled(code, expected)
@@ -622,8 +671,27 @@ describe('Destructing', () => {
         - assign1:
             assign:
               - arr: [1, 2, 3]
-              - arr[1]: \${arr[0]}
-              - arr[0]: \${arr[1]}
+              - __temp_len: \${len(arr)}
+        - switch1:
+            switch:
+              - condition: \${__temp_len >= 2}
+                steps:
+                  - assign2:
+                      assign:
+                        - arr[1]: \${arr[0]}
+                        - arr[0]: \${arr[1]}
+              - condition: \${__temp_len >= 1}
+                steps:
+                  - assign3:
+                      assign:
+                        - arr[1]: \${arr[0]}
+                        - arr[0]: null
+              - condition: true
+                steps:
+                  - assign4:
+                      assign:
+                        - arr[1]: null
+                        - arr[0]: null
     `
 
     assertTranspiled(code, expected)
@@ -642,8 +710,27 @@ describe('Destructing', () => {
         - assign1:
             assign:
               - arr: [1, 2, 3, 4]
-              - a: \${arr[0]}
-              - b: \${arr[3]}
+              - __temp_len: \${len(arr)}
+        - switch1:
+            switch:
+              - condition: \${__temp_len >= 4}
+                steps:
+                  - assign2:
+                      assign:
+                        - a: \${arr[0]}
+                        - b: \${arr[3]}
+              - condition: \${__temp_len >= 1}
+                steps:
+                  - assign3:
+                      assign:
+                        - a: \${arr[0]}
+                        - b: null
+              - condition: true
+                steps:
+                  - assign4:
+                      assign:
+                        - a: null
+                        - b: null
     `
 
     assertTranspiled(code, expected)
@@ -667,8 +754,27 @@ describe('Destructing', () => {
               - __temp:
                   - \${b}
                   - \${a}
-              - a: \${__temp[0]}
-              - b: \${__temp[1]}
+              - __temp_len: \${len(__temp)}
+        - switch1:
+            switch:
+              - condition: \${__temp_len >= 2}
+                steps:
+                  - assign2:
+                      assign:
+                        - a: \${__temp[0]}
+                        - b: \${__temp[1]}
+              - condition: \${__temp_len >= 1}
+                steps:
+                  - assign3:
+                      assign:
+                        - a: \${__temp[0]}
+                        - b: null
+              - condition: true
+                steps:
+                  - assign4:
+                      assign:
+                        - a: null
+                        - b: null
     `
 
     assertTranspiled(code, expected)
@@ -690,8 +796,27 @@ describe('Destructing', () => {
               - __temp:
                   - \${arr[1]}
                   - \${arr[2]}
-              - arr[2]: \${__temp[0]}
-              - arr[1]: \${__temp[1]}
+              - __temp_len: \${len(__temp)}
+        - switch1:
+            switch:
+              - condition: \${__temp_len >= 2}
+                steps:
+                  - assign2:
+                      assign:
+                        - arr[2]: \${__temp[0]}
+                        - arr[1]: \${__temp[1]}
+              - condition: \${__temp_len >= 1}
+                steps:
+                  - assign3:
+                      assign:
+                        - arr[2]: \${__temp[0]}
+                        - arr[1]: null
+              - condition: true
+                steps:
+                  - assign4:
+                      assign:
+                        - arr[2]: null
+                        - arr[1]: null
     `
 
     assertTranspiled(code, expected)
