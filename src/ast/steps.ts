@@ -738,10 +738,10 @@ export function renderStep(
       return {
         parallel: {
           ...(step.shared && { shared: step.shared }),
-          ...(step.concurrenceLimit && {
+          ...(step.concurrenceLimit !== undefined && {
             concurrency_limit: step.concurrenceLimit,
           }),
-          ...(step.exceptionPolicy && {
+          ...(step.exceptionPolicy !== undefined && {
             exception_policy: step.exceptionPolicy,
           }),
           ...(step.branches && { branches: renderSteps(step.branches) }),
@@ -801,8 +801,8 @@ function renderCallStep(step: CallStepAST): Record<string, unknown> {
 
   return {
     call: step.call,
-    ...(args && { args }),
-    ...(step.result && { result: step.result }),
+    ...(args !== undefined && { args }),
+    ...(step.result !== undefined && { result: step.result }),
   }
 }
 
@@ -822,9 +822,11 @@ function renderForBody(step: ForStepASTNamed): object {
 
   return {
     value: step.loopVariableName,
-    ...(step.indexVariableName && { index: step.indexVariableName }),
-    ...(inValue && { in: inValue }),
-    ...(range && { range }),
+    ...(step.indexVariableName !== undefined && {
+      index: step.indexVariableName,
+    }),
+    ...(inValue !== undefined && { in: inValue }),
+    ...(range !== undefined && { range }),
     steps: renderSteps(step.steps),
   }
 }
@@ -865,21 +867,21 @@ function renderTryStep(step: TryStepASTNamed): Record<string, unknown> {
         step.retryPolicy.maxRetries,
       ),
       backoff: {
-        ...(step.retryPolicy.backoff.initialDelay
+        ...(step.retryPolicy.backoff.initialDelay !== undefined
           ? {
               initial_delay: expressionToLiteralValueOrLiteralExpression(
                 step.retryPolicy.backoff.initialDelay,
               ),
             }
           : {}),
-        ...(step.retryPolicy.backoff.maxDelay
+        ...(step.retryPolicy.backoff.maxDelay !== undefined
           ? {
               max_delay: expressionToLiteralValueOrLiteralExpression(
                 step.retryPolicy.backoff.maxDelay,
               ),
             }
           : {}),
-        ...(step.retryPolicy.backoff.multiplier
+        ...(step.retryPolicy.backoff.multiplier !== undefined
           ? {
               multiplier: expressionToLiteralValueOrLiteralExpression(
                 step.retryPolicy.backoff.multiplier,
@@ -904,7 +906,7 @@ function renderTryStep(step: TryStepASTNamed): Record<string, unknown> {
     try: {
       steps: renderSteps(step.trySteps),
     },
-    ...(retry && { retry }),
+    ...(retry !== undefined && { retry }),
     ...(except && { except }),
   }
 }
