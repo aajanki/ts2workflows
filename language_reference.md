@@ -315,6 +315,13 @@ const arr: number[] = [1]
 const [a, b] = arr
 ```
 
+Assignments can have default values:
+
+```typescript
+const arr: number[] = [1]
+const [a, b = 99] = arr
+```
+
 ⚠️ Setting surplus variables to `null` is different from TypeScript in cases where an array is destructured to elements of itself. The snippet `let arr = [4]; [arr[1], arr[0]] = arr;` will set `arr` to `[null, 4]` in ts2workflows, whereas in TypeScript `arr` would be `[4, 4]`.
 
 Object destructuring syntax and rest elements in array destructuring are not supported, yet.

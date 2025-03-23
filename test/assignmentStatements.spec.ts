@@ -821,4 +821,43 @@ describe('Destructing', () => {
 
     assertTranspiled(code, expected)
   })
+
+  it('default values in destructuring', () => {
+    const code = `
+    function main(arr: number[]) {
+      const [a, b = 99] = arr;
+    }`
+
+    const expected = `
+    main:
+      params:
+        - arr
+      steps:
+        - assign1:
+            assign:
+              - __temp_len: \${len(arr)}
+        - switch1:
+            switch:
+              - condition: \${__temp_len >= 2}
+                steps:
+                  - assign2:
+                      assign:
+                        - a: \${arr[0]}
+                        - b: \${arr[1]}
+              - condition: \${__temp_len >= 1}
+                steps:
+                  - assign3:
+                      assign:
+                        - a: \${arr[0]}
+                        - b: 99
+              - condition: true
+                steps:
+                  - assign4:
+                      assign:
+                        - a: null
+                        - b: 99
+    `
+
+    assertTranspiled(code, expected)
+  })
 })

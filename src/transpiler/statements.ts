@@ -228,30 +228,18 @@ function convertArrayDestructionDeclarator(
     steps.push(...convertInitializer(initName, initializer, ctx))
   }
 
-  const targetNames = arrayPattern.elements.map((pat) => {
-    if (pat === null) {
-      return null
-    } else if (pat.type === AST_NODE_TYPES.Identifier) {
-      return pat.name
-    } else if (pat.type == AST_NODE_TYPES.MemberExpression) {
-      return convertExpression(pat).toString()
-    } else {
-      throw new WorkflowSyntaxError('Unsupported pattern', pat.loc)
-    }
-  })
-
-  steps.push(...arrayDestructuringSteps(targetNames, initName))
+  steps.push(...arrayDestructuringSteps(arrayPattern.elements, initName))
 
   return steps
 }
 
 function arrayDestructuringSteps(
-  targetNames: (string | null)[],
+  patterns: (TSESTree.DestructuringPattern | null)[],
   initializerName: string,
 ): WorkflowStepAST[] {
-  const branches: SwitchConditionAST<WorkflowStepAST>[] = targetNames.flatMap(
-    (target, i) => {
-      if (target === null) {
+  const branches: SwitchConditionAST<WorkflowStepAST>[] = patterns.flatMap(
+    (pat, i) => {
+      if (pat === null) {
         return []
       } else {
         return [
@@ -259,14 +247,10 @@ function arrayDestructuringSteps(
             condition: new BinaryExpression(
               new VariableReferenceExpression('__temp_len'),
               '>=',
-              new PrimitiveExpression(targetNames.length - i),
+              new PrimitiveExpression(patterns.length - i),
             ),
             steps: [
-              assignFromArray(
-                targetNames,
-                initializerName,
-                targetNames.length - i,
-              ),
+              assignFromArray(patterns, initializerName, patterns.length - i),
             ],
           },
         ]
@@ -276,13 +260,7 @@ function arrayDestructuringSteps(
 
   branches.push({
     condition: new PrimitiveExpression(true),
-    steps: [
-      new AssignStepAST(
-        targetNames
-          .filter((name) => name !== null)
-          .map((name) => [name, new PrimitiveExpression(null)]),
-      ),
-    ],
+    steps: [assignFromArray(patterns, initializerName, 0)],
   })
 
   return [
@@ -299,32 +277,53 @@ function arrayDestructuringSteps(
 }
 
 function assignFromArray(
-  targetNames: (string | null)[],
+  patterns: (TSESTree.DestructuringPattern | null)[],
   initializerName: string,
   take: number,
 ) {
-  const assignments: VariableAssignment[] = targetNames.flatMap((name, i) => {
-    if (name !== null) {
-      if (i < take) {
-        return [
-          [
-            name,
-            new MemberExpression(
-              new VariableReferenceExpression(initializerName),
-              new PrimitiveExpression(i),
-              true,
-            ),
-          ],
-        ]
-      } else {
-        return [[name, new PrimitiveExpression(null)]]
-      }
-    } else {
-      return [] as VariableAssignment[]
-    }
-  })
+  return new AssignStepAST(
+    patterns.flatMap((pat, i) => {
+      if (pat !== null) {
+        let name: string
+        let defaultValue: Expression = new PrimitiveExpression(null)
+        if (
+          pat.type === AST_NODE_TYPES.MemberExpression ||
+          pat.type === AST_NODE_TYPES.Identifier
+        ) {
+          name = convertExpression(pat).toString()
+        } else if (pat.type === AST_NODE_TYPES.AssignmentPattern) {
+          if (pat.left.type === AST_NODE_TYPES.Identifier) {
+            name = pat.left.name
+          } else {
+            throw new WorkflowSyntaxError(
+              'Default value can be used only with an identifier',
+              pat.left.loc,
+            )
+          }
+          defaultValue = convertExpression(pat.right)
+        } else {
+          throw new WorkflowSyntaxError('Unsupported pattern', pat.loc)
+        }
 
-  return new AssignStepAST(assignments)
+        if (i < take) {
+          return [
+            [
+              name,
+              new MemberExpression(
+                new VariableReferenceExpression(initializerName),
+                new PrimitiveExpression(i),
+                true,
+              ),
+            ],
+          ]
+        } else {
+          return [[name, defaultValue]]
+        }
+      } else {
+        return [] as VariableAssignment[]
+      }
+    }),
+  )
 }
 
 function assignmentExpressionToSteps(
