@@ -860,4 +860,80 @@ describe('Destructing', () => {
 
     assertTranspiled(code, expected)
   })
+
+  it('rest element in array destructuring', () => {
+    const code = `
+    function main() {
+      const [a, b, ...rest] = getValues();
+    }`
+
+    const expected = `
+    main:
+      steps:
+        - assign1:
+            assign:
+              - __temp: \${getValues()}
+              - __temp_len: \${len(__temp)}
+              - rest: []
+        - switch1:
+            switch:
+              - condition: \${__temp_len >= 3}
+                steps:
+                  - assign2:
+                      assign:
+                        - a: \${__temp[0]}
+                        - b: \${__temp[1]}
+                  - for1:
+                      for:
+                        value: __temp_loop_value
+                        index: __temp_loop_index
+                        in: \${__temp}
+                        steps:
+                          - switch2:
+                              switch:
+                                - condition: \${__temp_loop_index >= 2}
+                                  steps:
+                                    - assign3:
+                                        assign:
+                                          - rest: \${list.concat(rest, __temp_loop_value)}
+              - condition: \${__temp_len >= 2}
+                steps:
+                  - assign4:
+                      assign:
+                        - a: \${__temp[0]}
+                        - b: \${__temp[1]}
+              - condition: \${__temp_len >= 1}
+                steps:
+                  - assign5:
+                      assign:
+                        - a: \${__temp[0]}
+                        - b: null
+              - condition: true
+                steps:
+                  - assign6:
+                      assign:
+                        - a: null
+                        - b: null
+    `
+
+    assertTranspiled(code, expected)
+  })
+
+  it('throws is the rest element is not the last array destructuring pattern', () => {
+    const code = `
+    function main(arr: number[]) {
+      const [a, b, ...rest, c] = arr;
+    }`
+
+    expect(() => transpile(code)).to.throw()
+  })
+
+  it('throws is there are multiple rest elements in array destructuring', () => {
+    const code = `
+    function main(arr: number[]) {
+      const [a, b, ...rest, ...anotherRest] = arr;
+    }`
+
+    expect(() => transpile(code)).to.throw()
+  })
 })

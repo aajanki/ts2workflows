@@ -514,6 +514,9 @@ function namedStepsFor(
       step.steps.map((nestedStep) => namedSteps(nestedStep, generateName)),
       step.loopVariableName,
       step.listExpression,
+      step.indexVariableName,
+      step.rangeStart,
+      step.rangeEnd,
     ),
   }
 }

@@ -237,8 +237,21 @@ function arrayDestructuringSteps(
   patterns: (TSESTree.DestructuringPattern | null)[],
   initializerName: string,
 ): WorkflowStepAST[] {
-  const branches: SwitchConditionAST<WorkflowStepAST>[] = patterns.flatMap(
-    (pat, i) => {
+  const initializeVariables: VariableAssignment[] = [
+    [
+      '__temp_len',
+      new FunctionInvocationExpression('len', [
+        new VariableReferenceExpression(initializerName),
+      ]),
+    ],
+  ]
+
+  const restPattern = findRestProperty(patterns)
+  const nonRestPatterns = patterns.filter(
+    (pat) => pat?.type !== AST_NODE_TYPES.RestElement,
+  )
+  const branches: SwitchConditionAST<WorkflowStepAST>[] =
+    nonRestPatterns.flatMap((pat, i) => {
       if (pat === null) {
         return []
       } else {
@@ -247,33 +260,40 @@ function arrayDestructuringSteps(
             condition: new BinaryExpression(
               new VariableReferenceExpression('__temp_len'),
               '>=',
-              new PrimitiveExpression(patterns.length - i),
+              new PrimitiveExpression(nonRestPatterns.length - i),
             ),
             steps: [
-              assignFromArray(patterns, initializerName, patterns.length - i),
+              assignFromArray(
+                patterns,
+                initializerName,
+                nonRestPatterns.length - i,
+              ),
             ],
           },
         ]
       }
-    },
-  )
+    })
 
   branches.push({
     condition: new PrimitiveExpression(true),
     steps: [assignFromArray(patterns, initializerName, 0)],
   })
 
-  return [
-    new AssignStepAST([
-      [
-        '__temp_len',
-        new FunctionInvocationExpression('len', [
-          new VariableReferenceExpression(initializerName),
-        ]),
-      ],
-    ]),
-    new SwitchStepAST(branches),
-  ]
+  if (restPattern) {
+    if (restPattern.argument.type !== AST_NODE_TYPES.Identifier) {
+      throw new WorkflowSyntaxError(
+        'Identifier expected',
+        restPattern.argument.loc,
+      )
+    }
+    const restName = restPattern.argument.name
+    initializeVariables.push([restName, new PrimitiveExpression([])])
+    branches.unshift(
+      arrayRestBranch(nonRestPatterns, initializerName, restName),
+    )
+  }
+
+  return [new AssignStepAST(initializeVariables), new SwitchStepAST(branches)]
 }
 
 function assignFromArray(
@@ -283,47 +303,115 @@ function assignFromArray(
 ) {
   return new AssignStepAST(
     patterns.flatMap((pat, i) => {
-      if (pat !== null) {
-        let name: string
-        let defaultValue: Expression = new PrimitiveExpression(null)
-        if (
-          pat.type === AST_NODE_TYPES.MemberExpression ||
-          pat.type === AST_NODE_TYPES.Identifier
-        ) {
-          name = convertExpression(pat).toString()
-        } else if (pat.type === AST_NODE_TYPES.AssignmentPattern) {
-          if (pat.left.type === AST_NODE_TYPES.Identifier) {
-            name = pat.left.name
-          } else {
-            throw new WorkflowSyntaxError(
-              'Default value can be used only with an identifier',
-              pat.left.loc,
-            )
-          }
-          defaultValue = convertExpression(pat.right)
-        } else {
-          throw new WorkflowSyntaxError('Unsupported pattern', pat.loc)
-        }
-
-        if (i < take) {
-          return [
-            [
-              name,
-              new MemberExpression(
-                new VariableReferenceExpression(initializerName),
-                new PrimitiveExpression(i),
-                true,
-              ),
-            ],
-          ]
-        } else {
-          return [[name, defaultValue]]
-        }
-      } else {
+      if (pat === null || pat.type === AST_NODE_TYPES.RestElement) {
         return [] as VariableAssignment[]
+      }
+
+      let name: string
+      let defaultValue: Expression = new PrimitiveExpression(null)
+      if (
+        pat.type === AST_NODE_TYPES.MemberExpression ||
+        pat.type === AST_NODE_TYPES.Identifier
+      ) {
+        name = convertExpression(pat).toString()
+      } else if (pat.type === AST_NODE_TYPES.AssignmentPattern) {
+        if (pat.left.type === AST_NODE_TYPES.Identifier) {
+          name = pat.left.name
+        } else {
+          throw new WorkflowSyntaxError(
+            'Default value can be used only with an identifier',
+            pat.left.loc,
+          )
+        }
+        defaultValue = convertExpression(pat.right)
+      } else {
+        throw new WorkflowSyntaxError('Unsupported pattern', pat.loc)
+      }
+
+      if (i < take) {
+        return [
+          [
+            name,
+            new MemberExpression(
+              new VariableReferenceExpression(initializerName),
+              new PrimitiveExpression(i),
+              true,
+            ),
+          ],
+        ]
+      } else {
+        return [[name, defaultValue]]
       }
     }),
   )
+}
+
+function findRestProperty(
+  patterns: (TSESTree.DestructuringPattern | null)[],
+): TSESTree.RestElement | undefined {
+  return patterns.reduce(
+    (_, pat, i) => {
+      if (pat?.type === AST_NODE_TYPES.RestElement) {
+        if (i !== patterns.length - 1) {
+          throw new WorkflowSyntaxError(
+            'Rest element must be the last pattern',
+            pat.loc,
+          )
+        }
+
+        return pat
+      }
+    },
+    undefined as TSESTree.RestElement | undefined,
+  )
+}
+
+function arrayRestBranch(
+  nonRestPatterns: (TSESTree.DestructuringPattern | null)[],
+  initializerName: string,
+  restName: string,
+) {
+  const assignments = assignFromArray(
+    nonRestPatterns,
+    initializerName,
+    nonRestPatterns.length,
+  )
+  const copyLoop = new ForStepAST(
+    [
+      new SwitchStepAST([
+        {
+          condition: new BinaryExpression(
+            new VariableReferenceExpression('__temp_loop_index'),
+            '>=',
+            new PrimitiveExpression(nonRestPatterns.length),
+          ),
+          steps: [
+            new AssignStepAST([
+              [
+                restName,
+                new FunctionInvocationExpression('list.concat', [
+                  new VariableReferenceExpression(restName),
+                  new VariableReferenceExpression('__temp_loop_value'),
+                ]),
+              ],
+            ]),
+          ],
+        },
+      ]),
+    ],
+    '__temp_loop_value',
+    new VariableReferenceExpression(initializerName),
+    '__temp_loop_index',
+  )
+
+  return {
+    condition: new BinaryExpression(
+      new VariableReferenceExpression('__temp_len'),
+      '>=',
+      new PrimitiveExpression(nonRestPatterns.length + 1),
+    ),
+    steps: [assignments, copyLoop],
+  }
 }
 
 function assignmentExpressionToSteps(
