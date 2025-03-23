@@ -372,12 +372,14 @@ function arrayRestBranch(
   initializerName: string,
   restName: string,
 ) {
+  const __temp_len = new VariableReferenceExpression('__temp_len')
+  const one = new PrimitiveExpression(1)
+  const lengthPlusOne = new PrimitiveExpression(nonRestPatterns.length + 1)
   const assignments = assignFromArray(
     nonRestPatterns,
     initializerName,
     nonRestPatterns.length,
   )
-
   const copyLoop = new ForRangeStepAST(
     [
       new AssignStepAST([
@@ -396,19 +398,11 @@ function arrayRestBranch(
     ],
     '__rest_index',
     nonRestPatterns.length,
-    new BinaryExpression(
-      new VariableReferenceExpression('__temp_len'),
-      '-',
-      new PrimitiveExpression(1),
-    ),
+    new BinaryExpression(__temp_len, '-', one),
   )
 
   return {
-    condition: new BinaryExpression(
-      new VariableReferenceExpression('__temp_len'),
-      '>=',
-      new PrimitiveExpression(nonRestPatterns.length + 1),
-    ),
+    condition: new BinaryExpression(__temp_len, '>=', lengthPlusOne),
     steps: [assignments, copyLoop],
   }
 }
@@ -1211,24 +1205,19 @@ function finalizerInitializer(
  * }
  */
 function finalizerFooter(conditionVariable: string, valueVariable: string) {
+  const variable = new VariableReferenceExpression(conditionVariable)
+  const val = new VariableReferenceExpression(valueVariable)
+  const returnString = new PrimitiveExpression('return')
+  const raiseString = new PrimitiveExpression('raise')
+
   return new SwitchStepAST([
     {
-      condition: new BinaryExpression(
-        new VariableReferenceExpression(conditionVariable),
-        '==',
-        new PrimitiveExpression('return'),
-      ),
-      steps: [
-        new ReturnStepAST(new VariableReferenceExpression(valueVariable)),
-      ],
+      condition: new BinaryExpression(variable, '==', returnString),
+      steps: [new ReturnStepAST(val)],
     },
     {
-      condition: new BinaryExpression(
-        new VariableReferenceExpression(conditionVariable),
-        '==',
-        new PrimitiveExpression('raise'),
-      ),
-      steps: [new RaiseStepAST(new VariableReferenceExpression(valueVariable))],
+      condition: new BinaryExpression(variable, '==', raiseString),
+      steps: [new RaiseStepAST(val)],
     },
   ])
 }
