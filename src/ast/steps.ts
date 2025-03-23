@@ -2,6 +2,7 @@ import * as R from 'ramda'
 import { isRecord } from '../utils.js'
 import {
   Expression,
+  LiteralValueOrLiteralExpression,
   VariableName,
   expressionToLiteralValueOrLiteralExpression,
 } from './expressions.js'
@@ -59,6 +60,7 @@ export type WorkflowStepAST =
   | AssignStepAST
   | CallStepAST
   | ForStepAST
+  | ForRangeStepAST
   | NextStepAST
   | ParallelStepAST
   | RaiseStepAST
@@ -155,8 +157,6 @@ export class ForStepAST {
   readonly loopVariableName: VariableName
   readonly indexVariableName?: VariableName
   readonly listExpression: Expression
-  readonly rangeStart?: number
-  readonly rangeEnd?: number
   readonly label?: string
 
   constructor(
@@ -164,16 +164,12 @@ export class ForStepAST {
     loopVariableName: VariableName,
     listExpression: Expression,
     indexVariable?: VariableName,
-    rangeStart?: number,
-    rangeEnd?: number,
     label?: string,
   ) {
     this.steps = steps
     this.loopVariableName = loopVariableName
     this.listExpression = listExpression
     this.indexVariableName = indexVariable
-    this.rangeStart = rangeStart
-    this.rangeEnd = rangeEnd
     this.label = label
   }
 
@@ -183,6 +179,37 @@ export class ForStepAST {
       this.loopVariableName,
       this.listExpression,
       this.indexVariableName,
+      newLabel,
+    )
+  }
+}
+
+export class ForRangeStepAST {
+  readonly tag = 'forrange'
+  readonly steps: WorkflowStepAST[]
+  readonly loopVariableName: VariableName
+  readonly rangeStart: number | Expression
+  readonly rangeEnd: number | Expression
+  readonly label?: string
+
+  constructor(
+    steps: WorkflowStepAST[],
+    loopVariableName: VariableName,
+    rangeStart: number | Expression,
+    rangeEnd: number | Expression,
+    label?: string,
+  ) {
+    this.steps = steps
+    this.loopVariableName = loopVariableName
+    this.rangeStart = rangeStart
+    this.rangeEnd = rangeEnd
+    this.label = label
+  }
+
+  withLabel(newLabel?: string): ForRangeStepAST {
+    return new ForRangeStepAST(
+      this.steps,
+      this.loopVariableName,
       this.rangeStart,
       this.rangeEnd,
       newLabel,
@@ -196,16 +223,16 @@ export class ForStepASTNamed {
   readonly loopVariableName: VariableName
   readonly indexVariableName?: VariableName
   readonly listExpression?: Expression
-  readonly rangeStart?: number
-  readonly rangeEnd?: number
+  readonly rangeStart?: number | Expression
+  readonly rangeEnd?: number | Expression
 
   constructor(
     steps: NamedWorkflowStep[],
     loopVariableName: VariableName,
     listExpression?: Expression,
     indexVariable?: VariableName,
-    rangeStart?: number,
-    rangeEnd?: number,
+    rangeStart?: number | Expression,
+    rangeEnd?: number | Expression,
   ) {
     this.steps = steps
     this.loopVariableName = loopVariableName
@@ -484,6 +511,9 @@ export function namedSteps(
     case 'for':
       return namedStepsFor(step, generateName)
 
+    case 'forrange':
+      return namedStepsForRange(step, generateName)
+
     case 'parallel':
       return namedStepsParallel(step, generateName)
 
@@ -515,6 +545,21 @@ function namedStepsFor(
       step.loopVariableName,
       step.listExpression,
       step.indexVariableName,
+    ),
+  }
+}
+
+function namedStepsForRange(
+  step: ForRangeStepAST,
+  generateName: (prefix: string) => string,
+): NamedWorkflowStep {
+  return {
+    name: step.label ?? generateName('for'),
+    step: new ForStepASTNamed(
+      step.steps.map((nestedStep) => namedSteps(nestedStep, generateName)),
+      step.loopVariableName,
+      undefined,
+      undefined,
       step.rangeStart,
       step.rangeEnd,
     ),
@@ -762,11 +807,14 @@ function renderCallStep(step: CallStepAST): Record<string, unknown> {
 }
 
 function renderForBody(step: ForStepASTNamed): object {
-  let range: (number | undefined)[] | undefined
+  let range: LiteralValueOrLiteralExpression[] | undefined
   let inValue: null | string | number | boolean | object | undefined
   if (typeof step.listExpression === 'undefined') {
-    range = [step.rangeStart, step.rangeEnd]
     inValue = undefined
+    range = [
+      renderForRangeLimit(step.rangeStart),
+      renderForRangeLimit(step.rangeEnd),
+    ]
   } else {
     inValue = expressionToLiteralValueOrLiteralExpression(step.listExpression)
     range = undefined
@@ -778,6 +826,16 @@ function renderForBody(step: ForStepASTNamed): object {
     ...(inValue && { in: inValue }),
     ...(range && { range }),
     steps: renderSteps(step.steps),
+  }
+}
+
+function renderForRangeLimit(
+  value: number | Expression | undefined,
+): LiteralValueOrLiteralExpression {
+  if (value === undefined || typeof value === 'number') {
+    return value ?? null
+  } else {
+    return expressionToLiteralValueOrLiteralExpression(value)
   }
 }
 

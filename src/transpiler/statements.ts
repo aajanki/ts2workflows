@@ -4,6 +4,7 @@ import {
   AssignStepAST,
   CallStepAST,
   CustomRetryPolicy,
+  ForRangeStepAST,
   ForStepAST,
   JumpTargetAST,
   NextStepAST,
@@ -376,32 +377,30 @@ function arrayRestBranch(
     initializerName,
     nonRestPatterns.length,
   )
-  const copyLoop = new ForStepAST(
+
+  const copyLoop = new ForRangeStepAST(
     [
-      new SwitchStepAST([
-        {
-          condition: new BinaryExpression(
-            new VariableReferenceExpression('__temp_loop_index'),
-            '>=',
-            new PrimitiveExpression(nonRestPatterns.length),
-          ),
-          steps: [
-            new AssignStepAST([
-              [
-                restName,
-                new FunctionInvocationExpression('list.concat', [
-                  new VariableReferenceExpression(restName),
-                  new VariableReferenceExpression('__temp_loop_value'),
-                ]),
-              ],
-            ]),
-          ],
-        },
+      new AssignStepAST([
+        [
+          restName,
+          new FunctionInvocationExpression('list.concat', [
+            new VariableReferenceExpression(restName),
+            new MemberExpression(
+              new VariableReferenceExpression(initializerName),
+              new VariableReferenceExpression('__rest_index'),
+              true,
+            ),
+          ]),
+        ],
       ]),
     ],
-    '__temp_loop_value',
-    new VariableReferenceExpression(initializerName),
-    '__temp_loop_index',
+    '__rest_index',
+    nonRestPatterns.length,
+    new BinaryExpression(
+      new VariableReferenceExpression('__temp_len'),
+      '-',
+      new PrimitiveExpression(1),
+    ),
   )
 
   return {

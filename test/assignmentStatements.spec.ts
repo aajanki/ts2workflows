@@ -885,17 +885,14 @@ describe('Destructing', () => {
                         - b: \${__temp[1]}
                   - for1:
                       for:
-                        value: __temp_loop_value
-                        index: __temp_loop_index
-                        in: \${__temp}
+                        value: __rest_index
+                        range:
+                          - 2
+                          - \${__temp_len - 1}
                         steps:
-                          - switch2:
-                              switch:
-                                - condition: \${__temp_loop_index >= 2}
-                                  steps:
-                                    - assign3:
-                                        assign:
-                                          - rest: \${list.concat(rest, __temp_loop_value)}
+                          - assign3:
+                              assign:
+                                - rest: \${list.concat(rest, __temp[__rest_index])}
               - condition: \${__temp_len >= 2}
                 steps:
                   - assign4:

@@ -426,7 +426,7 @@ describe('workflow step AST', () => {
     assertRenderStep(step, expected)
   })
 
-  it('renders a for step', () => {
+  it('renders a for expression step', () => {
     const step = new ForStepASTNamed(
       [
         namedStep(

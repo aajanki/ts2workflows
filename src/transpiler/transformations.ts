@@ -231,6 +231,7 @@ const transformStepExpressions = R.curry(function (
     case 'switch':
       return transformExpressionsSwitch(transform, step)
 
+    case 'forrange':
     case 'next':
     case 'parallel':
     case 'steps':
@@ -288,8 +289,6 @@ function transformExpressionsFor(
         step.loopVariableName,
         newListExpression,
         step.indexVariableName,
-        step.rangeStart,
-        step.rangeEnd,
         step.label,
       ),
     )
