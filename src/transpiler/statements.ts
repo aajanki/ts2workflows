@@ -174,7 +174,9 @@ function convertVariableDeclarations(
     if (decl.id.type === AST_NODE_TYPES.Identifier) {
       return convertInitializer(decl.id.name, decl.init, ctx)
     } else if (decl.id.type === AST_NODE_TYPES.ArrayPattern) {
-      return convertArrayDestructionDeclarator(decl.id, decl.init, ctx)
+      return convertArrayDestructuring(decl.id, decl.init, ctx)
+    } else if (decl.id.type === AST_NODE_TYPES.ObjectPattern) {
+      return convertObjectDestructuring(decl.id, decl.init, ctx)
     } else {
       throw new WorkflowSyntaxError('Unsupported pattern', decl.loc)
     }
@@ -209,7 +211,7 @@ function convertInitializer(
   }
 }
 
-function convertArrayDestructionDeclarator(
+function convertArrayDestructuring(
   arrayPattern: TSESTree.ArrayPattern,
   initializer: TSESTree.Expression | null,
   ctx: ParsingContext,
@@ -407,6 +409,61 @@ function arrayRestBranch(
   }
 }
 
+function convertObjectDestructuring(
+  objectPattern: TSESTree.ObjectPattern,
+  initializer: TSESTree.Expression | null,
+  ctx: ParsingContext,
+): WorkflowStepAST[] {
+  let initName: string
+  const steps: WorkflowStepAST[] = []
+  if (initializer?.type === AST_NODE_TYPES.Identifier) {
+    // If the initializer is an Identifier (object variable?), use it directly.
+    initName = initializer.name
+  } else {
+    // Otherwise, assign the expression to a temporary variable first.
+    initName = '__temp'
+    steps.push(...convertInitializer(initName, initializer, ctx))
+  }
+
+  steps.push(...objectDestructuringSteps(objectPattern.properties, initName))
+
+  return steps
+}
+
+function objectDestructuringSteps(
+  properties: (TSESTree.RestElement | TSESTree.Property)[],
+  initName: string,
+): WorkflowStepAST[] {
+  const propAndValue = properties.map((prop) => {
+    if (prop.type === AST_NODE_TYPES.RestElement) {
+      throw new WorkflowSyntaxError('Not supported', prop.loc)
+    }
+
+    if (prop.key.type !== AST_NODE_TYPES.Identifier) {
+      throw new WorkflowSyntaxError('Expected Identifier', prop.key.loc)
+    }
+
+    if (prop.value.type !== AST_NODE_TYPES.Identifier) {
+      throw new WorkflowSyntaxError('Expected Identifier', prop.value.loc)
+    }
+
+    return { prop: prop.key.name, target: prop.value.name }
+  })
+
+  return [
+    new AssignStepAST(
+      propAndValue.map(({ prop, target }) => [
+        target,
+        new MemberExpression(
+          new VariableReferenceExpression(initName),
+          new VariableReferenceExpression(prop),
+          false,
+        ),
+      ]),
+    ),
+  ]
+}
+
 function assignmentExpressionToSteps(
   node: TSESTree.AssignmentExpression,
   ctx: ParsingContext,
@@ -454,7 +511,7 @@ function assignmentExpressionToSteps(
 
   if (node.left.type === AST_NODE_TYPES.ArrayPattern) {
     if (node.operator === '=') {
-      return convertArrayDestructionDeclarator(node.left, node.right, ctx)
+      return convertArrayDestructuring(node.left, node.right, ctx)
     } else {
       throw new WorkflowSyntaxError(
         `Operator ${node.operator} can not be applied to an array pattern`,

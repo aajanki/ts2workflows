@@ -933,4 +933,85 @@ describe('Destructing', () => {
 
     expect(() => transpile(code)).to.throw()
   })
+
+  it('destructures objects', () => {
+    const code = `
+    function main() {
+      const { name, age, address } = getPerson();
+    }`
+
+    const expected = `
+    main:
+      steps:
+        - assign1:
+            assign:
+              - __temp: \${getPerson()}
+              - name: \${__temp.name}
+              - age: \${__temp.age}
+              - address: \${__temp.address}
+    `
+
+    assertTranspiled(code, expected)
+  })
+
+  it('destructures object variables', () => {
+    const code = `
+    function main() {
+      const person = { name: "Bean", hairColor: "white" }
+      const { name, hairColor } = person;
+    }`
+
+    const expected = `
+    main:
+      steps:
+        - assign1:
+            assign:
+              - person:
+                  name: Bean
+                  hairColor: white
+              - name: \${person.name}
+              - hairColor: \${person.hairColor}
+    `
+
+    assertTranspiled(code, expected)
+  })
+
+  it('destructures deep objects', () => {
+    const code = `
+    function main() {
+̣̣      const { name, address: { country: { name, code } } } = getPerson();
+    }`
+
+    const expected = `
+    main:
+      steps:
+        - assign1:
+            assign:
+              - __temp: \${getPerson()}
+              - name: \${__temp.name}
+              - name: \${__temp.address.country.name}
+              - code: \${__temp.address.country.code}
+    `
+
+    assertTranspiled(code, expected)
+  })
+
+  it('destructures objects with assigned variables', () => {
+    const code = `
+    function main() {
+      const { name: myName, address: { city: myCity } } = getPerson();
+    }`
+
+    const expected = `
+    main:
+      steps:
+        - assign1:
+            assign:
+              - __temp: \${getPerson()}
+              - myName: \${__temp.name}
+              - myCity: \${__temp.address.city}
+    `
+
+    assertTranspiled(code, expected)
+  })
 })

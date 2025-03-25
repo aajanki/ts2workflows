@@ -331,7 +331,15 @@ const arr: number[] = [1, 2, 3, 4, 5]
 const [a, b, ...rest] = arr
 ```
 
-Object destructuring syntax is not supported, yet.
+Object destructuring unpacks property values from an object into variables. The following expression assigns the value "Bean" to the variable `person` and the value "Dreamland" to the variable `name`.
+
+```typescript
+const data = { person: 'Bean', country: { name: 'Dreamland' } }
+const {
+  person,
+  country: { name },
+} = data
+```
 
 ## Conditional statements
 
@@ -912,7 +920,6 @@ ts2workflows supports only a subset of all Typescript language features. Some ex
 - Arrays and maps are not objects. In particular, arrays don't have methods such as `[].push()`, `[].map()`, etc.
 - Functions (subworkflows) are not first-class objects. Functions can not be assigned to a variable or passed to other functions
 - Update expressions (`x++` and similar) are not supported
-- Destructuring (`[a, b] = func()`) is not supported
 - and many other Typescript language features are not supported
 
 Some of these might be implemented later, but the goal of ts2workflows project is not to implement the full Typescript compatibility.
