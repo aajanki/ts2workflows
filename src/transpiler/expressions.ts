@@ -16,11 +16,85 @@ import {
 import { InternalTranspilingError, WorkflowSyntaxError } from '../errors.js'
 
 export function convertExpression(instance: TSESTree.Expression): Expression {
-  const expOrPrimitive = convertExpressionOrPrimitive(instance)
-  if (isExpression(expOrPrimitive)) {
-    return expOrPrimitive
+  switch (instance.type) {
+    case AST_NODE_TYPES.ArrayExpression:
+      return asExpression(convertArrayExpression(instance))
+
+    case AST_NODE_TYPES.ObjectExpression:
+      return asExpression(convertObjectExpression(instance))
+
+    case AST_NODE_TYPES.Literal:
+      if (instance.value instanceof RegExp) {
+        throw new WorkflowSyntaxError('RegExp is not supported', instance.loc)
+      }
+      if (typeof instance.value === 'bigint') {
+        throw new WorkflowSyntaxError('BigInt is not supported', instance.loc)
+      }
+
+      return new PrimitiveExpression(instance.value)
+
+    case AST_NODE_TYPES.TemplateLiteral:
+      return convertTemplateLiteralToExpression(instance)
+
+    case AST_NODE_TYPES.Identifier:
+      if (instance.name === 'null' || instance.name === 'undefined') {
+        return new PrimitiveExpression(null)
+      } else if (instance.name === 'True' || instance.name === 'TRUE') {
+        return new PrimitiveExpression(true)
+      } else if (instance.name === 'False' || instance.name === 'FALSE') {
+        return new PrimitiveExpression(false)
+      } else {
+        return new VariableReferenceExpression(instance.name)
+      }
+
+    case AST_NODE_TYPES.UnaryExpression:
+      return convertUnaryExpression(instance)
+
+    case AST_NODE_TYPES.BinaryExpression:
+    case AST_NODE_TYPES.LogicalExpression:
+      return convertBinaryExpression(instance)
+
+    case AST_NODE_TYPES.MemberExpression:
+      return convertMemberExpression(instance)
+
+    case AST_NODE_TYPES.ChainExpression:
+      return convertChainExpression(instance)
+
+    case AST_NODE_TYPES.CallExpression:
+      return convertCallExpression(instance)
+
+    case AST_NODE_TYPES.ConditionalExpression:
+      return convertConditionalExpression(instance)
+
+    case AST_NODE_TYPES.TSAsExpression:
+      return convertExpression(instance.expression)
+
+    case AST_NODE_TYPES.TSNonNullExpression:
+      return convertExpression(instance.expression)
+
+    case AST_NODE_TYPES.AwaitExpression:
+      return convertExpression(instance.argument)
+
+    case AST_NODE_TYPES.TSInstantiationExpression:
+      return convertExpression(instance.expression)
+
+    default:
+      throw new WorkflowSyntaxError(
+        `Not implemented expression type: ${instance.type}`,
+        instance.loc,
+      )
+  }
+}
+
+function convertExpressionOrPrimitive(
+  instance: TSESTree.Expression,
+): Primitive | Expression {
+  const ex = convertExpression(instance)
+
+  if (ex.expressionType === 'primitive') {
+    return ex.value
   } else {
-    return new PrimitiveExpression(expOrPrimitive)
+    return ex
   }
 }
 
@@ -65,79 +139,6 @@ export function convertObjectAsExpressionValues(
 ): Record<string, Expression> {
   // Convert Primitive values to PrimitiveExpressions
   return R.map(asExpression, convertObjectExpression(node))
-}
-
-function convertExpressionOrPrimitive(
-  instance: TSESTree.Expression,
-): Primitive | Expression {
-  switch (instance.type) {
-    case AST_NODE_TYPES.ArrayExpression:
-      return convertArrayExpression(instance)
-
-    case AST_NODE_TYPES.ObjectExpression:
-      return convertObjectExpression(instance)
-
-    case AST_NODE_TYPES.Literal:
-      if (instance.value instanceof RegExp) {
-        throw new WorkflowSyntaxError('RegExp is not supported', instance.loc)
-      }
-      if (typeof instance.value === 'bigint') {
-        throw new WorkflowSyntaxError('BigInt is not supported', instance.loc)
-      }
-
-      return instance.value
-
-    case AST_NODE_TYPES.TemplateLiteral:
-      return convertTemplateLiteralToExpression(instance)
-
-    case AST_NODE_TYPES.Identifier:
-      if (instance.name === 'null' || instance.name === 'undefined') {
-        return null
-      } else if (instance.name === 'True' || instance.name === 'TRUE') {
-        return true
-      } else if (instance.name === 'False' || instance.name === 'FALSE') {
-        return false
-      } else {
-        return new VariableReferenceExpression(instance.name)
-      }
-
-    case AST_NODE_TYPES.UnaryExpression:
-      return convertUnaryExpression(instance)
-
-    case AST_NODE_TYPES.BinaryExpression:
-    case AST_NODE_TYPES.LogicalExpression:
-      return convertBinaryExpression(instance)
-
-    case AST_NODE_TYPES.MemberExpression:
-      return convertMemberExpression(instance)
-
-    case AST_NODE_TYPES.ChainExpression:
-      return convertChainExpression(instance)
-
-    case AST_NODE_TYPES.CallExpression:
-      return convertCallExpression(instance)
-
-    case AST_NODE_TYPES.ConditionalExpression:
-      return convertConditionalExpression(instance)
-
-    case AST_NODE_TYPES.TSAsExpression:
-      return convertExpressionOrPrimitive(instance.expression)
-
-    case AST_NODE_TYPES.TSNonNullExpression:
-      return convertExpressionOrPrimitive(instance.expression)
-
-    case AST_NODE_TYPES.AwaitExpression:
-      return convertExpressionOrPrimitive(instance.argument)
-
-    case AST_NODE_TYPES.TSInstantiationExpression:
-      return convertExpressionOrPrimitive(instance.expression)
-
-    default:
-      throw new WorkflowSyntaxError(
-        `Not implemented expression type: ${instance.type}`,
-        instance.loc,
-      )
-  }
 }
 
 function convertArrayExpression(instance: TSESTree.ArrayExpression) {
