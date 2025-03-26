@@ -216,38 +216,38 @@ function convertArrayDestructuring(
   initializer: TSESTree.Expression | null,
   ctx: ParsingContext,
 ): WorkflowStepAST[] {
-  let initName: string
+  let initExpression
   const steps: WorkflowStepAST[] = []
-  if (initializer?.type === AST_NODE_TYPES.Identifier) {
-    // If the initializer is an Identifier (array variable?), use it directly.
-    // This ensures that the recursive variables gets initialized in the correct order.
-    // For example:
+  if (
+    initializer?.type === AST_NODE_TYPES.Identifier ||
+    initializer?.type === AST_NODE_TYPES.MemberExpression
+  ) {
+    // If the initializer is an Identifier or MemberExpression (array variable?),
+    // use it directly. This ensures that the recursive variables gets initialized
+    // in the correct order. For example:
     // const arr = [1, 2]
     // [arr[1], arr[0]] = arr
-    initName = initializer.name
-  } else if (initializer?.type === AST_NODE_TYPES.MemberExpression) {
-    initName = convertExpression(initializer).toString()
+    initExpression = convertExpression(initializer)
   } else {
     // Otherwise, assign the expression to a temporary variable first.
-    initName = '__temp'
+    const initName = '__temp'
     steps.push(...convertInitializer(initName, initializer, ctx))
+    initExpression = new VariableReferenceExpression(initName)
   }
 
-  steps.push(...arrayDestructuringSteps(arrayPattern.elements, initName))
+  steps.push(...arrayDestructuringSteps(arrayPattern.elements, initExpression))
 
   return steps
 }
 
 function arrayDestructuringSteps(
   patterns: (TSESTree.DestructuringPattern | null)[],
-  initializerName: string,
+  initializerExpression: Expression,
 ): WorkflowStepAST[] {
   const initializeVariables: VariableAssignment[] = [
     [
       '__temp_len',
-      new FunctionInvocationExpression('len', [
-        new VariableReferenceExpression(initializerName),
-      ]),
+      new FunctionInvocationExpression('len', [initializerExpression]),
     ],
   ]
 
@@ -270,7 +270,7 @@ function arrayDestructuringSteps(
             steps: [
               assignFromArray(
                 patterns,
-                initializerName,
+                initializerExpression,
                 nonRestPatterns.length - i,
               ),
             ],
@@ -281,7 +281,7 @@ function arrayDestructuringSteps(
 
   branches.push({
     condition: new PrimitiveExpression(true),
-    steps: [assignFromArray(patterns, initializerName, 0)],
+    steps: [assignFromArray(patterns, initializerExpression, 0)],
   })
 
   if (restPattern) {
@@ -294,7 +294,7 @@ function arrayDestructuringSteps(
     const restName = restPattern.argument.name
     initializeVariables.push([restName, new PrimitiveExpression([])])
     branches.unshift(
-      arrayRestBranch(nonRestPatterns, initializerName, restName),
+      arrayRestBranch(nonRestPatterns, initializerExpression, restName),
     )
   }
 
@@ -303,7 +303,7 @@ function arrayDestructuringSteps(
 
 function assignFromArray(
   patterns: (TSESTree.DestructuringPattern | null)[],
-  initializerName: string,
+  initializerExpression: Expression,
   take: number,
 ) {
   return new AssignStepAST(
@@ -338,7 +338,7 @@ function assignFromArray(
           [
             name,
             new MemberExpression(
-              new VariableReferenceExpression(initializerName),
+              initializerExpression,
               new PrimitiveExpression(i),
               true,
             ),
@@ -373,7 +373,7 @@ function findRestProperty(
 
 function arrayRestBranch(
   nonRestPatterns: (TSESTree.DestructuringPattern | null)[],
-  initializerName: string,
+  initializerExpression: Expression,
   restName: string,
 ) {
   const __temp_len = new VariableReferenceExpression('__temp_len')
@@ -381,7 +381,7 @@ function arrayRestBranch(
   const lengthPlusOne = new PrimitiveExpression(nonRestPatterns.length + 1)
   const assignments = assignFromArray(
     nonRestPatterns,
-    initializerName,
+    initializerExpression,
     nonRestPatterns.length,
   )
   const copyLoop = new ForRangeStepAST(
@@ -392,7 +392,7 @@ function arrayRestBranch(
           new FunctionInvocationExpression('list.concat', [
             new VariableReferenceExpression(restName),
             new MemberExpression(
-              new VariableReferenceExpression(initializerName),
+              initializerExpression,
               new VariableReferenceExpression('__rest_index'),
               true,
             ),
@@ -416,27 +416,31 @@ function convertObjectDestructuring(
   initializer: TSESTree.Expression | null,
   ctx: ParsingContext,
 ): WorkflowStepAST[] {
-  let initName: string
+  let initExpression: Expression
   const steps: WorkflowStepAST[] = []
-  if (initializer?.type === AST_NODE_TYPES.Identifier) {
-    // If the initializer is an Identifier (object variable?), use it directly.
-    initName = initializer.name
-  } else if (initializer?.type === AST_NODE_TYPES.MemberExpression) {
-    initName = convertExpression(initializer).toString()
+  if (
+    initializer?.type === AST_NODE_TYPES.Identifier ||
+    initializer?.type === AST_NODE_TYPES.MemberExpression
+  ) {
+    // If the initializer is an Identifier or MemberExpression (object variable?), use it directly.
+    initExpression = convertExpression(initializer)
   } else {
     // Otherwise, assign the expression to a temporary variable first.
-    initName = '__temp'
+    const initName = '__temp'
     steps.push(...convertInitializer(initName, initializer, ctx))
+    initExpression = new VariableReferenceExpression(initName)
   }
 
-  steps.push(...objectDestructuringSteps(objectPattern.properties, initName))
+  steps.push(
+    ...objectDestructuringSteps(objectPattern.properties, initExpression),
+  )
 
   return steps
 }
 
 function objectDestructuringSteps(
   properties: (TSESTree.RestElement | TSESTree.Property)[],
-  initName: string,
+  initializerExpression: Expression,
 ): WorkflowStepAST[] {
   const propAndValue = properties.map((prop) => {
     if (prop.type === AST_NODE_TYPES.RestElement) {
@@ -451,18 +455,17 @@ function objectDestructuringSteps(
       throw new WorkflowSyntaxError('Expected Identifier', prop.value.loc)
     }
 
-    return { prop: prop.key.name, target: prop.value.name }
+    return {
+      prop: new VariableReferenceExpression(prop.key.name),
+      target: prop.value.name,
+    }
   })
 
   return [
     new AssignStepAST(
       propAndValue.map(({ prop, target }) => [
         target,
-        new MemberExpression(
-          new VariableReferenceExpression(initName),
-          new VariableReferenceExpression(prop),
-          false,
-        ),
+        new MemberExpression(initializerExpression, prop, false),
       ]),
     ),
   ]

@@ -1038,7 +1038,7 @@ describe('Destructing', () => {
   it('destructures deep objects', () => {
     const code = `
     function main() {
-̣̣      const { name, address: { country: { name, code } } } = getPerson();
+      const { name, address: { country: { name, code } } } = getPerson();
     }`
 
     const expected = `
