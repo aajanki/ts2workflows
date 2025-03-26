@@ -658,6 +658,45 @@ describe('Destructing', () => {
     assertTranspiled(code, expected)
   })
 
+  it('destructures array in a nested property', () => {
+    const code = `
+    function main(data) {
+      const [a, b] = data.arr;
+    }`
+
+    const expected = `
+    main:
+      params:
+        - data
+      steps:
+        - assign1:
+            assign:
+              - __temp_len: \${len(data.arr)}
+        - switch1:
+            switch:
+              - condition: \${__temp_len >= 2}
+                steps:
+                  - assign2:
+                      assign:
+                        - a: \${data.arr[0]}
+                        - b: \${data.arr[1]}
+              - condition: \${__temp_len >= 1}
+                steps:
+                  - assign3:
+                      assign:
+                        - a: \${data.arr[0]}
+                        - b: null
+              - condition: true
+                steps:
+                  - assign4:
+                      assign:
+                        - a: null
+                        - b: null
+    `
+
+    assertTranspiled(code, expected)
+  })
+
   it('array destructuring overwriting itself', () => {
     const code = `
     function main() {
@@ -971,6 +1010,26 @@ describe('Destructing', () => {
                   hairColor: white
               - name: \${person.name}
               - hairColor: \${person.hairColor}
+    `
+
+    assertTranspiled(code, expected)
+  })
+
+  it('destructures objects in a nested property', () => {
+    const code = `
+    function main(data) {
+      const { name, age } = data.person;
+    }`
+
+    const expected = `
+    main:
+      params:
+        - data
+      steps:
+        - assign1:
+            assign:
+              - name: \${data.person.name}
+              - age: \${data.person.age}
     `
 
     assertTranspiled(code, expected)

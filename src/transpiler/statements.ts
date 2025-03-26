@@ -225,6 +225,8 @@ function convertArrayDestructuring(
     // const arr = [1, 2]
     // [arr[1], arr[0]] = arr
     initName = initializer.name
+  } else if (initializer?.type === AST_NODE_TYPES.MemberExpression) {
+    initName = convertExpression(initializer).toString()
   } else {
     // Otherwise, assign the expression to a temporary variable first.
     initName = '__temp'
@@ -419,6 +421,8 @@ function convertObjectDestructuring(
   if (initializer?.type === AST_NODE_TYPES.Identifier) {
     // If the initializer is an Identifier (object variable?), use it directly.
     initName = initializer.name
+  } else if (initializer?.type === AST_NODE_TYPES.MemberExpression) {
+    initName = convertExpression(initializer).toString()
   } else {
     // Otherwise, assign the expression to a temporary variable first.
     initName = '__temp'
