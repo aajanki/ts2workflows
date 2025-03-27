@@ -30,10 +30,12 @@ import {
   PrimitiveExpression,
   VariableName,
   VariableReferenceExpression,
+  asExpression,
   isExpression,
   isFullyQualifiedName,
   isLiteral,
   nullEx,
+  safeAsExpression,
   trueEx,
 } from '../ast/expressions.js'
 import { InternalTranspilingError, WorkflowSyntaxError } from '../errors.js'
@@ -47,8 +49,6 @@ import {
   isMagicFunction,
   throwIfSpread,
   isMagicFunctionStatmentOnly,
-  asExpression,
-  safeAsExpression,
 } from './expressions.js'
 import { blockingFunctions } from './generated/functionMetadata.js'
 

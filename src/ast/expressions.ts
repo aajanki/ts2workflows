@@ -246,6 +246,16 @@ export function isExpression(val: Primitive | Expression): val is Expression {
   return val instanceof Object && 'expressionType' in val && !isRecord(val)
 }
 
+export function asExpression(x: Primitive | Expression): Expression {
+  return isExpression(x) ? x : new PrimitiveExpression(x)
+}
+
+export function safeAsExpression(
+  x: Primitive | Expression | undefined,
+): Expression | undefined {
+  return x === undefined ? undefined : asExpression(x)
+}
+
 // Returns a literal for simple terms and a literal expression enclosed in ${} for complex terms.
 export function expressionToLiteralValueOrLiteralExpression(
   ex: Expression,

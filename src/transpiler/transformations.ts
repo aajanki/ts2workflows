@@ -20,6 +20,7 @@ import {
   PrimitiveExpression,
   UnaryExpression,
   VariableReferenceExpression,
+  asExpression,
   isExpression,
   isLiteral,
 } from '../ast/expressions.js'
@@ -486,12 +487,9 @@ function extractNestedMapPrimitive(
     generateName,
     nestingLevel,
   )
-  const ex = isExpression(transformed)
-    ? transformed
-    : new PrimitiveExpression(transformed)
 
   return {
-    transformedExpression: ex,
+    transformedExpression: asExpression(transformed),
     tempVariables,
   }
 }

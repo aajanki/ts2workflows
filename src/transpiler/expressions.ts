@@ -10,8 +10,8 @@ import {
   PrimitiveExpression,
   UnaryExpression,
   VariableReferenceExpression,
+  asExpression,
   falseEx,
-  isExpression,
   isFullyQualifiedName,
   nullEx,
   trueEx,
@@ -546,14 +546,4 @@ export function throwIfSpread<
   ) as Exclude<T, TSESTree.SpreadElement>[]
 
   return argumentExpressions
-}
-
-export function asExpression(x: Primitive | Expression): Expression {
-  return isExpression(x) ? x : new PrimitiveExpression(x)
-}
-
-export function safeAsExpression(
-  x: Primitive | Expression | undefined,
-): Expression | undefined {
-  return x === undefined ? undefined : asExpression(x)
 }
