@@ -1,5 +1,15 @@
 # ts2workflows changelog
 
+## unreleased
+
+Breaking changes:
+
+- `True`, `TRUE`, `False` and `FALSE` no longer are synonyms for `true` and `false`
+
+New features:
+
+- Array and object destructuring: `const [a, b] = getArray()`
+
 ## Version 0.8.0 - 2025-03-03
 
 - Multiple input files can be given on the command line

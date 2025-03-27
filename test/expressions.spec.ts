@@ -62,7 +62,7 @@ describe('Literals', () => {
 
   it('parses lists', () => {
     assertExpression('[1, 2, 3]', [1, 2, 3])
-    assertExpression('["Y", "Yes", 1, True]', ['Y', 'Yes', 1, true])
+    assertExpression('["Y", "Yes", 1, true]', ['Y', 'Yes', 1, true])
   })
 
   it('parses nested lists', () => {

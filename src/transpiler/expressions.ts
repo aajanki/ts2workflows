@@ -11,10 +11,8 @@ import {
   UnaryExpression,
   VariableReferenceExpression,
   asExpression,
-  falseEx,
   isFullyQualifiedName,
   nullEx,
-  trueEx,
 } from '../ast/expressions.js'
 import { InternalTranspilingError, WorkflowSyntaxError } from '../errors.js'
 
@@ -42,10 +40,6 @@ export function convertExpression(instance: TSESTree.Expression): Expression {
     case AST_NODE_TYPES.Identifier:
       if (instance.name === 'null' || instance.name === 'undefined') {
         return nullEx
-      } else if (instance.name === 'True' || instance.name === 'TRUE') {
-        return trueEx
-      } else if (instance.name === 'False' || instance.name === 'FALSE') {
-        return falseEx
       } else {
         return new VariableReferenceExpression(instance.name)
       }
