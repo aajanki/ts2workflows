@@ -70,7 +70,6 @@ export type Expression =
   | UnaryExpression
 
 // A primitive (string, number, list, etc) value
-// TODO: Is this needed? Use unboxed Primitive instead?
 export class PrimitiveExpression {
   readonly expressionType = 'primitive'
   readonly value: Primitive
@@ -98,6 +97,10 @@ export class PrimitiveExpression {
     }
   }
 }
+
+export const nullEx = new PrimitiveExpression(null)
+export const trueEx = new PrimitiveExpression(true)
+export const falseEx = new PrimitiveExpression(false)
 
 // expr OPERATOR expr
 export class BinaryExpression {

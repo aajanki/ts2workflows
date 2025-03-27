@@ -33,6 +33,8 @@ import {
   isExpression,
   isFullyQualifiedName,
   isLiteral,
+  nullEx,
+  trueEx,
 } from '../ast/expressions.js'
 import { InternalTranspilingError, WorkflowSyntaxError } from '../errors.js'
 import { chainPairs, isRecord } from '../utils.js'
@@ -202,10 +204,7 @@ function convertInitializer(
 
     return callExpressionToStep(initializer, targetVariableName, ctx)
   } else {
-    const value =
-      initializer === null
-        ? new PrimitiveExpression(null)
-        : convertExpression(initializer)
+    const value = initializer === null ? nullEx : convertExpression(initializer)
 
     return [new AssignStepAST([[targetVariableName, value]])]
   }
@@ -280,7 +279,7 @@ function arrayDestructuringSteps(
     })
 
   branches.push({
-    condition: new PrimitiveExpression(true),
+    condition: trueEx,
     steps: [assignFromArray(patterns, initializerExpression, 0)],
   })
 
@@ -313,7 +312,7 @@ function assignFromArray(
       }
 
       let name: string
-      let defaultValue: Expression = new PrimitiveExpression(null)
+      let defaultValue: Expression = nullEx
       if (
         pat.type === AST_NODE_TYPES.MemberExpression ||
         pat.type === AST_NODE_TYPES.Identifier
@@ -926,7 +925,7 @@ function flattenIfBranches(
       branches.push(...flattenIfBranches(ifStatement.alternate, ctx))
     } else {
       branches.push({
-        condition: new PrimitiveExpression(true),
+        condition: trueEx,
         steps: parseStatement(ifStatement.alternate, ctx),
       })
     }
@@ -952,7 +951,7 @@ function switchStatementToSteps(
       const test = convertExpression(caseNode.test)
       condition = new BinaryExpression(discriminant, '==', test)
     } else {
-      condition = new PrimitiveExpression(true)
+      condition = trueEx
     }
 
     const jumpTarget = new JumpTargetAST()
@@ -1251,8 +1250,8 @@ function finalizerInitializer(
   valueVariable: string,
 ): AssignStepAST {
   return new AssignStepAST([
-    [conditionVariable, new PrimitiveExpression(null)],
-    [valueVariable, new PrimitiveExpression(null)],
+    [conditionVariable, nullEx],
+    [valueVariable, nullEx],
   ])
 }
 
@@ -1315,7 +1314,7 @@ function delayedReturnAndJumpToFinalizer(
   return new AssignStepAST(
     [
       [conditionVariable, new PrimitiveExpression('return')],
-      [valueVariable, value ?? new PrimitiveExpression(null)],
+      [valueVariable, value ?? nullEx],
     ],
     finalizerTarget,
   )

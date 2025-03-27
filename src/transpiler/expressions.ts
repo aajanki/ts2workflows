@@ -10,8 +10,11 @@ import {
   PrimitiveExpression,
   UnaryExpression,
   VariableReferenceExpression,
+  falseEx,
   isExpression,
   isFullyQualifiedName,
+  nullEx,
+  trueEx,
 } from '../ast/expressions.js'
 import { InternalTranspilingError, WorkflowSyntaxError } from '../errors.js'
 
@@ -38,11 +41,11 @@ export function convertExpression(instance: TSESTree.Expression): Expression {
 
     case AST_NODE_TYPES.Identifier:
       if (instance.name === 'null' || instance.name === 'undefined') {
-        return new PrimitiveExpression(null)
+        return nullEx
       } else if (instance.name === 'True' || instance.name === 'TRUE') {
-        return new PrimitiveExpression(true)
+        return trueEx
       } else if (instance.name === 'False' || instance.name === 'FALSE') {
-        return new PrimitiveExpression(false)
+        return falseEx
       } else {
         return new VariableReferenceExpression(instance.name)
       }
@@ -143,9 +146,7 @@ export function convertObjectAsExpressionValues(
 
 function convertArrayExpression(instance: TSESTree.ArrayExpression) {
   return throwIfSpread(instance.elements).map((e) =>
-    e === null
-      ? new PrimitiveExpression(null)
-      : convertExpressionOrPrimitive(e),
+    e === null ? nullEx : convertExpressionOrPrimitive(e),
   )
 }
 
