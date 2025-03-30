@@ -34,6 +34,7 @@ import {
   isExpression,
   isFullyQualifiedName,
   isLiteral,
+  isPure,
   nullEx,
   safeAsExpression,
   trueEx,
@@ -419,7 +420,8 @@ function convertObjectDestructuring(
   const steps: WorkflowStepAST[] = []
   if (
     initializer?.type === AST_NODE_TYPES.Identifier ||
-    initializer?.type === AST_NODE_TYPES.MemberExpression
+    (initializer?.type === AST_NODE_TYPES.MemberExpression &&
+      isPure(convertExpression(initializer)))
   ) {
     // If the initializer is an Identifier or MemberExpression (object variable?), use it directly.
     initExpression = convertExpression(initializer)

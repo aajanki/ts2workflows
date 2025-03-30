@@ -400,3 +400,28 @@ export function isFullyQualifiedName(ex: Expression): boolean {
       return isFullyQualifiedName(ex.value)
   }
 }
+
+/**
+ * Returns true if ex is pure expression (can't have side-effects)
+ */
+export function isPure(ex: Expression): boolean {
+  switch (ex.expressionType) {
+    case 'primitive':
+      return true
+
+    case 'binary':
+      return isPure(ex.left) && isPure(ex.right)
+
+    case 'functionInvocation':
+      return false
+
+    case 'variableReference':
+      return true
+
+    case 'member':
+      return isPure(ex.object) && isPure(ex.property)
+
+    case 'unary':
+      return isPure(ex.value)
+  }
+}

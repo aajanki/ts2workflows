@@ -1044,6 +1044,25 @@ describe('Destructing', () => {
     assertTranspiled(code, expected)
   })
 
+  it('destructures objects in a non-pure nested property', () => {
+    const code = `
+    function main() {
+      const { name, age } = getData().person;
+    }`
+
+    const expected = `
+    main:
+      steps:
+        - assign1:
+            assign:
+              - __temp: \${getData().person}
+              - name: \${map.get(__temp, "name")}
+              - age: \${map.get(__temp, "age")}
+    `
+
+    assertTranspiled(code, expected)
+  })
+
   it('destructures deep objects', () => {
     const code = `
     function main() {
