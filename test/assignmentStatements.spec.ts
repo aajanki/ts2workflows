@@ -955,7 +955,7 @@ describe('Destructing', () => {
     assertTranspiled(code, expected)
   })
 
-  it('throws is the rest element is not the last array destructuring pattern', () => {
+  it('throws if the rest element is not the last array destructuring pattern', () => {
     const code = `
     function main(arr: number[]) {
       const [a, b, ...rest, c] = arr;
@@ -964,10 +964,19 @@ describe('Destructing', () => {
     expect(() => transpile(code)).to.throw()
   })
 
-  it('throws is there are multiple rest elements in array destructuring', () => {
+  it('throws if there are multiple rest elements in array destructuring', () => {
     const code = `
     function main(arr: number[]) {
       const [a, b, ...rest, ...anotherRest] = arr;
+    }`
+
+    expect(() => transpile(code)).to.throw()
+  })
+
+  it('throws if the rest element is an object', () => {
+    const code = `
+    function main(arr: number[]) {
+      const [a, b, ...{ push, pop }] = arr;
     }`
 
     expect(() => transpile(code)).to.throw()
