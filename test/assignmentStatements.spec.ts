@@ -985,9 +985,9 @@ describe('Destructing', () => {
         - assign1:
             assign:
               - __temp: \${getPerson()}
-              - name: \${__temp.name}
-              - age: \${__temp.age}
-              - address: \${__temp.address}
+              - name: \${map.get(__temp, "name")}
+              - age: \${map.get(__temp, "age")}
+              - address: \${map.get(__temp, "address")}
     `
 
     assertTranspiled(code, expected)
@@ -1008,8 +1008,8 @@ describe('Destructing', () => {
               - person:
                   name: Bean
                   hairColor: white
-              - name: \${person.name}
-              - hairColor: \${person.hairColor}
+              - name: \${map.get(person, "name")}
+              - hairColor: \${map.get(person, "hairColor")}
     `
 
     assertTranspiled(code, expected)
@@ -1028,8 +1028,8 @@ describe('Destructing', () => {
       steps:
         - assign1:
             assign:
-              - name: \${data.person.name}
-              - age: \${data.person.age}
+              - name: \${map.get(data.person, "name")}
+              - age: \${map.get(data.person, "age")}
     `
 
     assertTranspiled(code, expected)
@@ -1047,9 +1047,9 @@ describe('Destructing', () => {
         - assign1:
             assign:
               - __temp: \${getPerson()}
-              - name: \${__temp.name}
-              - name: \${__temp.address.country.name}
-              - code: \${__temp.address.country.code}
+              - name: \${map.get(__temp, "name")}
+              - name: \${map.get(map.get(map.get(__temp, "address"), "country"), "name")}
+              - code: \${map.get(map.get(map.get(__temp, "address"), "country"), "code")}
     `
 
     assertTranspiled(code, expected)
@@ -1067,8 +1067,8 @@ describe('Destructing', () => {
         - assign1:
             assign:
               - __temp: \${getPerson()}
-              - myName: \${__temp.name}
-              - myCity: \${__temp.address.city}
+              - myName: \${map.get(__temp, "name")}
+              - myCity: \${map.get(map.get(__temp, "address"), "city")}
     `
 
     assertTranspiled(code, expected)

@@ -453,11 +453,10 @@ function objectDestructuringAssignments(
       throw new WorkflowSyntaxError('Expected Identifier', prop.key.loc)
     }
 
-    const keyExpression = new MemberExpression(
+    const keyExpression = new FunctionInvocationExpression('map.get', [
       initializerExpression,
-      new VariableReferenceExpression(prop.key.name),
-      false,
-    )
+      new PrimitiveExpression(prop.key.name),
+    ])
 
     if (prop.value.type === AST_NODE_TYPES.ObjectPattern) {
       return objectDestructuringAssignments(
