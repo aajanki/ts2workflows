@@ -385,6 +385,7 @@ export function isFullyQualifiedName(ex: Expression): boolean {
     case 'primitive':
     case 'binary':
     case 'functionInvocation':
+    case 'unary':
       return false
 
     case 'variableReference':
@@ -393,11 +394,9 @@ export function isFullyQualifiedName(ex: Expression): boolean {
     case 'member':
       return (
         isFullyQualifiedName(ex.object) &&
-        (ex.computed || isFullyQualifiedName(ex.property))
+        (isFullyQualifiedName(ex.property) ||
+          (ex.computed && ex.property.expressionType === 'primitive'))
       )
-
-    case 'unary':
-      return isFullyQualifiedName(ex.value)
   }
 }
 
