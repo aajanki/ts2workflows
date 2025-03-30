@@ -430,44 +430,48 @@ function convertObjectDestructuring(
     initExpression = new VariableReferenceExpression(initName)
   }
 
-  steps.push(
-    ...objectDestructuringSteps(objectPattern.properties, initExpression),
+  const assignments = objectDestructuringAssignments(
+    objectPattern.properties,
+    initExpression,
   )
+
+  steps.push(new AssignStepAST(assignments))
 
   return steps
 }
 
-function objectDestructuringSteps(
+function objectDestructuringAssignments(
   properties: (TSESTree.RestElement | TSESTree.Property)[],
   initializerExpression: Expression,
-): WorkflowStepAST[] {
-  const propAndValue = properties.map((prop) => {
+): VariableAssignment[] {
+  const assignments: VariableAssignment[] = properties.flatMap((prop) => {
     if (prop.type === AST_NODE_TYPES.RestElement) {
-      throw new WorkflowSyntaxError('Not supported', prop.loc)
+      throw new WorkflowSyntaxError('Rest element not supported', prop.loc)
     }
 
     if (prop.key.type !== AST_NODE_TYPES.Identifier) {
       throw new WorkflowSyntaxError('Expected Identifier', prop.key.loc)
     }
 
-    if (prop.value.type !== AST_NODE_TYPES.Identifier) {
-      throw new WorkflowSyntaxError('Expected Identifier', prop.value.loc)
-    }
+    const keyExpression = new MemberExpression(
+      initializerExpression,
+      new VariableReferenceExpression(prop.key.name),
+      false,
+    )
 
-    return {
-      prop: new VariableReferenceExpression(prop.key.name),
-      target: prop.value.name,
+    if (prop.value.type === AST_NODE_TYPES.ObjectPattern) {
+      return objectDestructuringAssignments(
+        prop.value.properties,
+        keyExpression,
+      )
+    } else if (prop.value.type === AST_NODE_TYPES.Identifier) {
+      return [[prop.value.name, keyExpression]]
+    } else {
+      throw new WorkflowSyntaxError('Unsupported type', prop.value.loc)
     }
   })
 
-  return [
-    new AssignStepAST(
-      propAndValue.map(({ prop, target }) => [
-        target,
-        new MemberExpression(initializerExpression, prop, false),
-      ]),
-    ),
-  ]
+  return assignments
 }
 
 function assignmentExpressionToSteps(
