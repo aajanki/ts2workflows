@@ -308,44 +308,47 @@ function assignFromArray(
 ) {
   return new AssignStepAST(
     patterns.flatMap((pat, i) => {
+      const iElement = new MemberExpression(
+        initializerExpression,
+        new PrimitiveExpression(i),
+        true,
+      )
+
       if (pat === null || pat.type === AST_NODE_TYPES.RestElement) {
         return [] as VariableAssignment[]
-      }
-
-      let name: string
-      let defaultValue: Expression = nullEx
-      if (
+      } else if (
         pat.type === AST_NODE_TYPES.MemberExpression ||
         pat.type === AST_NODE_TYPES.Identifier
       ) {
-        name = convertExpression(pat).toString()
+        const name = convertExpression(pat).toString()
+        const val = i < take ? iElement : nullEx
+
+        return [[name, val]]
       } else if (pat.type === AST_NODE_TYPES.AssignmentPattern) {
-        if (pat.left.type === AST_NODE_TYPES.Identifier) {
-          name = pat.left.name
-        } else {
+        if (pat.left.type !== AST_NODE_TYPES.Identifier) {
           throw new WorkflowSyntaxError(
             'Default value can be used only with an identifier',
             pat.left.loc,
           )
         }
-        defaultValue = convertExpression(pat.right)
+
+        const name = pat.left.name
+        const val = i < take ? iElement : convertExpression(pat.right)
+
+        return [[name, val]]
+      } else if (pat.type === AST_NODE_TYPES.ObjectPattern) {
+        const objectAssignments = objectDestructuringAssignments(
+          pat.properties,
+          iElement,
+        )
+
+        if (i < take) {
+          return objectAssignments
+        } else {
+          return objectAssignments.map((x) => [x[0], nullEx])
+        }
       } else {
         throw new WorkflowSyntaxError('Unsupported pattern', pat.loc)
-      }
-
-      if (i < take) {
-        return [
-          [
-            name,
-            new MemberExpression(
-              initializerExpression,
-              new PrimitiveExpression(i),
-              true,
-            ),
-          ],
-        ]
-      } else {
-        return [[name, defaultValue]]
       }
     }),
   )

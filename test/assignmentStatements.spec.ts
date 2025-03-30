@@ -1101,4 +1101,42 @@ describe('Destructing', () => {
 
     assertTranspiled(code, expected)
   })
+
+  it('destructures objects in array', () => {
+    const code = `
+    function main() {
+      const [ { name: name1 }, { name: name2} ] = getPersons();
+    }`
+
+    const expected = `
+    main:
+      steps:
+        - assign1:
+            assign:
+              - __temp: \${getPersons()}
+              - __temp_len: \${len(__temp)}
+        - switch1:
+            switch:
+              - condition: \${__temp_len >= 2}
+                steps:
+                  - assign2:
+                      assign:
+                        - name1: \${map.get(__temp[0], "name")}
+                        - name2: \${map.get(__temp[1], "name")}
+              - condition: \${__temp_len >= 1}
+                steps:
+                  - assign3:
+                      assign:
+                        - name1: \${map.get(__temp[0], "name")}
+                        - name2: null
+              - condition: true
+                steps:
+                  - assign4:
+                      assign:
+                        - name1: null
+                        - name2: null
+    `
+
+    assertTranspiled(code, expected)
+  })
 })
