@@ -1139,4 +1139,124 @@ describe('Destructing', () => {
 
     assertTranspiled(code, expected)
   })
+
+  it('destructures arrays in object', () => {
+    const code = `
+    function main() {
+      const {
+        names: [first, middle, last],
+        professions: [firstProfession]
+      } = getPerson();
+    }`
+
+    const expected = `
+    main:
+      steps:
+        - assign1:
+            assign:
+              - __temp: \${getPerson()}
+              - __temp_len: \${len(default(map.get(__temp, "names"), []))}
+        - switch1:
+            switch:
+              - condition: \${__temp_len >= 3}
+                steps:
+                  - assign2:
+                      assign:
+                        - first: \${default(map.get(__temp, "names"), [])[0]}
+                        - middle: \${default(map.get(__temp, "names"), [])[1]}
+                        - last: \${default(map.get(__temp, "names"), [])[2]}
+              - condition: \${__temp_len >= 2}
+                steps:
+                  - assign3:
+                      assign:
+                        - first: \${default(map.get(__temp, "names"), [])[0]}
+                        - middle: \${default(map.get(__temp, "names"), [])[1]}
+                        - last: null
+              - condition: \${__temp_len >= 1}
+                steps:
+                  - assign4:
+                      assign:
+                        - first: \${default(map.get(__temp, "names"), [])[0]}
+                        - middle: null
+                        - last: null
+              - condition: true
+                steps:
+                  - assign5:
+                      assign:
+                        - first: null
+                        - middle: null
+                        - last: null
+        - assign6:
+            assign:
+              - __temp_len: \${len(default(map.get(__temp, "professions"), []))}
+        - switch2:
+            switch:
+              - condition: \${__temp_len >= 1}
+                steps:
+                  - assign7:
+                      assign:
+                        - firstProfession: \${default(map.get(__temp, "professions"), [])[0]}
+              - condition: true
+                steps:
+                  - assign8:
+                      assign:
+                        - firstProfession: null
+    `
+
+    assertTranspiled(code, expected)
+  })
+
+  it('destructures a mixture of arrays and objects', () => {
+    const code = `
+    function main(data) {
+      const {
+        persons: [ { address: { street: streetAddress, city } } ],
+        timestamp,
+        source: { database: sourceDb, references: [ ref ] },
+      } = data;
+    }`
+
+    const expected = `
+    main:
+      params:
+        - data
+      steps:
+        - assign1:
+            assign:
+              - __temp_len: \${len(default(map.get(data, "persons"), []))}
+        - switch1:
+            switch:
+              - condition: \${__temp_len >= 1}
+                steps:
+                  - assign2:
+                      assign:
+                        - streetAddress: \${map.get(map.get(default(map.get(data, "persons"), [])[0], "address"), "street")}
+                        - city: \${map.get(map.get(default(map.get(data, "persons"), [])[0], "address"), "city")}
+              - condition: true
+                steps:
+                  - assign3:
+                      assign:
+                        - streetAddress: null
+                        - city: null
+        - assign4:
+            assign:
+              - timestamp: \${map.get(data, "timestamp")}
+              - sourceDb: \${map.get(map.get(data, "source"), "database")}
+              - __temp_len: \${len(default(map.get(map.get(data, "source"), "references"), []))}
+        - switch2:
+            switch:
+              - condition: \${__temp_len >= 1}
+                steps:
+                  - assign5:
+                      assign:
+                        - ref: \${default(map.get(map.get(data, "source"), "references"), [])[0]}
+              - condition: true
+                steps:
+                  - assign6:
+                      assign:
+                        - ref: null
+    `
+
+    assertTranspiled(code, expected)
+  })
 })

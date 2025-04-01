@@ -337,10 +337,24 @@ function assignFromArray(
 
         return [[name, val]]
       } else if (pat.type === AST_NODE_TYPES.ObjectPattern) {
-        const objectAssignments = objectDestructuringAssignments(
+        const objectPatternSteps = objectDestructuringSteps(
           pat.properties,
           iElement,
         )
+        const assignSteps = objectPatternSteps.filter(
+          (step) => step.tag === 'assign',
+        )
+        const objectAssignments = assignSteps.flatMap(
+          (step) => step.assignments,
+        )
+
+        if (assignSteps.length !== objectPatternSteps.length) {
+          // TODO
+          throw new WorkflowSyntaxError(
+            'Arrays inside nested object patterns are not yet supported',
+            pat.loc,
+          )
+        }
 
         if (i < take) {
           return objectAssignments
@@ -435,21 +449,18 @@ function convertObjectDestructuring(
     initExpression = new VariableReferenceExpression(initName)
   }
 
-  const assignments = objectDestructuringAssignments(
-    objectPattern.properties,
-    initExpression,
+  steps.push(
+    ...objectDestructuringSteps(objectPattern.properties, initExpression),
   )
-
-  steps.push(new AssignStepAST(assignments))
 
   return steps
 }
 
-function objectDestructuringAssignments(
+function objectDestructuringSteps(
   properties: (TSESTree.RestElement | TSESTree.Property)[],
   initializerExpression: Expression,
-): VariableAssignment[] {
-  const assignments: VariableAssignment[] = properties.flatMap((prop) => {
+): WorkflowStepAST[] {
+  return properties.flatMap((prop) => {
     if (prop.type === AST_NODE_TYPES.RestElement) {
       throw new WorkflowSyntaxError('Rest element not supported', prop.loc)
     }
@@ -464,18 +475,20 @@ function objectDestructuringAssignments(
     ])
 
     if (prop.value.type === AST_NODE_TYPES.ObjectPattern) {
-      return objectDestructuringAssignments(
-        prop.value.properties,
+      return objectDestructuringSteps(prop.value.properties, keyExpression)
+    } else if (prop.value.type === AST_NODE_TYPES.ArrayPattern) {
+      const arrayInit = new FunctionInvocationExpression('default', [
         keyExpression,
-      )
+        new PrimitiveExpression([]),
+      ])
+
+      return arrayDestructuringSteps(prop.value.elements, arrayInit)
     } else if (prop.value.type === AST_NODE_TYPES.Identifier) {
-      return [[prop.value.name, keyExpression]]
+      return [new AssignStepAST([[prop.value.name, keyExpression]])]
     } else {
       throw new WorkflowSyntaxError('Unsupported type', prop.value.loc)
     }
   })
-
-  return assignments
 }
 
 function assignmentExpressionToSteps(
