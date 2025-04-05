@@ -90,8 +90,16 @@ function parseTopLevelStatement(
 function parseSubworkflows(
   node: TSESTree.FunctionDeclarationWithName,
 ): SubworkflowAST {
-  const nodeParams = node.params
-  const workflowParams: WorkflowParameter[] = nodeParams.map((param) => {
+  const workflowParams = parseWorkflowParams(node.params)
+  const steps = transformAST(parseStatement(node.body, {}))
+
+  return new SubworkflowAST(node.id.name, steps, workflowParams)
+}
+
+function parseWorkflowParams(
+  nodeParams: TSESTree.Parameter[],
+): WorkflowParameter[] {
+  return nodeParams.map((param) => {
     switch (param.type) {
       case AST_NODE_TYPES.Identifier:
         if (param.optional) {
@@ -110,10 +118,6 @@ function parseSubworkflows(
         )
     }
   })
-
-  const steps = transformAST(parseStatement(node.body, {}))
-
-  return new SubworkflowAST(node.id.name, steps, workflowParams)
 }
 
 function parseSubworkflowDefaultArgument(param: TSESTree.AssignmentPattern) {
