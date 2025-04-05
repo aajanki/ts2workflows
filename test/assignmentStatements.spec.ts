@@ -1199,10 +1199,10 @@ describe('Destructing', () => {
     assertTranspiled(code, expected)
   })
 
-  it('destructures objects in array', () => {
+  it('destructures objects in arrays', () => {
     const code = `
     function main() {
-      const [ { name: name1 }, { name: name2} ] = getPersons();
+      const [ { name: name1, age: age1 }, { name: name2, age: age2 } ] = getPersons();
     }`
 
     const expected = `
@@ -1219,25 +1219,31 @@ describe('Destructing', () => {
                   - assign2:
                       assign:
                         - name1: \${map.get(__temp[0], "name")}
+                        - age1: \${map.get(__temp[0], "age")}
                         - name2: \${map.get(__temp[1], "name")}
+                        - age2: \${map.get(__temp[1], "age")}
               - condition: \${__temp_len >= 1}
                 steps:
                   - assign3:
                       assign:
                         - name1: \${map.get(__temp[0], "name")}
+                        - age1: \${map.get(__temp[0], "age")}
                         - name2: null
+                        - age2: null
               - condition: true
                 steps:
                   - assign4:
                       assign:
                         - name1: null
+                        - age1: null
                         - name2: null
+                        - age2: null
     `
 
     assertTranspiled(code, expected)
   })
 
-  it('destructures arrays in object', () => {
+  it('destructures arrays in objects', () => {
     const code = `
     function main() {
       const {
@@ -1298,6 +1304,58 @@ describe('Destructing', () => {
                   - assign8:
                       assign:
                         - firstProfession: null
+    `
+
+    assertTranspiled(code, expected)
+  })
+
+  it('destructures arrays in nested objects', () => {
+    const code = `
+    function main(data) {
+      const [ { values: [a, b] } ] = data;
+    }`
+
+    const expected = `
+    main:
+      params:
+        - data
+      steps:
+        - assign1:
+            assign:
+              - __temp_len: \${len(data)}
+        - switch1:
+            switch:
+              - condition: \${__temp_len >= 1}
+                steps:
+                  - assign2:
+                      assign:
+                        - __temp_len: \${len(default(map.get(data[0], "values"), []))}
+                  - switch2:
+                      switch:
+                        - condition: \${__temp_len >= 2}
+                          steps:
+                            - assign3:
+                                assign:
+                                  - a: \${default(map.get(data[0], "values"), [])[0]}
+                                  - b: \${default(map.get(data[0], "values"), [])[1]}
+                        - condition: \${__temp_len >= 1}
+                          steps:
+                            - assign4:
+                                assign:
+                                  - a: \${default(map.get(data[0], "values"), [])[0]}
+                                  - b: null
+                        - condition: true
+                          steps:
+                            - assign5:
+                                assign:
+                                  - a: null
+                                  - b: null
+              - condition: true
+                steps:
+                  - assign6:
+                      assign:
+                        - a: null
+                        - b: null
     `
 
     assertTranspiled(code, expected)

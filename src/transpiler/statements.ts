@@ -335,30 +335,16 @@ function arrayElementsDestructuringSteps(
         return [new AssignStepAST([[name, val]])]
       }
 
-      case AST_NODE_TYPES.ObjectPattern: {
-        const objectPatternSteps = objectDestructuringSteps(
-          pat.properties,
-          iElement,
-        )
-        const assignSteps = objectPatternSteps.filter(
-          (step) => step.tag === 'assign',
-        )
-        let objectAssignments = assignSteps.flatMap((step) => step.assignments)
-
-        if (assignSteps.length !== objectPatternSteps.length) {
-          // TODO
-          throw new WorkflowSyntaxError(
-            'Arrays inside nested object patterns are not yet supported',
-            pat.loc,
-          )
+      case AST_NODE_TYPES.ObjectPattern:
+        if (i < take) {
+          return objectDestructuringSteps(pat.properties, iElement)
+        } else {
+          return [
+            new AssignStepAST(
+              extractDefaultAssignmentsFromDestructuringPattern(pat),
+            ),
+          ]
         }
-
-        if (i >= take) {
-          objectAssignments = objectAssignments.map((x) => [x[0], nullEx])
-        }
-
-        return [new AssignStepAST(objectAssignments)]
-      }
 
       case AST_NODE_TYPES.ArrayPattern:
         if (i < take) {
