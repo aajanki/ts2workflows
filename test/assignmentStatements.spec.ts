@@ -861,6 +861,85 @@ describe('Destructing', () => {
     assertTranspiled(code, expected)
   })
 
+  it('destructures nested arrays', () => {
+    const code = `
+    function main(data) {
+      const [[a], [b]] = data;
+    }`
+
+    const expected = `
+    main:
+      params:
+        - data
+      steps:
+        - assign1:
+            assign:
+              - __temp_len: \${len(data)}
+        - switch1:
+            switch:
+              - condition: \${__temp_len >= 2}
+                steps:
+                  - assign2:
+                      assign:
+                        - __temp_len: \${len(data[0])}
+                  - switch2:
+                      switch:
+                        - condition: \${__temp_len >= 1}
+                          steps:
+                            - assign3:
+                                assign:
+                                  - a: \${data[0][0]}
+                        - condition: true
+                          steps:
+                            - assign4:
+                                assign:
+                                  - a: null
+                  - assign5:
+                      assign:
+                        - __temp_len: \${len(data[1])}
+                  - switch3:
+                      switch:
+                        - condition: \${__temp_len >= 1}
+                          steps:
+                            - assign6:
+                                assign:
+                                  - b: \${data[1][0]}
+                        - condition: true
+                          steps:
+                            - assign7:
+                                assign:
+                                  - b: null
+              - condition: \${__temp_len >= 1}
+                steps:
+                  - assign8:
+                      assign:
+                        - __temp_len: \${len(data[0])}
+                  - switch4:
+                      switch:
+                        - condition: \${__temp_len >= 1}
+                          steps:
+                            - assign9:
+                                assign:
+                                  - a: \${data[0][0]}
+                        - condition: true
+                          steps:
+                            - assign10:
+                                assign:
+                                  - a: null
+                  - assign11:
+                      assign:
+                        - b: null
+              - condition: true
+                steps:
+                  - assign12:
+                      assign:
+                        - a: null
+                        - b: null
+    `
+
+    assertTranspiled(code, expected)
+  })
+
   it('default values in destructuring', () => {
     const code = `
     function main(arr: number[]) {
@@ -950,6 +1029,24 @@ describe('Destructing', () => {
                       assign:
                         - a: null
                         - b: null
+    `
+
+    assertTranspiled(code, expected)
+  })
+
+  it('empty array pattern', () => {
+    const code = `
+    function main() {
+      const arr = [1, 2, 3];
+      let [] = arr;
+    }`
+
+    const expected = `
+    main:
+      steps:
+        - assign1:
+            assign:
+              - arr: [1, 2, 3]
     `
 
     assertTranspiled(code, expected)
@@ -1255,6 +1352,25 @@ describe('Destructing', () => {
                   - assign6:
                       assign:
                         - ref: null
+    `
+
+    assertTranspiled(code, expected)
+  })
+
+  it('empty object pattern', () => {
+    const code = `
+    function main() {
+      const data = { name: "Bean" };
+      let {} = data;
+    }`
+
+    const expected = `
+    main:
+      steps:
+        - assign1:
+            assign:
+              - data:
+                  name: Bean
     `
 
     assertTranspiled(code, expected)

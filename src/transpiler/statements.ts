@@ -241,6 +241,10 @@ function arrayDestructuringSteps(
   patterns: (TSESTree.DestructuringPattern | null)[],
   initializerExpression: Expression,
 ): WorkflowStepAST[] {
+  if (patterns.length === 0) {
+    return []
+  }
+
   const initializeVariables: VariableAssignment[] = [
     [
       '__temp_len',
@@ -264,13 +268,11 @@ function arrayDestructuringSteps(
               '>=',
               new PrimitiveExpression(nonRestPatterns.length - i),
             ),
-            steps: [
-              assignFromArray(
-                patterns,
-                initializerExpression,
-                nonRestPatterns.length - i,
-              ),
-            ],
+            steps: arrayElementsDestructuringSteps(
+              patterns,
+              initializerExpression,
+              nonRestPatterns.length - i,
+            ),
           },
         ]
       }
@@ -278,7 +280,7 @@ function arrayDestructuringSteps(
 
   branches.push({
     condition: trueEx,
-    steps: [assignFromArray(patterns, initializerExpression, 0)],
+    steps: arrayElementsDestructuringSteps(patterns, initializerExpression, 0),
   })
 
   if (restPattern) {
@@ -298,30 +300,28 @@ function arrayDestructuringSteps(
   return [new AssignStepAST(initializeVariables), new SwitchStepAST(branches)]
 }
 
-function assignFromArray(
+function arrayElementsDestructuringSteps(
   patterns: (TSESTree.DestructuringPattern | null)[],
   initializerExpression: Expression,
   take: number,
-) {
-  return new AssignStepAST(
-    patterns.flatMap((pat, i) => {
-      const iElement = new MemberExpression(
-        initializerExpression,
-        new PrimitiveExpression(i),
-        true,
-      )
+): WorkflowStepAST[] {
+  return patterns.flatMap((pat, i) => {
+    const iElement = new MemberExpression(
+      initializerExpression,
+      new PrimitiveExpression(i),
+      true,
+    )
 
-      if (pat === null || pat.type === AST_NODE_TYPES.RestElement) {
-        return [] as VariableAssignment[]
-      } else if (
-        pat.type === AST_NODE_TYPES.MemberExpression ||
-        pat.type === AST_NODE_TYPES.Identifier
-      ) {
+    switch (pat?.type) {
+      case AST_NODE_TYPES.MemberExpression:
+      case AST_NODE_TYPES.Identifier: {
         const name = convertExpression(pat).toString()
         const val = i < take ? iElement : nullEx
 
-        return [[name, val]]
-      } else if (pat.type === AST_NODE_TYPES.AssignmentPattern) {
+        return [new AssignStepAST([[name, val]])]
+      }
+
+      case AST_NODE_TYPES.AssignmentPattern: {
         if (pat.left.type !== AST_NODE_TYPES.Identifier) {
           throw new WorkflowSyntaxError(
             'Default value can be used only with an identifier',
@@ -332,8 +332,10 @@ function assignFromArray(
         const name = pat.left.name
         const val = i < take ? iElement : convertExpression(pat.right)
 
-        return [[name, val]]
-      } else if (pat.type === AST_NODE_TYPES.ObjectPattern) {
+        return [new AssignStepAST([[name, val]])]
+      }
+
+      case AST_NODE_TYPES.ObjectPattern: {
         const objectPatternSteps = objectDestructuringSteps(
           pat.properties,
           iElement,
@@ -341,9 +343,7 @@ function assignFromArray(
         const assignSteps = objectPatternSteps.filter(
           (step) => step.tag === 'assign',
         )
-        const objectAssignments = assignSteps.flatMap(
-          (step) => step.assignments,
-        )
+        let objectAssignments = assignSteps.flatMap((step) => step.assignments)
 
         if (assignSteps.length !== objectPatternSteps.length) {
           // TODO
@@ -353,16 +353,95 @@ function assignFromArray(
           )
         }
 
-        if (i < take) {
-          return objectAssignments
-        } else {
-          return objectAssignments.map((x) => [x[0], nullEx])
+        if (i >= take) {
+          objectAssignments = objectAssignments.map((x) => [x[0], nullEx])
         }
-      } else {
-        throw new WorkflowSyntaxError('Unsupported pattern', pat.loc)
+
+        return [new AssignStepAST(objectAssignments)]
       }
-    }),
-  )
+
+      case AST_NODE_TYPES.ArrayPattern:
+        if (i < take) {
+          return arrayDestructuringSteps(pat.elements, iElement)
+        } else {
+          return [
+            new AssignStepAST(
+              pat.elements.flatMap(
+                extractDefaultAssignmentsFromDestructuringPattern,
+              ),
+            ),
+          ]
+        }
+
+      case AST_NODE_TYPES.RestElement:
+        // Rest element is handled elsewhere
+        return []
+
+      default: // pat === null
+        return []
+    }
+  })
+}
+
+function extractDefaultAssignmentsFromDestructuringPattern(
+  pat: TSESTree.DestructuringPattern | null,
+): VariableAssignment[] {
+  if (pat === null) {
+    return []
+  }
+
+  switch (pat.type) {
+    case AST_NODE_TYPES.ArrayPattern:
+      return pat.elements.flatMap(
+        extractDefaultAssignmentsFromDestructuringPattern,
+      )
+
+    case AST_NODE_TYPES.AssignmentPattern:
+      if (pat.left.type !== AST_NODE_TYPES.Identifier) {
+        throw new WorkflowSyntaxError(
+          'Default value can be used only with an identifier',
+          pat.left.loc,
+        )
+      }
+
+      return [[pat.left.name, convertExpression(pat.right)]]
+
+    case AST_NODE_TYPES.Identifier:
+      return [[pat.name, nullEx]]
+
+    case AST_NODE_TYPES.MemberExpression:
+      return [[convertExpression(pat).toString(), nullEx]]
+
+    case AST_NODE_TYPES.ObjectPattern:
+      return pat.properties.flatMap((p) => {
+        if (p.type === AST_NODE_TYPES.RestElement) {
+          return extractDefaultAssignmentsFromDestructuringPattern(p)
+        } else if (
+          p.value.type === AST_NODE_TYPES.ArrayPattern ||
+          p.value.type === AST_NODE_TYPES.AssignmentPattern ||
+          p.value.type === AST_NODE_TYPES.Identifier ||
+          p.value.type === AST_NODE_TYPES.MemberExpression ||
+          p.value.type === AST_NODE_TYPES.ObjectPattern
+        ) {
+          return extractDefaultAssignmentsFromDestructuringPattern(p.value)
+        } else {
+          throw new WorkflowSyntaxError(
+            'Destructuring pattern expected',
+            p.value.loc,
+          )
+        }
+      })
+
+    case AST_NODE_TYPES.RestElement:
+      if (pat.argument.type !== AST_NODE_TYPES.Identifier) {
+        throw new WorkflowSyntaxError('Identifier expected', pat.argument.loc)
+      }
+
+      return [[pat.argument.name, nullEx]]
+
+    default:
+      return []
+  }
 }
 
 function findRestProperty(
@@ -393,7 +472,7 @@ function arrayRestBranch(
   const __temp_len = new VariableReferenceExpression('__temp_len')
   const one = new PrimitiveExpression(1)
   const lengthPlusOne = new PrimitiveExpression(nonRestPatterns.length + 1)
-  const assignments = assignFromArray(
+  const steps = arrayElementsDestructuringSteps(
     nonRestPatterns,
     initializerExpression,
     nonRestPatterns.length,
@@ -418,10 +497,11 @@ function arrayRestBranch(
     nonRestPatterns.length,
     new BinaryExpression(__temp_len, '-', one),
   )
+  steps.push(copyLoop)
 
   return {
     condition: new BinaryExpression(__temp_len, '>=', lengthPlusOne),
-    steps: [assignments, copyLoop],
+    steps,
   }
 }
 
