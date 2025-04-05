@@ -28,18 +28,18 @@ import { blockingFunctions } from './generated/functionMetadata.js'
 
 /**
  * Performs various transformations on the AST.
- *
- * This flat list of steps and does not recurse into nested steps. This gets
- * called on each nesting level separately.
  */
-export const transformAST: (steps: WorkflowStepAST[]) => WorkflowStepAST[] =
-  R.pipe(
-    mapLiteralsAsAssignSteps,
-    mergeAssignSteps,
-    flattenPlainNextConditions,
-    runtimeFunctionImplementation,
-    blockingCallsAsCallSteps,
-  )
+const transformPipe: (steps: WorkflowStepAST[]) => WorkflowStepAST[] = R.pipe(
+  mapLiteralsAsAssignSteps,
+  mergeAssignSteps,
+  flattenPlainNextConditions,
+  runtimeFunctionImplementation,
+  blockingCallsAsCallSteps,
+)
+
+export function transformAST(steps: WorkflowStepAST[]): WorkflowStepAST[] {
+  return transformPipe(steps.map((x) => x.applyNestedSteps(transformAST)))
+}
 
 /**
  * Merge consecutive assign steps into one assign step

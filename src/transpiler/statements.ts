@@ -41,7 +41,6 @@ import {
 } from '../ast/expressions.js'
 import { InternalTranspilingError, WorkflowSyntaxError } from '../errors.js'
 import { chainPairs, isRecord } from '../utils.js'
-import { transformAST } from './transformations.js'
 import {
   convertExpression,
   convertMemberExpression,
@@ -68,10 +67,8 @@ export interface ParsingContext {
 export function parseStatement(
   node: TSESTree.Statement,
   ctx: ParsingContext,
-  postSteps?: WorkflowStepAST[],
 ): WorkflowStepAST[] {
-  const steps = parseStatementRecursively(node, undefined, ctx)
-  return transformAST(steps.concat(postSteps ?? []))
+  return parseStatementRecursively(node, undefined, ctx)
 }
 
 function parseStatementRecursively(
@@ -976,8 +973,8 @@ function switchStatementToSteps(
     }
 
     const jumpTarget = new JumpTargetAST()
-    const body = transformAST(
-      caseNode.consequent.flatMap((x) => parseStatement(x, switchCtx)),
+    const body = caseNode.consequent.flatMap((x) =>
+      parseStatement(x, switchCtx),
     )
 
     steps.push(jumpTarget)
@@ -1067,7 +1064,7 @@ function whileStatementSteps(
     breakTarget: endOfLoop.label,
   })
   const postSteps = [new NextStepAST(startOfLoop.label)]
-  const steps = parseStatement(node.body, ctx2, postSteps)
+  const steps = parseStatement(node.body, ctx2).concat(postSteps)
 
   return [
     startOfLoop,

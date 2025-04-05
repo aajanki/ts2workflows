@@ -119,6 +119,10 @@ export class AssignStepAST {
   withLabel(newLabel?: string): AssignStepAST {
     return new AssignStepAST(this.assignments, this.next, newLabel)
   }
+
+  applyNestedSteps(): AssignStepAST {
+    return this
+  }
 }
 
 // https://cloud.google.com/workflows/docs/reference/syntax/calls
@@ -147,6 +151,10 @@ export class CallStepAST {
 
   withLabel(newLabel?: string): CallStepAST {
     return new CallStepAST(this.call, this.args, this.result, newLabel)
+  }
+
+  applyNestedSteps(): CallStepAST {
+    return this
   }
 }
 
@@ -182,6 +190,18 @@ export class ForStepAST {
       newLabel,
     )
   }
+
+  applyNestedSteps(
+    fn: (steps: WorkflowStepAST[]) => WorkflowStepAST[],
+  ): ForStepAST {
+    return new ForStepAST(
+      fn(this.steps),
+      this.loopVariableName,
+      this.listExpression,
+      this.indexVariableName,
+      this.label,
+    )
+  }
 }
 
 export class ForRangeStepAST {
@@ -213,6 +233,18 @@ export class ForRangeStepAST {
       this.rangeStart,
       this.rangeEnd,
       newLabel,
+    )
+  }
+
+  applyNestedSteps(
+    fn: (steps: WorkflowStepAST[]) => WorkflowStepAST[],
+  ): ForRangeStepAST {
+    return new ForRangeStepAST(
+      fn(this.steps),
+      this.loopVariableName,
+      this.rangeStart,
+      this.rangeEnd,
+      this.label,
     )
   }
 }
@@ -256,6 +288,10 @@ export class NextStepAST {
   withLabel(newLabel?: string): NextStepAST {
     return new NextStepAST(this.target, newLabel)
   }
+
+  applyNestedSteps(): NextStepAST {
+    return this
+  }
 }
 
 // https://cloud.google.com/workflows/docs/reference/syntax/parallel-steps
@@ -288,6 +324,28 @@ export class ParallelStepAST {
       this.concurrencyLimit,
       this.exceptionPolicy,
       newLabel,
+    )
+  }
+
+  applyNestedSteps(
+    fn: (steps: WorkflowStepAST[]) => WorkflowStepAST[],
+  ): ParallelStepAST {
+    let transformedSteps: Record<StepName, StepsStepAST> | ForStepAST
+    if (this.steps instanceof ForStepAST) {
+      transformedSteps = this.steps.applyNestedSteps(fn)
+    } else {
+      transformedSteps = R.map(
+        (s) => new StepsStepAST(fn(s.steps), s.label),
+        this.steps,
+      )
+    }
+
+    return new ParallelStepAST(
+      transformedSteps,
+      this.shared,
+      this.concurrencyLimit,
+      this.exceptionPolicy,
+      this.label,
     )
   }
 }
@@ -334,6 +392,10 @@ export class RaiseStepAST {
   withLabel(newLabel?: string): RaiseStepAST {
     return new RaiseStepAST(this.value, newLabel)
   }
+
+  applyNestedSteps(): RaiseStepAST {
+    return this
+  }
 }
 
 // https://cloud.google.com/workflows/docs/reference/syntax/completing
@@ -350,6 +412,10 @@ export class ReturnStepAST {
   withLabel(newLabel?: string): ReturnStepAST {
     return new ReturnStepAST(this.value, newLabel)
   }
+
+  applyNestedSteps(): ReturnStepAST {
+    return this
+  }
 }
 
 // https://cloud.google.com/workflows/docs/reference/syntax/steps#embedded-steps
@@ -365,6 +431,12 @@ export class StepsStepAST {
 
   withLabel(newLabel?: string): StepsStepAST {
     return new StepsStepAST(this.steps, newLabel)
+  }
+
+  applyNestedSteps(
+    fn: (steps: WorkflowStepAST[]) => WorkflowStepAST[],
+  ): StepsStepAST {
+    return new StepsStepAST(fn(this.steps), this.label)
   }
 }
 
@@ -390,6 +462,19 @@ export class SwitchStepAST {
 
   withLabel(newLabel?: string): SwitchStepAST {
     return new SwitchStepAST(this.branches, newLabel)
+  }
+
+  applyNestedSteps(
+    fn: (steps: WorkflowStepAST[]) => WorkflowStepAST[],
+  ): SwitchStepAST {
+    return new SwitchStepAST(
+      this.branches.map((branch) => ({
+        condition: branch.condition,
+        steps: fn(branch.steps),
+        next: branch.next,
+      })),
+      this.label,
+    )
   }
 }
 
@@ -447,6 +532,18 @@ export class TryStepAST {
       newLabel,
     )
   }
+
+  applyNestedSteps(
+    fn: (steps: WorkflowStepAST[]) => WorkflowStepAST[],
+  ): TryStepAST {
+    return new TryStepAST(
+      fn(this.trySteps),
+      this.exceptSteps ? fn(this.exceptSteps) : undefined,
+      this.retryPolicy,
+      this.errorMap,
+      this.label,
+    )
+  }
 }
 
 export class TryStepASTNamed {
@@ -480,6 +577,10 @@ export class JumpTargetAST {
 
   constructor() {
     this.label = `jumptarget_${Math.floor(Math.random() * 2 ** 32).toString(16)}`
+  }
+
+  applyNestedSteps(): JumpTargetAST {
+    return this
   }
 }
 

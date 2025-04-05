@@ -10,6 +10,7 @@ import { WorkflowSyntaxError } from '../errors.js'
 import { WorkflowParameter } from '../ast/workflows.js'
 import { generateStepNames } from '../ast/stepnames.js'
 import { parseStatement } from './statements.js'
+import { transformAST } from './transformations.js'
 
 export function transpile(
   code: string,
@@ -110,7 +111,7 @@ function parseSubworkflows(
     }
   })
 
-  const steps = parseStatement(node.body, {})
+  const steps = transformAST(parseStatement(node.body, {}))
 
   return new SubworkflowAST(node.id.name, steps, workflowParams)
 }
