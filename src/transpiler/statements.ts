@@ -306,6 +306,19 @@ function arrayElementsDestructuringSteps(
   take: number,
 ): WorkflowStepAST[] {
   return patterns.flatMap((pat, i) => {
+    if (pat?.type === AST_NODE_TYPES.RestElement) {
+      // Rest element is handled elsewhere
+      return []
+    }
+
+    if (i >= take) {
+      return [
+        new AssignStepAST(
+          extractDefaultAssignmentsFromDestructuringPattern(pat),
+        ),
+      ]
+    }
+
     const iElement = new MemberExpression(
       initializerExpression,
       new PrimitiveExpression(i),
@@ -316,9 +329,7 @@ function arrayElementsDestructuringSteps(
       case AST_NODE_TYPES.MemberExpression:
       case AST_NODE_TYPES.Identifier: {
         const name = convertExpression(pat).toString()
-        const val = i < take ? iElement : nullEx
-
-        return [new AssignStepAST([[name, val]])]
+        return [new AssignStepAST([[name, iElement]])]
       }
 
       case AST_NODE_TYPES.AssignmentPattern: {
@@ -329,39 +340,14 @@ function arrayElementsDestructuringSteps(
           )
         }
 
-        const name = pat.left.name
-        const val = i < take ? iElement : convertExpression(pat.right)
-
-        return [new AssignStepAST([[name, val]])]
+        return [new AssignStepAST([[pat.left.name, iElement]])]
       }
 
       case AST_NODE_TYPES.ObjectPattern:
-        if (i < take) {
-          return objectDestructuringSteps(pat.properties, iElement)
-        } else {
-          return [
-            new AssignStepAST(
-              extractDefaultAssignmentsFromDestructuringPattern(pat),
-            ),
-          ]
-        }
+        return objectDestructuringSteps(pat.properties, iElement)
 
       case AST_NODE_TYPES.ArrayPattern:
-        if (i < take) {
-          return arrayDestructuringSteps(pat.elements, iElement)
-        } else {
-          return [
-            new AssignStepAST(
-              pat.elements.flatMap(
-                extractDefaultAssignmentsFromDestructuringPattern,
-              ),
-            ),
-          ]
-        }
-
-      case AST_NODE_TYPES.RestElement:
-        // Rest element is handled elsewhere
-        return []
+        return arrayDestructuringSteps(pat.elements, iElement)
 
       default: // pat === null
         return []
