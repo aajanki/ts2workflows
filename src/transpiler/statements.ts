@@ -256,27 +256,28 @@ function arrayDestructuringSteps(
   const nonRestPatterns = patterns.filter(
     (pat) => pat?.type !== AST_NODE_TYPES.RestElement,
   )
-  const branches: SwitchConditionAST<WorkflowStepAST>[] =
-    nonRestPatterns.flatMap((pat, i) => {
-      if (pat === null) {
-        return []
-      } else {
-        return [
-          {
-            condition: new BinaryExpression(
-              new VariableReferenceExpression('__temp_len'),
-              '>=',
-              new PrimitiveExpression(nonRestPatterns.length - i),
-            ),
-            steps: arrayElementsDestructuringSteps(
-              patterns,
-              initializerExpression,
-              nonRestPatterns.length - i,
-            ),
-          },
-        ]
-      }
-    })
+  const branches: SwitchConditionAST<WorkflowStepAST>[] = R.reverse(
+    nonRestPatterns,
+  ).flatMap((pat, i) => {
+    if (pat === null) {
+      return []
+    } else {
+      return [
+        {
+          condition: new BinaryExpression(
+            new VariableReferenceExpression('__temp_len'),
+            '>=',
+            new PrimitiveExpression(nonRestPatterns.length - i),
+          ),
+          steps: arrayElementsDestructuringSteps(
+            patterns,
+            initializerExpression,
+            nonRestPatterns.length - i,
+          ),
+        },
+      ]
+    }
+  })
 
   branches.push({
     condition: trueEx,
