@@ -1037,6 +1037,46 @@ describe('Destructing', () => {
     assertTranspiled(code, expected)
   })
 
+  it('rest element as the only pattern', () => {
+    const code = `
+    function main() {
+      const [...values] = getValues();
+    }`
+
+    const expected = `
+    main:
+      steps:
+        - assign1:
+            assign:
+              - __temp: \${getValues()}
+              - __temp_len: \${len(__temp)}
+        - switch1:
+            switch:
+              - condition: \${__temp_len >= 1}
+                steps:
+                  - assign2:
+                      assign:
+                        - values: []
+                  - for1:
+                      for:
+                        value: __rest_index
+                        range:
+                          - 0
+                          - \${__temp_len - 1}
+                        steps:
+                          - assign3:
+                              assign:
+                                - values: \${list.concat(values, __temp[__rest_index])}
+              - condition: true
+                steps:
+                  - assign4:
+                      assign:
+                        - values: []
+    `
+
+    assertTranspiled(code, expected)
+  })
+
   it('rest element and holes in array destructuring', () => {
     const code = `
     function main() {
@@ -1090,6 +1130,173 @@ describe('Destructing', () => {
                         - a: null
                         - b: null
                         - rest: []
+    `
+
+    assertTranspiled(code, expected)
+  })
+
+  it('rest element in nested array patterns', () => {
+    const code = `
+    function main(data) {
+      const [[a], [b, ...rest2], ...otherValues] = data;
+    }`
+
+    const expected = `
+    main:
+      params:
+        - data
+      steps:
+        - assign1:
+            assign:
+              - __temp_len: \${len(data)}
+        - switch1:
+            switch:
+              - condition: \${__temp_len >= 3}
+                steps:
+                  - assign2:
+                      assign:
+                        - __temp_len: \${len(data[0])}
+                  - switch2:
+                      switch:
+                        - condition: \${__temp_len >= 1}
+                          steps:
+                            - assign3:
+                                assign:
+                                  - a: \${data[0][0]}
+                        - condition: true
+                          steps:
+                            - assign4:
+                                assign:
+                                  - a: null
+                  - assign5:
+                      assign:
+                        - __temp_len: \${len(data[1])}
+                  - switch3:
+                      switch:
+                        - condition: \${__temp_len >= 2}
+                          steps:
+                            - assign6:
+                                assign:
+                                  - b: \${data[1][0]}
+                                  - rest2: []
+                            - for1:
+                                for:
+                                  value: __rest_index
+                                  range:
+                                    - 1
+                                    - \${__temp_len - 1}
+                                  steps:
+                                    - assign7:
+                                        assign:
+                                          - rest2: \${list.concat(rest2, data[1][__rest_index])}
+                        - condition: \${__temp_len >= 1}
+                          steps:
+                            - assign8:
+                                assign:
+                                  - b: \${data[1][0]}
+                                  - rest2: []
+                        - condition: true
+                          steps:
+                            - assign9:
+                                assign:
+                                  - b: null
+                                  - rest2: []
+                  - assign10:
+                      assign:
+                        - otherValues: []
+                  - for2:
+                      for:
+                        value: __rest_index
+                        range:
+                          - 2
+                          - \${__temp_len - 1}
+                        steps:
+                          - assign11:
+                              assign:
+                                - otherValues: \${list.concat(otherValues, data[__rest_index])}
+              - condition: \${__temp_len >= 2}
+                steps:
+                  - assign12:
+                      assign:
+                        - __temp_len: \${len(data[0])}
+                  - switch4:
+                      switch:
+                        - condition: \${__temp_len >= 1}
+                          steps:
+                            - assign13:
+                                assign:
+                                  - a: \${data[0][0]}
+                        - condition: true
+                          steps:
+                            - assign14:
+                                assign:
+                                  - a: null
+                  - assign15:
+                      assign:
+                        - __temp_len: \${len(data[1])}
+                  - switch5:
+                      switch:
+                        - condition: \${__temp_len >= 2}
+                          steps:
+                            - assign16:
+                                assign:
+                                  - b: \${data[1][0]}
+                                  - rest2: []
+                            - for3:
+                                for:
+                                  value: __rest_index
+                                  range:
+                                    - 1
+                                    - \${__temp_len - 1}
+                                  steps:
+                                    - assign17:
+                                        assign:
+                                          - rest2: \${list.concat(rest2, data[1][__rest_index])}
+                        - condition: \${__temp_len >= 1}
+                          steps:
+                            - assign18:
+                                assign:
+                                  - b: \${data[1][0]}
+                                  - rest2: []
+                        - condition: true
+                          steps:
+                            - assign19:
+                                assign:
+                                  - b: null
+                                  - rest2: []
+                  - assign20:
+                      assign:
+                        - otherValues: []
+              - condition: \${__temp_len >= 1}
+                steps:
+                  - assign21:
+                      assign:
+                        - __temp_len: \${len(data[0])}
+                  - switch6:
+                      switch:
+                        - condition: \${__temp_len >= 1}
+                          steps:
+                            - assign22:
+                                assign:
+                                  - a: \${data[0][0]}
+                        - condition: true
+                          steps:
+                            - assign23:
+                                assign:
+                                  - a: null
+                  - assign24:
+                      assign:
+                        - b: null
+                        - rest2: []
+                        - otherValues: []
+              - condition: true
+                steps:
+                  - assign25:
+                      assign:
+                        - a: null
+                        - b: null
+                        - rest2: []
+                        - otherValues: []
     `
 
     assertTranspiled(code, expected)
