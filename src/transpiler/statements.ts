@@ -241,7 +241,7 @@ function arrayDestructuringSteps(
   patterns: (TSESTree.DestructuringPattern | null)[],
   initializerExpression: Expression,
 ): WorkflowStepAST[] {
-  if (patterns.length === 0) {
+  if (patterns.filter((p) => p !== null).length === 0) {
     return []
   }
 

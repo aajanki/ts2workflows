@@ -733,6 +733,24 @@ describe('Destructing', () => {
     assertTranspiled(code, expected)
   })
 
+  it('array pattern with only holes', () => {
+    const code = `
+    function main() {
+      const arr = [1, 2, 3];
+      let [ , , ] = arr;
+    }`
+
+    const expected = `
+    main:
+      steps:
+        - assign1:
+            assign:
+              - arr: [1, 2, 3]
+    `
+
+    assertTranspiled(code, expected)
+  })
+
   it('throws if the rest element is not the last array destructuring pattern', () => {
     const code = `
     function main(arr: number[]) {
