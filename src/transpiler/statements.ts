@@ -406,16 +406,14 @@ function extractDefaultAssignmentsFromDestructuringPattern(
 function throwIfInvalidRestElement(
   patterns: (TSESTree.DestructuringPattern | null)[],
 ): void {
-  patterns.forEach((pat, i) => {
-    if (pat?.type === AST_NODE_TYPES.RestElement) {
-      if (i !== patterns.length - 1) {
-        throw new WorkflowSyntaxError(
-          'A rest element must be last in a destructuring pattern',
-          pat.loc,
-        )
-      }
-    }
-  })
+  const i = patterns.findIndex((p) => p?.type === AST_NODE_TYPES.RestElement)
+
+  if (i >= 0 && i !== patterns.length - 1) {
+    throw new WorkflowSyntaxError(
+      'A rest element must be last in a destructuring pattern',
+      patterns[i]!.loc,
+    )
+  }
 }
 
 function arrayRestDestructuringSteps(
