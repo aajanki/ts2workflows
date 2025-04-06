@@ -245,6 +245,8 @@ function arrayDestructuringSteps(
     return []
   }
 
+  throwIfInvalidRestElement(patterns)
+
   const initializeVariables: VariableAssignment[] = [
     [
       '__temp_len',
@@ -252,12 +254,8 @@ function arrayDestructuringSteps(
     ],
   ]
 
-  const restPattern = findRestProperty(patterns)
-  const nonRestPatterns = patterns.filter(
-    (pat) => pat?.type !== AST_NODE_TYPES.RestElement,
-  )
   const branches: SwitchConditionAST<WorkflowStepAST>[] = R.reverse(
-    nonRestPatterns,
+    patterns,
   ).flatMap((pat, i) => {
     if (pat === null) {
       return []
@@ -267,12 +265,12 @@ function arrayDestructuringSteps(
           condition: new BinaryExpression(
             new VariableReferenceExpression('__temp_len'),
             '>=',
-            new PrimitiveExpression(nonRestPatterns.length - i),
+            new PrimitiveExpression(patterns.length - i),
           ),
           steps: arrayElementsDestructuringSteps(
             patterns,
             initializerExpression,
-            nonRestPatterns.length - i,
+            patterns.length - i,
           ),
         },
       ]
@@ -284,20 +282,6 @@ function arrayDestructuringSteps(
     steps: arrayElementsDestructuringSteps(patterns, initializerExpression, 0),
   })
 
-  if (restPattern) {
-    if (restPattern.argument.type !== AST_NODE_TYPES.Identifier) {
-      throw new WorkflowSyntaxError(
-        'Identifier expected',
-        restPattern.argument.loc,
-      )
-    }
-    const restName = restPattern.argument.name
-    initializeVariables.push([restName, new PrimitiveExpression([])])
-    branches.unshift(
-      arrayRestBranch(nonRestPatterns, initializerExpression, restName),
-    )
-  }
-
   return [new AssignStepAST(initializeVariables), new SwitchStepAST(branches)]
 }
 
@@ -307,11 +291,6 @@ function arrayElementsDestructuringSteps(
   take: number,
 ): WorkflowStepAST[] {
   return patterns.flatMap((pat, i) => {
-    if (pat?.type === AST_NODE_TYPES.RestElement) {
-      // Rest element is handled elsewhere
-      return []
-    }
-
     if (i >= take) {
       return [
         new AssignStepAST(
@@ -349,6 +328,13 @@ function arrayElementsDestructuringSteps(
 
       case AST_NODE_TYPES.ArrayPattern:
         return arrayDestructuringSteps(pat.elements, iElement)
+
+      case AST_NODE_TYPES.RestElement:
+        return arrayRestDestructuringSteps(
+          pat,
+          initializerExpression,
+          patterns.length - 1,
+        )
 
       default: // pat === null
         return []
@@ -410,46 +396,41 @@ function extractDefaultAssignmentsFromDestructuringPattern(
         throw new WorkflowSyntaxError('Identifier expected', pat.argument.loc)
       }
 
-      return [[pat.argument.name, nullEx]]
+      return [[pat.argument.name, new PrimitiveExpression([])]]
 
     default:
       return []
   }
 }
 
-function findRestProperty(
+function throwIfInvalidRestElement(
   patterns: (TSESTree.DestructuringPattern | null)[],
-): TSESTree.RestElement | undefined {
-  return patterns.reduce(
-    (_, pat, i) => {
-      if (pat?.type === AST_NODE_TYPES.RestElement) {
-        if (i !== patterns.length - 1) {
-          throw new WorkflowSyntaxError(
-            'Rest element must be the last pattern',
-            pat.loc,
-          )
-        }
-
-        return pat
+): void {
+  patterns.forEach((pat, i) => {
+    if (pat?.type === AST_NODE_TYPES.RestElement) {
+      if (i !== patterns.length - 1) {
+        throw new WorkflowSyntaxError(
+          'A rest element must be last in a destructuring pattern',
+          pat.loc,
+        )
       }
-    },
-    undefined as TSESTree.RestElement | undefined,
-  )
+    }
+  })
 }
 
-function arrayRestBranch(
-  nonRestPatterns: (TSESTree.DestructuringPattern | null)[],
+function arrayRestDestructuringSteps(
+  rest: TSESTree.RestElement,
   initializerExpression: Expression,
-  restName: string,
-) {
+  startIndex: number,
+): WorkflowStepAST[] {
+  if (rest.argument.type !== AST_NODE_TYPES.Identifier) {
+    throw new WorkflowSyntaxError('Identifier expected', rest.argument.loc)
+  }
+
+  const restName = rest.argument.name
   const __temp_len = new VariableReferenceExpression('__temp_len')
   const one = new PrimitiveExpression(1)
-  const lengthPlusOne = new PrimitiveExpression(nonRestPatterns.length + 1)
-  const steps = arrayElementsDestructuringSteps(
-    nonRestPatterns,
-    initializerExpression,
-    nonRestPatterns.length,
-  )
+  const emptyArray = new PrimitiveExpression([])
   const copyLoop = new ForRangeStepAST(
     [
       new AssignStepAST([
@@ -467,15 +448,11 @@ function arrayRestBranch(
       ]),
     ],
     '__rest_index',
-    nonRestPatterns.length,
+    startIndex,
     new BinaryExpression(__temp_len, '-', one),
   )
-  steps.push(copyLoop)
 
-  return {
-    condition: new BinaryExpression(__temp_len, '>=', lengthPlusOne),
-    steps,
-  }
+  return [new AssignStepAST([[restName, emptyArray]]), copyLoop]
 }
 
 function convertObjectDestructuring(

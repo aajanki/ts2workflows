@@ -992,7 +992,6 @@ describe('Destructing', () => {
             assign:
               - __temp: \${getValues()}
               - __temp_len: \${len(__temp)}
-              - rest: []
         - switch1:
             switch:
               - condition: \${__temp_len >= 3}
@@ -1001,6 +1000,7 @@ describe('Destructing', () => {
                       assign:
                         - a: \${__temp[0]}
                         - b: \${__temp[1]}
+                        - rest: []
                   - for1:
                       for:
                         value: __rest_index
@@ -1017,18 +1017,21 @@ describe('Destructing', () => {
                       assign:
                         - a: \${__temp[0]}
                         - b: \${__temp[1]}
+                        - rest: []
               - condition: \${__temp_len >= 1}
                 steps:
                   - assign5:
                       assign:
                         - a: \${__temp[0]}
                         - b: null
+                        - rest: []
               - condition: true
                 steps:
                   - assign6:
                       assign:
                         - a: null
                         - b: null
+                        - rest: []
     `
 
     assertTranspiled(code, expected)
@@ -1047,7 +1050,6 @@ describe('Destructing', () => {
             assign:
               - __temp: \${getValues()}
               - __temp_len: \${len(__temp)}
-              - rest: []
         - switch1:
             switch:
               - condition: \${__temp_len >= 6}
@@ -1056,6 +1058,7 @@ describe('Destructing', () => {
                       assign:
                         - a: \${__temp[0]}
                         - b: \${__temp[3]}
+                        - rest: []
                   - for1:
                       for:
                         value: __rest_index
@@ -1072,18 +1075,21 @@ describe('Destructing', () => {
                       assign:
                         - a: \${__temp[0]}
                         - b: \${__temp[3]}
+                        - rest: []
               - condition: \${__temp_len >= 1}
                 steps:
                   - assign5:
                       assign:
                         - a: \${__temp[0]}
                         - b: null
+                        - rest: []
               - condition: true
                 steps:
                   - assign6:
                       assign:
                         - a: null
                         - b: null
+                        - rest: []
     `
 
     assertTranspiled(code, expected)
