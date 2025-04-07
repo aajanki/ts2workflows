@@ -862,7 +862,7 @@ describe('Destructing', () => {
   it('destructures deep objects', () => {
     const code = `
     function main() {
-      const { name, address: { country: { name, code } } } = getPerson();
+      const { name, address: { country: { name: countryName, code } } } = getPerson();
     }`
 
     const expected = `
@@ -872,7 +872,7 @@ describe('Destructing', () => {
             assign:
               - __temp: \${getPerson()}
               - name: \${map.get(__temp, "name")}
-              - name: \${map.get(map.get(map.get(__temp, "address"), "country"), "name")}
+              - countryName: \${map.get(map.get(map.get(__temp, "address"), "country"), "name")}
               - code: \${map.get(map.get(map.get(__temp, "address"), "country"), "code")}
     `
 
