@@ -872,8 +872,8 @@ describe('Destructing', () => {
             assign:
               - __temp: \${getPerson()}
               - name: \${map.get(__temp, "name")}
-              - countryName: \${map.get(map.get(map.get(__temp, "address"), "country"), "name")}
-              - code: \${map.get(map.get(map.get(__temp, "address"), "country"), "code")}
+              - countryName: \${map.get(__temp.address.country, "name")}
+              - code: \${map.get(__temp.address.country, "code")}
     `
 
     assertTranspiled(code, expected)
@@ -892,7 +892,7 @@ describe('Destructing', () => {
             assign:
               - __temp: \${getPerson()}
               - myName: \${map.get(__temp, "name")}
-              - myCity: \${map.get(map.get(__temp, "address"), "city")}
+              - myCity: \${map.get(__temp.address, "city")}
     `
 
     assertTranspiled(code, expected)
@@ -957,28 +957,28 @@ describe('Destructing', () => {
         - assign1:
             assign:
               - __temp: \${getPerson()}
-              - __temp_len: \${len(default(map.get(__temp, "names"), []))}
+              - __temp_len: \${len(__temp.names)}
         - switch1:
             switch:
               - condition: \${__temp_len >= 3}
                 steps:
                   - assign2:
                       assign:
-                        - first: \${default(map.get(__temp, "names"), [])[0]}
-                        - middle: \${default(map.get(__temp, "names"), [])[1]}
-                        - last: \${default(map.get(__temp, "names"), [])[2]}
+                        - first: \${__temp.names[0]}
+                        - middle: \${__temp.names[1]}
+                        - last: \${__temp.names[2]}
               - condition: \${__temp_len >= 2}
                 steps:
                   - assign3:
                       assign:
-                        - first: \${default(map.get(__temp, "names"), [])[0]}
-                        - middle: \${default(map.get(__temp, "names"), [])[1]}
+                        - first: \${__temp.names[0]}
+                        - middle: \${__temp.names[1]}
                         - last: null
               - condition: \${__temp_len >= 1}
                 steps:
                   - assign4:
                       assign:
-                        - first: \${default(map.get(__temp, "names"), [])[0]}
+                        - first: \${__temp.names[0]}
                         - middle: null
                         - last: null
               - condition: true
@@ -990,14 +990,14 @@ describe('Destructing', () => {
                         - last: null
         - assign6:
             assign:
-              - __temp_len: \${len(default(map.get(__temp, "professions"), []))}
+              - __temp_len: \${len(__temp.professions)}
         - switch2:
             switch:
               - condition: \${__temp_len >= 1}
                 steps:
                   - assign7:
                       assign:
-                        - firstProfession: \${default(map.get(__temp, "professions"), [])[0]}
+                        - firstProfession: \${__temp.professions[0]}
               - condition: true
                 steps:
                   - assign8:
@@ -1028,20 +1028,20 @@ describe('Destructing', () => {
                 steps:
                   - assign2:
                       assign:
-                        - __temp_len: \${len(default(map.get(data[0], "values"), []))}
+                        - __temp_len: \${len(data[0].values)}
                   - switch2:
                       switch:
                         - condition: \${__temp_len >= 2}
                           steps:
                             - assign3:
                                 assign:
-                                  - a: \${default(map.get(data[0], "values"), [])[0]}
-                                  - b: \${default(map.get(data[0], "values"), [])[1]}
+                                  - a: \${data[0].values[0]}
+                                  - b: \${data[0].values[1]}
                         - condition: \${__temp_len >= 1}
                           steps:
                             - assign4:
                                 assign:
-                                  - a: \${default(map.get(data[0], "values"), [])[0]}
+                                  - a: \${data[0].values[0]}
                                   - b: null
                         - condition: true
                           steps:
@@ -1077,15 +1077,15 @@ describe('Destructing', () => {
       steps:
         - assign1:
             assign:
-              - __temp_len: \${len(default(map.get(data, "persons"), []))}
+              - __temp_len: \${len(data.persons)}
         - switch1:
             switch:
               - condition: \${__temp_len >= 1}
                 steps:
                   - assign2:
                       assign:
-                        - streetAddress: \${map.get(map.get(default(map.get(data, "persons"), [])[0], "address"), "street")}
-                        - city: \${map.get(map.get(default(map.get(data, "persons"), [])[0], "address"), "city")}
+                        - streetAddress: \${map.get(data.persons[0].address, "street")}
+                        - city: \${map.get(data.persons[0].address, "city")}
               - condition: true
                 steps:
                   - assign3:
@@ -1095,15 +1095,15 @@ describe('Destructing', () => {
         - assign4:
             assign:
               - timestamp: \${map.get(data, "timestamp")}
-              - sourceDb: \${map.get(map.get(data, "source"), "database")}
-              - __temp_len: \${len(default(map.get(map.get(data, "source"), "references"), []))}
+              - sourceDb: \${map.get(data.source, "database")}
+              - __temp_len: \${len(data.source.references)}
         - switch2:
             switch:
               - condition: \${__temp_len >= 1}
                 steps:
                   - assign5:
                       assign:
-                        - ref: \${default(map.get(map.get(data, "source"), "references"), [])[0]}
+                        - ref: \${data.source.references[0]}
               - condition: true
                 steps:
                   - assign6:

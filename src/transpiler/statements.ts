@@ -494,22 +494,23 @@ function objectDestructuringSteps(
       throw new WorkflowSyntaxError('Expected Identifier', prop.key.loc)
     }
 
-    const keyExpression = new FunctionInvocationExpression('map.get', [
+    const keyExpression = new MemberExpression(
       initializerExpression,
-      new PrimitiveExpression(prop.key.name),
-    ])
+      new VariableReferenceExpression(prop.key.name),
+      false,
+    )
 
     if (prop.value.type === AST_NODE_TYPES.ObjectPattern) {
       return objectDestructuringSteps(prop.value.properties, keyExpression)
     } else if (prop.value.type === AST_NODE_TYPES.ArrayPattern) {
-      const arrayInit = new FunctionInvocationExpression('default', [
-        keyExpression,
-        new PrimitiveExpression([]),
+      return arrayDestructuringSteps(prop.value.elements, keyExpression)
+    } else if (prop.value.type === AST_NODE_TYPES.Identifier) {
+      const safeKeyExpression = new FunctionInvocationExpression('map.get', [
+        initializerExpression,
+        new PrimitiveExpression(prop.key.name),
       ])
 
-      return arrayDestructuringSteps(prop.value.elements, arrayInit)
-    } else if (prop.value.type === AST_NODE_TYPES.Identifier) {
-      return [new AssignStepAST([[prop.value.name, keyExpression]])]
+      return [new AssignStepAST([[prop.value.name, safeKeyExpression]])]
     } else {
       throw new WorkflowSyntaxError('Unsupported type', prop.value.loc)
     }
