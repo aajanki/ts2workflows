@@ -245,8 +245,6 @@ function arrayDestructuringSteps(
     return []
   }
 
-  throwIfInvalidRestElement(patterns)
-
   const initializeVariables: VariableAssignment[] = [
     [
       '__temp_len',
@@ -331,6 +329,7 @@ function arrayElementsDestructuringSteps(
 
       case AST_NODE_TYPES.RestElement:
         return arrayRestDestructuringSteps(
+          patterns,
           pat,
           initializerExpression,
           patterns.length - 1,
@@ -417,10 +416,13 @@ function throwIfInvalidRestElement(
 }
 
 function arrayRestDestructuringSteps(
+  patterns: (TSESTree.DestructuringPattern | null)[],
   rest: TSESTree.RestElement,
   initializerExpression: Expression,
   startIndex: number,
 ): WorkflowStepAST[] {
+  throwIfInvalidRestElement(patterns)
+
   if (rest.argument.type !== AST_NODE_TYPES.Identifier) {
     throw new WorkflowSyntaxError('Identifier expected', rest.argument.loc)
   }
