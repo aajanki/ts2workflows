@@ -751,10 +751,19 @@ describe('Destructing', () => {
     assertTranspiled(code, expected)
   })
 
-  it('throws if the rest element is not the last array destructuring pattern', () => {
+  it('throws if the rest element is not the last element in array destructuring pattern', () => {
     const code = `
     function main(arr: number[]) {
       const [a, b, ...rest, c] = arr;
+    }`
+
+    expect(() => transpile(code)).to.throw()
+  })
+
+  it('throws if the rest element is not the last element in object destructuring pattern', () => {
+    const code = `
+    function main(data) {
+      const {a, ...other, b} = data;
     }`
 
     expect(() => transpile(code)).to.throw()
@@ -764,6 +773,15 @@ describe('Destructing', () => {
     const code = `
     function main(arr: number[]) {
       const [a, b, ...rest, ...anotherRest] = arr;
+    }`
+
+    expect(() => transpile(code)).to.throw()
+  })
+
+  it('throws if there are multiple rest elements in object destructuring', () => {
+    const code = `
+    function main(data) {
+      const {a, ...rest, ...anotherRest} = data;
     }`
 
     expect(() => transpile(code)).to.throw()
@@ -1163,6 +1181,67 @@ describe('Destructing', () => {
         - assign4:
             assign:
               - timestamp: \${map.get(data, "timestamp")}
+    `
+
+    assertTranspiled(code, expected)
+  })
+
+  it('rest element in object destructuring', () => {
+    const code = `
+    function main(data) {
+      const {name, country: {code}, ...other} = data;
+    }`
+
+    const expected = `
+    main:
+      params:
+        - data
+      steps:
+        - assign1:
+            assign:
+              - name: \${map.get(data, "name")}
+              - code: \${map.get(data.country, "code")}
+              - other: \${map.delete(map.delete(data, "name"), "country")}
+    `
+
+    assertTranspiled(code, expected)
+  })
+
+  it('rest element in a nested object in object destructuring', () => {
+    const code = `
+    function main(data) {
+      const {name, country: {code, ...otherCountryProperties}} = data;
+    }`
+
+    const expected = `
+    main:
+      params:
+        - data
+      steps:
+        - assign1:
+            assign:
+              - name: \${map.get(data, "name")}
+              - code: \${map.get(data.country, "code")}
+              - otherCountryProperties: \${map.delete(data.country, "code")}
+    `
+
+    assertTranspiled(code, expected)
+  })
+
+  it('rest element as the only pattern in object destructuring', () => {
+    const code = `
+    function main(data) {
+      const {...properties} = data;
+    }`
+
+    const expected = `
+    main:
+      params:
+        - data
+      steps:
+        - assign1:
+            assign:
+              - properties: \${data}
     `
 
     assertTranspiled(code, expected)

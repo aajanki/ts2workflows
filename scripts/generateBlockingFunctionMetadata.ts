@@ -156,7 +156,7 @@ function parseFunctionName(
 function parseFunctionParamNames(params: TSESTree.Parameter[]): string[] {
   return params.map((param) => {
     if (param.type !== AST_NODE_TYPES.Identifier) {
-      throw new Error(`Expected Identifier, for ${param.type}`)
+      throw new Error(`Identifier expected, got ${param.type}`)
     }
 
     return param.name

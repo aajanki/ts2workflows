@@ -294,44 +294,14 @@ is converted to
 
 ## Destructuring
 
-Array destructuring unpacks values from an array or an array expression into variables. The following statement assigns the first two values from `arr` to variables `a` and `b`, respectively.
+Array destructuring unpacks values from an array or an array expression into variables. The following statements assign the first two values from `arr` to variables `a` and `b`, that is `a` will be `1` and `b` will be `2`.
 
 ```typescript
-const arr: number[] = [1, 2, 3]
+const arr = [1, 2, 3]
 const [a, b] = arr
 ```
 
-Elements from the array can be skipped:
-
-```typescript
-const arr: number[] = [1, 2, 3]
-const [a, , b] = arr
-```
-
-If there are more output variables than elements in the input array, the surplus variables are set to `null`. For example, in the following sample, `a` will be 1 and `b` will be `null`.
-
-```typescript
-const arr: number[] = [1]
-const [a, b] = arr
-```
-
-Assignments can have default values:
-
-```typescript
-const arr: number[] = [1]
-const [a, b = 99] = arr
-```
-
-⚠️ Setting surplus variables to `null` is different from TypeScript in cases where an array is destructured to elements of itself. The snippet `let arr = [4]; [arr[1], arr[0]] = arr;` will set `arr` to `[null, 4]` in ts2workflows, whereas in TypeScript `arr` would be `[4, 4]`.
-
-The array destructuring pattern can end with a rest property `...rest`. The remaining elements are collected to an array called `rest`.
-
-```typescript
-const arr: number[] = [1, 2, 3, 4, 5]
-const [a, b, ...rest] = arr
-```
-
-Object destructuring unpacks property values from an object into variables. The following expression assigns the value "Bean" to the variable `person` and the value "Dreamland" to the variable `name`.
+Object destructuring unpacks property values from an object into variables. The following statements initializes the variable `person` to `"Bean"` and the variable `name` to the value `"Dreamland"`.
 
 ```typescript
 const data = { person: 'Bean', country: { name: 'Dreamland' } }
@@ -339,6 +309,43 @@ const {
   person,
   country: { name },
 } = data
+```
+
+Array elements can be skipped:
+
+```typescript
+const arr = [1, 2, 3]
+const [a, , b] = arr
+```
+
+If there are more output variables than elements in the input array, the surplus variables are set to `null`. For example, in the following sample, `a` will be 1 and `b` will be `null`.
+
+```typescript
+const arr = [1]
+const [a, b] = arr
+```
+
+Assignments can have default values:
+
+```typescript
+const arr = [1]
+const [a, b = 99] = arr
+```
+
+⚠️ Setting surplus variables to `null` is different from TypeScript in cases where an array is destructured to elements of itself. The snippet `let arr = [4]; [arr[1], arr[0]] = arr;` will set `arr` to `[null, 4]` in ts2workflows, whereas in TypeScript `arr` would be `[4, 4]`.
+
+The destructuring pattern can end with a rest property `...rest`. The unreferenced array elements are collected to an array called `rest`. The following sample code initializes the variable `rest` to `[3, 4, 5]`.
+
+```typescript
+const arr = [1, 2, 3, 4, 5]
+const [a, b, ...rest] = arr
+```
+
+The rest element can be used also in object destructuring to capture unreferenced properties.
+
+```typescript
+const data = { person: 'Bean', country: { name: 'Dreamland' } }
+const { person, ...otherProperties } = data
 ```
 
 ## Conditional statements

@@ -404,7 +404,7 @@ function extractDefaultAssignmentsFromDestructuringPattern(
 }
 
 function throwIfInvalidRestElement(
-  patterns: (TSESTree.DestructuringPattern | null)[],
+  patterns: (TSESTree.DestructuringPattern | TSESTree.Property | null)[],
 ): void {
   const i = patterns.findIndex((p) => p?.type === AST_NODE_TYPES.RestElement)
 
@@ -487,11 +487,15 @@ function objectDestructuringSteps(
 ): WorkflowStepAST[] {
   return properties.flatMap((prop) => {
     if (prop.type === AST_NODE_TYPES.RestElement) {
-      throw new WorkflowSyntaxError('Rest element not supported', prop.loc)
+      return objectDestructuringRestSteps(
+        properties,
+        prop,
+        initializerExpression,
+      )
     }
 
     if (prop.key.type !== AST_NODE_TYPES.Identifier) {
-      throw new WorkflowSyntaxError('Expected Identifier', prop.key.loc)
+      throw new WorkflowSyntaxError('Identifier expected', prop.key.loc)
     }
 
     const keyExpression = new MemberExpression(
@@ -530,7 +534,7 @@ function objectAssignmentPatternSteps(
   pat: TSESTree.AssignmentPattern,
   initializerExpression: Expression,
   keyExpression: MemberExpression,
-) {
+): WorkflowStepAST[] {
   if (pat.left.type !== AST_NODE_TYPES.Identifier) {
     throw new WorkflowSyntaxError(
       'Default value can be used only with an identifier',
@@ -540,22 +544,62 @@ function objectAssignmentPatternSteps(
 
   // Using Switch step instead of default() because pat.right must be evaluated only
   // in the default value branch (in case it has side effects)
-  return new SwitchStepAST([
-    {
-      condition: new BinaryExpression(
-        new PrimitiveExpression(pat.left.name),
-        'in',
-        initializerExpression,
-      ),
-      steps: [new AssignStepAST([[pat.left.name, keyExpression]])],
-    },
-    {
-      condition: trueEx,
-      steps: [
-        new AssignStepAST([[pat.left.name, convertExpression(pat.right)]]),
-      ],
-    },
-  ])
+  return [
+    new SwitchStepAST([
+      {
+        condition: new BinaryExpression(
+          new PrimitiveExpression(pat.left.name),
+          'in',
+          initializerExpression,
+        ),
+        steps: [new AssignStepAST([[pat.left.name, keyExpression]])],
+      },
+      {
+        condition: trueEx,
+        steps: [
+          new AssignStepAST([[pat.left.name, convertExpression(pat.right)]]),
+        ],
+      },
+    ]),
+  ]
+}
+
+function objectDestructuringRestSteps(
+  properties: (TSESTree.RestElement | TSESTree.Property)[],
+  rest: TSESTree.RestElement,
+  initializerExpression: Expression,
+): WorkflowStepAST[] {
+  throwIfInvalidRestElement(properties)
+
+  if (rest.argument.type !== AST_NODE_TYPES.Identifier) {
+    throw new WorkflowSyntaxError('Identifier expected', rest.argument.loc)
+  }
+
+  const nonRestProperties = properties.filter(
+    (x) => x.type !== AST_NODE_TYPES.RestElement,
+  )
+  const nonRestKeys = nonRestProperties
+    .map((p) => p.key)
+    .map((p) => {
+      if (p.type !== AST_NODE_TYPES.Identifier) {
+        throw new WorkflowSyntaxError('Identifier expected', p.loc)
+      }
+
+      return p
+    })
+    .map((p) => p.name)
+
+  const value = nonRestKeys.reduce(
+    (acc, propertyName) =>
+      // map.delete returns a copy of the object and removes the specified property
+      new FunctionInvocationExpression('map.delete', [
+        acc,
+        new PrimitiveExpression(propertyName),
+      ]),
+    initializerExpression,
+  )
+
+  return [new AssignStepAST([[rest.argument.name, value]])]
 }
 
 function assignmentExpressionToSteps(
@@ -1094,7 +1138,7 @@ function forOfStatementToForStep(
 
     if (declaration.id.type !== AST_NODE_TYPES.Identifier) {
       throw new WorkflowSyntaxError(
-        `Expected identifier, got ${declaration.id.type}`,
+        `Identifier expected, got ${declaration.id.type}`,
         declaration.id.loc,
       )
     }
@@ -1102,7 +1146,7 @@ function forOfStatementToForStep(
     loopVariableName = declaration.id.name
   } else {
     throw new InternalTranspilingError(
-      `Expected Identifier or VariableDeclaration, got ${node.left.type}`,
+      `Identifier or VariableDeclaration expected, got ${node.left.type}`,
     )
   }
 
