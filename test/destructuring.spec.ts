@@ -353,7 +353,7 @@ describe('Destructing', () => {
     assertTranspiled(code, expected)
   })
 
-  it('default values in destructuring', () => {
+  it('default values in array destructuring', () => {
     const code = `
     function main(arr: number[]) {
       const [a, b = 99] = arr;
@@ -1128,6 +1128,41 @@ describe('Destructing', () => {
             assign:
               - data:
                   name: Bean
+    `
+
+    assertTranspiled(code, expected)
+  })
+
+  it('default values in object destructuring', () => {
+    const code = `
+    function main(data) {
+      const {name, parameters = {type: "simple"}, timestamp} = data;
+    }`
+
+    const expected = `
+    main:
+      params:
+        - data
+      steps:
+        - assign1:
+            assign:
+              - name: \${map.get(data, "name")}
+        - switch1:
+            switch:
+              - condition: \${"parameters" in data}
+                steps:
+                  - assign2:
+                      assign:
+                        - parameters: \${data.parameters}
+              - condition: true
+                steps:
+                  - assign3:
+                      assign:
+                        - parameters:
+                            type: simple
+        - assign4:
+            assign:
+              - timestamp: \${map.get(data, "timestamp")}
     `
 
     assertTranspiled(code, expected)

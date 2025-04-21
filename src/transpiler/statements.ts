@@ -511,10 +511,51 @@ function objectDestructuringSteps(
       ])
 
       return [new AssignStepAST([[prop.value.name, safeKeyExpression]])]
+    } else if (prop.value.type === AST_NODE_TYPES.AssignmentPattern) {
+      return objectAssignmentPatternSteps(
+        prop.value,
+        initializerExpression,
+        keyExpression,
+      )
     } else {
-      throw new WorkflowSyntaxError('Unsupported type', prop.value.loc)
+      throw new WorkflowSyntaxError(
+        `${prop.value.type} is not allowed in object destructuring`,
+        prop.value.loc,
+      )
     }
   })
+}
+
+function objectAssignmentPatternSteps(
+  pat: TSESTree.AssignmentPattern,
+  initializerExpression: Expression,
+  keyExpression: MemberExpression,
+) {
+  if (pat.left.type !== AST_NODE_TYPES.Identifier) {
+    throw new WorkflowSyntaxError(
+      'Default value can be used only with an identifier',
+      pat.left.loc,
+    )
+  }
+
+  // Using Switch step instead of default() because pat.right must be evaluated only
+  // in the default value branch (in case it has side effects)
+  return new SwitchStepAST([
+    {
+      condition: new BinaryExpression(
+        new PrimitiveExpression(pat.left.name),
+        'in',
+        initializerExpression,
+      ),
+      steps: [new AssignStepAST([[pat.left.name, keyExpression]])],
+    },
+    {
+      condition: trueEx,
+      steps: [
+        new AssignStepAST([[pat.left.name, convertExpression(pat.right)]]),
+      ],
+    },
+  ])
 }
 
 function assignmentExpressionToSteps(
