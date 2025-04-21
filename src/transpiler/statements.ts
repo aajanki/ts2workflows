@@ -54,9 +54,9 @@ import { blockingFunctions } from './generated/functionMetadata.js'
 
 export interface ParsingContext {
   // a jump target for an unlabeled break statement
-  breakTarget?: StepName
+  readonly breakTarget?: StepName
   // a jump target for an unlabeled continue statement
-  continueTarget?: StepName
+  readonly continueTarget?: StepName
   // a jump target of a return statement, for delaying a return until a finally block.
   // Array of nested try-finally blocks, the inner most block is last.
   // This also used as a flag to indicate that we are in a try or catch block
@@ -724,7 +724,7 @@ function callExpressionToStep(
     const calleeName = calleeExpression.toString()
 
     if (calleeName === 'parallel') {
-      // A custom implementation for "parallel"
+      // A handle the "parallel" intrinsic
       return [callExpressionToParallelStep(node, ctx)]
     } else if (calleeName === 'retry_policy') {
       // retry_policy() is handled by AST_NODE_TYPES.TryStatement and therefore ignored here
@@ -865,7 +865,7 @@ function callExpressionToParallelStep(
   if (node.arguments.length > 0) {
     switch (node.arguments[0].type) {
       case AST_NODE_TYPES.ArrayExpression:
-        steps = parseParallelBranches(node.arguments[0])
+        steps = parseParallelBranches(node.arguments[0], ctx)
         break
 
       case AST_NODE_TYPES.ArrowFunctionExpression:
@@ -895,20 +895,12 @@ function callExpressionToParallelStep(
 
 function parseParallelBranches(
   node: TSESTree.ArrayExpression,
+  ctx: ParsingContext,
 ): Record<StepName, StepsStepAST> {
-  const stepsArray: [string, StepsStepAST][] = node.elements.map((arg, idx) => {
-    const branchName = `branch${idx + 1}`
-
-    if (arg === null) {
-      throw new WorkflowSyntaxError(
-        'Argument should be a function call of type () => void',
-        node.loc,
-      )
-    }
-
-    switch (arg.type) {
+  const branches = node.elements.map((arg) => {
+    switch (arg?.type) {
       case AST_NODE_TYPES.Identifier:
-        return [branchName, new StepsStepAST([new CallStepAST(arg.name)])]
+        return new StepsStepAST([new CallStepAST(arg.name)])
 
       case AST_NODE_TYPES.ArrowFunctionExpression:
         if (arg.body.type !== AST_NODE_TYPES.BlockStatement) {
@@ -917,17 +909,17 @@ function parseParallelBranches(
             arg.body.loc,
           )
         }
-        return [branchName, new StepsStepAST(parseStatement(arg.body, {}))]
+        return new StepsStepAST(parseStatement(arg.body, ctx))
 
       default:
         throw new WorkflowSyntaxError(
-          'Argument should be a function call of type () => void',
-          arg.loc,
+          'Argument should be a function of type () => void',
+          arg ? arg.loc : node.loc,
         )
     }
   })
 
-  return Object.fromEntries(stepsArray)
+  return Object.fromEntries(branches.map((step, i) => [`branch${i + 1}`, step]))
 }
 
 function parseParallelIteration(
