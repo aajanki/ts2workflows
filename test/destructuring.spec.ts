@@ -416,14 +416,14 @@ describe('Destructing', () => {
                         - rest: []
                   - for1:
                       for:
-                        value: __rest_index
+                        value: __temp_index
                         range:
                           - 2
                           - \${__temp_len - 1}
                         steps:
                           - assign3:
                               assign:
-                                - rest: \${list.concat(rest, __temp[__rest_index])}
+                                - rest: \${list.concat(rest, __temp[__temp_index])}
               - condition: \${__temp_len >= 2}
                 steps:
                   - assign4:
@@ -472,14 +472,14 @@ describe('Destructing', () => {
                         - values: []
                   - for1:
                       for:
-                        value: __rest_index
+                        value: __temp_index
                         range:
                           - 0
                           - \${__temp_len - 1}
                         steps:
                           - assign3:
                               assign:
-                                - values: \${list.concat(values, __temp[__rest_index])}
+                                - values: \${list.concat(values, __temp[__temp_index])}
               - condition: true
                 steps:
                   - assign4:
@@ -514,14 +514,14 @@ describe('Destructing', () => {
                         - rest: []
                   - for1:
                       for:
-                        value: __rest_index
+                        value: __temp_index
                         range:
                           - 5
                           - \${__temp_len - 1}
                         steps:
                           - assign3:
                               assign:
-                                - rest: \${list.concat(rest, __temp[__rest_index])}
+                                - rest: \${list.concat(rest, __temp[__temp_index])}
               - condition: \${__temp_len >= 4}
                 steps:
                   - assign4:
@@ -594,14 +594,14 @@ describe('Destructing', () => {
                                   - rest2: []
                             - for1:
                                 for:
-                                  value: __rest_index
+                                  value: __temp_index
                                   range:
                                     - 1
                                     - \${__temp_len - 1}
                                   steps:
                                     - assign7:
                                         assign:
-                                          - rest2: \${list.concat(rest2, data[1][__rest_index])}
+                                          - rest2: \${list.concat(rest2, data[1][__temp_index])}
                         - condition: \${__temp_len >= 1}
                           steps:
                             - assign8:
@@ -619,14 +619,14 @@ describe('Destructing', () => {
                         - otherValues: []
                   - for2:
                       for:
-                        value: __rest_index
+                        value: __temp_index
                         range:
                           - 2
                           - \${__temp_len - 1}
                         steps:
                           - assign11:
                               assign:
-                                - otherValues: \${list.concat(otherValues, data[__rest_index])}
+                                - otherValues: \${list.concat(otherValues, data[__temp_index])}
               - condition: \${__temp_len >= 2}
                 steps:
                   - assign12:
@@ -657,14 +657,14 @@ describe('Destructing', () => {
                                   - rest2: []
                             - for3:
                                 for:
-                                  value: __rest_index
+                                  value: __temp_index
                                   range:
                                     - 1
                                     - \${__temp_len - 1}
                                   steps:
                                     - assign17:
                                         assign:
-                                          - rest2: \${list.concat(rest2, data[1][__rest_index])}
+                                          - rest2: \${list.concat(rest2, data[1][__temp_index])}
                         - condition: \${__temp_len >= 1}
                           steps:
                             - assign18:

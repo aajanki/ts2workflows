@@ -33,7 +33,7 @@ const transformPipe: (steps: WorkflowStepAST[]) => WorkflowStepAST[] = R.pipe(
   mapLiteralsAsAssignSteps,
   mergeAssignSteps,
   flattenPlainNextConditions,
-  runtimeFunctionImplementation,
+  intrinsicFunctionImplementation,
   blockingCallsAsCallSteps,
 )
 
@@ -681,7 +681,7 @@ function extractNestedMapUnary(
 /**
  * Replace `Array.isArray(x)` with `get_type(x) == "list"`
  */
-function runtimeFunctionImplementation(
+function intrinsicFunctionImplementation(
   steps: WorkflowStepAST[],
 ): WorkflowStepAST[] {
   const tr = transformStepExpressions((ex) => [

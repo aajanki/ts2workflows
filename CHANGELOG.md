@@ -10,6 +10,10 @@ New features:
 
 - Array and object destructuring: `const [a, b] = getArray()`
 
+Fixes:
+
+- Fix a deployment error caused by the same temp variable name being used inside and outside of a parallel branch
+
 ## Version 0.8.0 - 2025-03-03
 
 - Multiple input files can be given on the command line

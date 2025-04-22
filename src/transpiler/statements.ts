@@ -53,14 +53,17 @@ import {
 import { blockingFunctions } from './generated/functionMetadata.js'
 
 export interface ParsingContext {
-  // a jump target for an unlabeled break statement
+  // breakTarget is a jump target for an unlabeled break statement
   readonly breakTarget?: StepName
-  // a jump target for an unlabeled continue statement
+  // continueTarget is a jump target for an unlabeled continue statement
   readonly continueTarget?: StepName
-  // a jump target of a return statement, for delaying a return until a finally block.
-  // Array of nested try-finally blocks, the inner most block is last.
-  // This also used as a flag to indicate that we are in a try or catch block
-  // that has a related finally block.
+  // parallelNestingLevel is the current nesting level of parallel steps. Used
+  // for naming temporary variables inside parallel branches.
+  readonly parallelNestingLevel?: number
+  // finalizerTargets is an array of jump targets for return statements. Used
+  // for delaying a return until a finally block. Array of nested try-finally
+  // blocks, the inner most block is last. This also used as a flag to indicate
+  // that we are in a try or catch block that has a related finally block.
   finalizerTargets?: StepName[]
 }
 
@@ -92,7 +95,7 @@ function parseStatementRecursively(
       } else if (node.expression.type === AST_NODE_TYPES.CallExpression) {
         return callExpressionToStep(node.expression, undefined, ctx)
       } else {
-        return [generalExpressionToAssignStep(node.expression)]
+        return [generalExpressionToAssignStep(node.expression, ctx)]
       }
 
     case AST_NODE_TYPES.ReturnStatement:
@@ -227,12 +230,14 @@ function convertArrayDestructuring(
     initExpression = convertExpression(initializer)
   } else {
     // Otherwise, assign the expression to a temporary variable first.
-    const initName = '__temp'
+    const initName = tempName(ctx)
     steps.push(...convertInitializer(initName, initializer, ctx))
     initExpression = new VariableReferenceExpression(initName)
   }
 
-  steps.push(...arrayDestructuringSteps(arrayPattern.elements, initExpression))
+  steps.push(
+    ...arrayDestructuringSteps(arrayPattern.elements, initExpression, ctx),
+  )
 
   return steps
 }
@@ -240,14 +245,16 @@ function convertArrayDestructuring(
 function arrayDestructuringSteps(
   patterns: (TSESTree.DestructuringPattern | null)[],
   initializerExpression: Expression,
+  ctx: ParsingContext,
 ): WorkflowStepAST[] {
   if (patterns.filter((p) => p !== null).length === 0) {
     return []
   }
 
+  const __temp_len = `${tempName(ctx)}_len`
   const initializeVariables: VariableAssignment[] = [
     [
-      '__temp_len',
+      __temp_len,
       new FunctionInvocationExpression('len', [initializerExpression]),
     ],
   ]
@@ -261,7 +268,7 @@ function arrayDestructuringSteps(
       return [
         {
           condition: new BinaryExpression(
-            new VariableReferenceExpression('__temp_len'),
+            new VariableReferenceExpression(__temp_len),
             '>=',
             new PrimitiveExpression(patterns.length - i),
           ),
@@ -269,6 +276,7 @@ function arrayDestructuringSteps(
             patterns,
             initializerExpression,
             patterns.length - i,
+            ctx,
           ),
         },
       ]
@@ -277,7 +285,12 @@ function arrayDestructuringSteps(
 
   branches.push({
     condition: trueEx,
-    steps: arrayElementsDestructuringSteps(patterns, initializerExpression, 0),
+    steps: arrayElementsDestructuringSteps(
+      patterns,
+      initializerExpression,
+      0,
+      ctx,
+    ),
   })
 
   return [new AssignStepAST(initializeVariables), new SwitchStepAST(branches)]
@@ -287,6 +300,7 @@ function arrayElementsDestructuringSteps(
   patterns: (TSESTree.DestructuringPattern | null)[],
   initializerExpression: Expression,
   take: number,
+  ctx: ParsingContext,
 ): WorkflowStepAST[] {
   return patterns.flatMap((pat, i) => {
     if (i >= take) {
@@ -322,10 +336,10 @@ function arrayElementsDestructuringSteps(
       }
 
       case AST_NODE_TYPES.ObjectPattern:
-        return objectDestructuringSteps(pat.properties, iElement)
+        return objectDestructuringSteps(pat.properties, iElement, ctx)
 
       case AST_NODE_TYPES.ArrayPattern:
-        return arrayDestructuringSteps(pat.elements, iElement)
+        return arrayDestructuringSteps(pat.elements, iElement, ctx)
 
       case AST_NODE_TYPES.RestElement:
         return arrayRestDestructuringSteps(
@@ -333,6 +347,7 @@ function arrayElementsDestructuringSteps(
           pat,
           initializerExpression,
           patterns.length - 1,
+          ctx,
         )
 
       default: // pat === null
@@ -420,6 +435,7 @@ function arrayRestDestructuringSteps(
   rest: TSESTree.RestElement,
   initializerExpression: Expression,
   startIndex: number,
+  ctx: ParsingContext,
 ): WorkflowStepAST[] {
   throwIfInvalidRestElement(patterns)
 
@@ -428,7 +444,8 @@ function arrayRestDestructuringSteps(
   }
 
   const restName = rest.argument.name
-  const __temp_len = new VariableReferenceExpression('__temp_len')
+  const __temp_len = new VariableReferenceExpression(`${tempName(ctx)}_len`)
+  const __temp_index = `${tempName(ctx)}_index`
   const one = new PrimitiveExpression(1)
   const emptyArray = new PrimitiveExpression([])
   const copyLoop = new ForRangeStepAST(
@@ -440,14 +457,14 @@ function arrayRestDestructuringSteps(
             new VariableReferenceExpression(restName),
             new MemberExpression(
               initializerExpression,
-              new VariableReferenceExpression('__rest_index'),
+              new VariableReferenceExpression(__temp_index),
               true,
             ),
           ]),
         ],
       ]),
     ],
-    '__rest_index',
+    __temp_index,
     startIndex,
     new BinaryExpression(__temp_len, '-', one),
   )
@@ -471,13 +488,13 @@ function convertObjectDestructuring(
     initExpression = convertExpression(initializer)
   } else {
     // Otherwise, assign the expression to a temporary variable first.
-    const initName = '__temp'
+    const initName = tempName(ctx)
     steps.push(...convertInitializer(initName, initializer, ctx))
     initExpression = new VariableReferenceExpression(initName)
   }
 
   steps.push(
-    ...objectDestructuringSteps(objectPattern.properties, initExpression),
+    ...objectDestructuringSteps(objectPattern.properties, initExpression, ctx),
   )
 
   return steps
@@ -486,6 +503,7 @@ function convertObjectDestructuring(
 function objectDestructuringSteps(
   properties: (TSESTree.RestElement | TSESTree.Property)[],
   initializerExpression: Expression,
+  ctx: ParsingContext,
 ): WorkflowStepAST[] {
   return properties.flatMap((prop) => {
     if (prop.type === AST_NODE_TYPES.RestElement) {
@@ -507,9 +525,9 @@ function objectDestructuringSteps(
     )
 
     if (prop.value.type === AST_NODE_TYPES.ObjectPattern) {
-      return objectDestructuringSteps(prop.value.properties, keyExpression)
+      return objectDestructuringSteps(prop.value.properties, keyExpression, ctx)
     } else if (prop.value.type === AST_NODE_TYPES.ArrayPattern) {
-      return arrayDestructuringSteps(prop.value.elements, keyExpression)
+      return arrayDestructuringSteps(prop.value.elements, keyExpression, ctx)
     } else if (prop.value.type === AST_NODE_TYPES.Identifier) {
       const safeKeyExpression = new FunctionInvocationExpression('map.get', [
         initializerExpression,
@@ -689,14 +707,14 @@ function assignmentExpressionToSteps(
     const needsTempVariable =
       compoundOperator === undefined ||
       node.left.type !== AST_NODE_TYPES.Identifier
-    const resultVariable = needsTempVariable ? '__temp' : targetName
+    const resultVariable = needsTempVariable ? tempName(ctx) : targetName
     steps.push(...callExpressionToStep(node.right, resultVariable, ctx))
 
     if (!needsTempVariable) {
       return steps
     }
 
-    valueExpression = new VariableReferenceExpression('__temp')
+    valueExpression = new VariableReferenceExpression(tempName(ctx))
   } else {
     valueExpression = convertExpression(node.right)
   }
@@ -742,8 +760,10 @@ function callExpressionToStep(
         ),
       ]
     } else {
+      const resultVariable2 = resultVariable ?? tempName(ctx)
+
       return [
-        callExpressionAssignStep(calleeName, node.arguments, resultVariable),
+        callExpressionAssignStep(calleeName, node.arguments, resultVariable2),
       ]
     }
   } else {
@@ -757,14 +777,14 @@ function callExpressionToStep(
 function callExpressionAssignStep(
   functionName: string,
   argumentsNode: TSESTree.CallExpressionArgument[],
-  resultVariable?: VariableName,
+  resultVariable: VariableName,
 ): AssignStepAST {
   const argumentExpressions =
     throwIfSpread(argumentsNode).map(convertExpression)
 
   return new AssignStepAST([
     [
-      resultVariable ?? '__temp',
+      resultVariable,
       new FunctionInvocationExpression(functionName, argumentExpressions),
     ],
   ])
@@ -861,15 +881,21 @@ function callExpressionToParallelStep(
     )
   }
 
+  const ctx2: ParsingContext = Object.assign({}, ctx, {
+    parallelNestingLevel: ctx.parallelNestingLevel
+      ? ctx.parallelNestingLevel + 1
+      : 1,
+  })
+
   let steps: Record<StepName, StepsStepAST> | ForStepAST = {}
   if (node.arguments.length > 0) {
     switch (node.arguments[0].type) {
       case AST_NODE_TYPES.ArrayExpression:
-        steps = parseParallelBranches(node.arguments[0], ctx)
+        steps = parseParallelBranches(node.arguments[0], ctx2)
         break
 
       case AST_NODE_TYPES.ArrowFunctionExpression:
-        steps = parseParallelIteration(node.arguments[0], ctx)
+        steps = parseParallelIteration(node.arguments[0], ctx2)
         break
 
       default:
@@ -1003,8 +1029,9 @@ function parseParallelOptions(node: TSESTree.CallExpressionArgument) {
 
 function generalExpressionToAssignStep(
   node: TSESTree.Expression,
+  ctx: ParsingContext,
 ): AssignStepAST {
-  return new AssignStepAST([['__temp', convertExpression(node)]])
+  return new AssignStepAST([[tempName(ctx), convertExpression(node)]])
 }
 
 function returnStatementToReturnStep(
@@ -1533,5 +1560,17 @@ function predicateFromRetryParams(
       '"predicate" must be a function name',
       argsLoc,
     )
+  }
+}
+
+function tempName(ctx: ParsingContext): VariableName {
+  if (ctx.parallelNestingLevel !== undefined) {
+    // Temporary variable inside a parallel step can not be the same as temporary
+    // variables on the outside. Sharing the variable name would cause deployment
+    // error, if the variable is not marked as shared by including it in the
+    // "shared" array.
+    return `__temp_parallel${ctx.parallelNestingLevel ?? 0}`
+  } else {
+    return '__temp'
   }
 }

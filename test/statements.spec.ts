@@ -972,17 +972,17 @@ describe('Parallel statement', () => {
                     steps:
                       - assign1:
                           assign:
-                            - __temp: \${log("Hello from branch 1")}
+                            - __temp_parallel1: \${log("Hello from branch 1")}
                 - branch2:
                     steps:
                       - assign2:
                           assign:
-                            - __temp: \${log("Hello from branch 2")}
+                            - __temp_parallel1: \${log("Hello from branch 2")}
                 - branch3:
                     steps:
                       - assign3:
                           assign:
-                            - __temp: \${log("Hello from branch 3")}
+                            - __temp_parallel1: \${log("Hello from branch 3")}
     `
 
     assertTranspiled(code, expected)
@@ -1175,7 +1175,7 @@ describe('Parallel statement', () => {
   it('throws if an arrow function contains something else in addition to a for loop', () => {
     const code = `
     function main() {
-      const total = 0;
+      let total = 0;
 
       parallel(
         () => {
@@ -1192,10 +1192,10 @@ describe('Parallel statement', () => {
     expect(() => transpile(code)).to.throw()
   })
 
-  it('throws if an arrow function contains something else besides a for loop', () => {
+  it('throws if a plain arrow function contains something else besides a for loop', () => {
     const code = `
     function main() {
-      const total = 0;
+      let total = 0;
 
       parallel(
         () => { total = 1 },
@@ -1307,6 +1307,62 @@ describe('Labelled statement', () => {
               - b: 2
               - c: 3
               - d: 4
+    `
+
+    assertTranspiled(code, expected)
+  })
+
+  it('temporary variables inside nested parallel steps should have a postfix', () => {
+    const code = `
+    function main() {
+      log("Before parallel")
+
+      parallel([
+        () => {
+          parallel([
+            () => {
+              log("Hello from nested branch 1");
+            },
+            () => {
+              log("Hello from nested branch 2");
+            },
+          ])
+        },
+        () => {
+          log("Hello from branch 3");
+        },
+      ]);
+    }`
+
+    const expected = `
+    main:
+      steps:
+        - assign1:
+            assign:
+              - __temp: \${log("Before parallel")}
+        - parallel1:
+            parallel:
+              branches:
+                - branch1:
+                    steps:
+                      - parallel2:
+                          parallel:
+                            branches:
+                              - branch1:
+                                  steps:
+                                    - assign2:
+                                        assign:
+                                          - __temp_parallel2: \${log("Hello from nested branch 1")}
+                              - branch2:
+                                  steps:
+                                    - assign3:
+                                        assign:
+                                          - __temp_parallel2: \${log("Hello from nested branch 2")}
+                - branch2:
+                    steps:
+                      - assign4:
+                          assign:
+                            - __temp_parallel1: \${log("Hello from branch 3")}
     `
 
     assertTranspiled(code, expected)
