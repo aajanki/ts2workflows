@@ -1,6 +1,6 @@
 # ts2workflows changelog
 
-## unreleased
+## Version 0.9.0 - 2025-04-23
 
 Breaking changes:
 
