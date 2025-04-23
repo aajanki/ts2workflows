@@ -1,6 +1,6 @@
 {
   "name": "ts2workflows",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "description": "Transpile Typescript code to GCP Workflows programs",
   "homepage": "https://github.com/aajanki/ts2workflows",
   "repository": {
