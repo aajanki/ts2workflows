@@ -1132,6 +1132,28 @@ describe('Destructing', () => {
     assertTranspiled(code, expected)
   })
 
+  it('destructures objects in an assignment expression', () => {
+    const code = `
+    function main() {
+      const data = { value: 5 };
+      let value = 0;
+      ({ value } = data);
+    }`
+
+    const expected = `
+    main:
+      steps:
+        - assign1:
+            assign:
+              - data:
+                  value: 5
+              - value: 0
+              - value: \${map.get(data, "value")}
+    `
+
+    assertTranspiled(code, expected)
+  })
+
   it('empty object pattern', () => {
     const code = `
     function main() {

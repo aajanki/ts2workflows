@@ -672,7 +672,16 @@ function assignmentExpressionToSteps(
       return convertArrayDestructuring(node.left, node.right, ctx)
     } else {
       throw new WorkflowSyntaxError(
-        `Operator ${node.operator} can not be applied to an array pattern`,
+        `Invalid left-hand side in assignment`,
+        node.left.loc,
+      )
+    }
+  } else if (node.left.type === AST_NODE_TYPES.ObjectPattern) {
+    if (node.operator === '=') {
+      return convertObjectDestructuring(node.left, node.right, ctx)
+    } else {
+      throw new WorkflowSyntaxError(
+        `Invalid left-hand side in assignment`,
         node.left.loc,
       )
     }
