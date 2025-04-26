@@ -447,6 +447,24 @@ describe('Assignment statement', () => {
     assertTranspiled(code, expected)
   })
 
+  it('indexed assignment with a map literal in the index', () => {
+    const code = `function main() {
+      values[{ i: 0 }.i] = 10;
+    }`
+
+    const expected = `
+    main:
+      steps:
+        - assign1:
+            assign:
+              - __temp0:
+                  i: 0
+              - values[__temp0.i]: 10
+    `
+
+    assertTranspiled(code, expected)
+  })
+
   it('object property assignment with a variable as a key', () => {
     const code = `function main() {
       const key = "name";

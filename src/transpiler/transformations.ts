@@ -249,9 +249,21 @@ function transformExpressionsAssign(
   if (step.assignments) {
     const newSteps: WorkflowStepAST[] = []
     const newAssignments = step.assignments.map(({ key, value }) => {
-      const [steps2, ex2] = transform(value)
+      const [steps2, transformedKey] = transform(key)
+      const [steps3, transformedValue] = transform(value)
       newSteps.push(...steps2)
-      return { key, value: ex2 }
+      newSteps.push(...steps3)
+
+      if (
+        transformedKey.expressionType !== 'variableReference' &&
+        transformedKey.expressionType !== 'member'
+      ) {
+        throw new InternalTranspilingError(
+          'Unexpected key type when transforming assign step',
+        )
+      }
+
+      return { key: transformedKey, value: transformedValue }
     })
     newSteps.push(new AssignStepAST(newAssignments, step.next, step.label))
     return newSteps
