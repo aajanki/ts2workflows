@@ -541,3 +541,21 @@ export function throwIfSpread<
 
   return argumentExpressions
 }
+
+export function convertVariableNameExpression(
+  instance: TSESTree.Expression,
+): VariableReferenceExpression | MemberExpression {
+  const ex = convertExpression(instance)
+
+  if (
+    ex.expressionType !== 'variableReference' &&
+    ex.expressionType !== 'member'
+  ) {
+    throw new WorkflowSyntaxError(
+      'The left-hand side of an assignment must be a variable or member expression',
+      instance.loc,
+    )
+  }
+
+  return ex
+}

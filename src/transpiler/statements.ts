@@ -49,6 +49,7 @@ import {
   isMagicFunction,
   throwIfSpread,
   isMagicFunctionStatmentOnly,
+  convertVariableNameExpression,
 } from './expressions.js'
 import { blockingFunctions } from './generated/functionMetadata.js'
 
@@ -205,9 +206,10 @@ function convertInitializer(
 
     return callExpressionToStep(initializer, targetVariableName, ctx)
   } else {
+    const key = new VariableReferenceExpression(targetVariableName)
     const value = initializer === null ? nullEx : convertExpression(initializer)
 
-    return [new AssignStepAST([[targetVariableName, value]])]
+    return [new AssignStepAST([{ key, value }])]
   }
 }
 
@@ -251,12 +253,12 @@ function arrayDestructuringSteps(
     return []
   }
 
-  const __temp_len = `${tempName(ctx)}_len`
+  const __temp_len = new VariableReferenceExpression(`${tempName(ctx)}_len`)
   const initializeVariables: VariableAssignment[] = [
-    [
-      __temp_len,
-      new FunctionInvocationExpression('len', [initializerExpression]),
-    ],
+    {
+      key: __temp_len,
+      value: new FunctionInvocationExpression('len', [initializerExpression]),
+    },
   ]
 
   const branches: SwitchConditionAST<WorkflowStepAST>[] = R.reverse(
@@ -268,7 +270,7 @@ function arrayDestructuringSteps(
       return [
         {
           condition: new BinaryExpression(
-            new VariableReferenceExpression(__temp_len),
+            __temp_len,
             '>=',
             new PrimitiveExpression(patterns.length - i),
           ),
@@ -320,8 +322,9 @@ function arrayElementsDestructuringSteps(
     switch (pat?.type) {
       case AST_NODE_TYPES.MemberExpression:
       case AST_NODE_TYPES.Identifier: {
-        const name = convertExpression(pat).toString()
-        return [new AssignStepAST([[name, iElement]])]
+        const key = convertVariableNameExpression(pat)
+
+        return [new AssignStepAST([{ key, value: iElement }])]
       }
 
       case AST_NODE_TYPES.AssignmentPattern: {
@@ -332,7 +335,8 @@ function arrayElementsDestructuringSteps(
           )
         }
 
-        return [new AssignStepAST([[pat.left.name, iElement]])]
+        const key = new VariableReferenceExpression(pat.left.name)
+        return [new AssignStepAST([{ key, value: iElement }])]
       }
 
       case AST_NODE_TYPES.ObjectPattern:
@@ -377,13 +381,18 @@ function extractDefaultAssignmentsFromDestructuringPattern(
         )
       }
 
-      return [[pat.left.name, convertExpression(pat.right)]]
+      return [
+        {
+          key: new VariableReferenceExpression(pat.left.name),
+          value: convertExpression(pat.right),
+        },
+      ]
 
     case AST_NODE_TYPES.Identifier:
-      return [[pat.name, nullEx]]
+      return [{ key: new VariableReferenceExpression(pat.name), value: nullEx }]
 
     case AST_NODE_TYPES.MemberExpression:
-      return [[convertExpression(pat).toString(), nullEx]]
+      return [{ key: convertVariableNameExpression(pat), value: nullEx }]
 
     case AST_NODE_TYPES.ObjectPattern:
       return pat.properties.flatMap((p) => {
@@ -410,7 +419,12 @@ function extractDefaultAssignmentsFromDestructuringPattern(
         throw new WorkflowSyntaxError('Identifier expected', pat.argument.loc)
       }
 
-      return [[pat.argument.name, new PrimitiveExpression([])]]
+      return [
+        {
+          key: new VariableReferenceExpression(pat.argument.name),
+          value: new PrimitiveExpression([]),
+        },
+      ]
 
     default:
       return []
@@ -443,7 +457,7 @@ function arrayRestDestructuringSteps(
     throw new WorkflowSyntaxError('Identifier expected', rest.argument.loc)
   }
 
-  const restName = rest.argument.name
+  const restName = new VariableReferenceExpression(rest.argument.name)
   const __temp_len = new VariableReferenceExpression(`${tempName(ctx)}_len`)
   const __temp_index = `${tempName(ctx)}_index`
   const one = new PrimitiveExpression(1)
@@ -451,17 +465,17 @@ function arrayRestDestructuringSteps(
   const copyLoop = new ForRangeStepAST(
     [
       new AssignStepAST([
-        [
-          restName,
-          new FunctionInvocationExpression('list.concat', [
-            new VariableReferenceExpression(restName),
+        {
+          key: restName,
+          value: new FunctionInvocationExpression('list.concat', [
+            restName,
             new MemberExpression(
               initializerExpression,
               new VariableReferenceExpression(__temp_index),
               true,
             ),
           ]),
-        ],
+        },
       ]),
     ],
     __temp_index,
@@ -469,7 +483,7 @@ function arrayRestDestructuringSteps(
     new BinaryExpression(__temp_len, '-', one),
   )
 
-  return [new AssignStepAST([[restName, emptyArray]]), copyLoop]
+  return [new AssignStepAST([{ key: restName, value: emptyArray }]), copyLoop]
 }
 
 function convertObjectDestructuring(
@@ -534,7 +548,14 @@ function objectDestructuringSteps(
         new PrimitiveExpression(prop.key.name),
       ])
 
-      return [new AssignStepAST([[prop.value.name, safeKeyExpression]])]
+      return [
+        new AssignStepAST([
+          {
+            key: new VariableReferenceExpression(prop.value.name),
+            value: safeKeyExpression,
+          },
+        ]),
+      ]
     } else if (prop.value.type === AST_NODE_TYPES.AssignmentPattern) {
       return objectAssignmentPatternSteps(
         prop.value,
@@ -564,6 +585,7 @@ function objectAssignmentPatternSteps(
 
   // Using Switch step instead of default() because pat.right must be evaluated only
   // in the default value branch (in case it has side effects)
+  const name = new VariableReferenceExpression(pat.left.name)
   return [
     new SwitchStepAST([
       {
@@ -572,12 +594,14 @@ function objectAssignmentPatternSteps(
           'in',
           initializerExpression,
         ),
-        steps: [new AssignStepAST([[pat.left.name, keyExpression]])],
+        steps: [new AssignStepAST([{ key: name, value: keyExpression }])],
       },
       {
         condition: trueEx,
         steps: [
-          new AssignStepAST([[pat.left.name, convertExpression(pat.right)]]),
+          new AssignStepAST([
+            { key: name, value: convertExpression(pat.right) },
+          ]),
         ],
       },
     ]),
@@ -609,6 +633,7 @@ function objectDestructuringRestSteps(
     })
     .map((p) => p.name)
 
+  const key = new VariableReferenceExpression(rest.argument.name)
   const value = nonRestKeys.reduce(
     (acc, propertyName) =>
       // map.delete returns a copy of the object and removes the specified property
@@ -619,7 +644,7 @@ function objectDestructuringRestSteps(
     initializerExpression,
   )
 
-  return [new AssignStepAST([[rest.argument.name, value]])]
+  return [new AssignStepAST([{ key, value }])]
 }
 
 function assignmentExpressionToSteps(
@@ -687,18 +712,9 @@ function assignmentExpressionToSteps(
     }
   }
 
-  const targetExpression = convertExpression(node.left)
-
-  if (!isFullyQualifiedName(targetExpression)) {
-    throw new WorkflowSyntaxError(
-      'The left-hand side of an assignment must be an identifier or a property access',
-      node.loc,
-    )
-  }
-
+  const targetExpression = convertVariableNameExpression(node.left)
   let valueExpression: Expression
   const steps: WorkflowStepAST[] = []
-  const targetName = targetExpression.toString()
 
   if (
     node.right.type === AST_NODE_TYPES.CallExpression &&
@@ -716,7 +732,9 @@ function assignmentExpressionToSteps(
     const needsTempVariable =
       compoundOperator === undefined ||
       node.left.type !== AST_NODE_TYPES.Identifier
-    const resultVariable = needsTempVariable ? tempName(ctx) : targetName
+    const resultVariable = needsTempVariable
+      ? tempName(ctx)
+      : targetExpression.toString()
     steps.push(...callExpressionToStep(node.right, resultVariable, ctx))
 
     if (!needsTempVariable) {
@@ -730,13 +748,15 @@ function assignmentExpressionToSteps(
 
   if (compoundOperator) {
     valueExpression = new BinaryExpression(
-      new VariableReferenceExpression(targetName),
+      targetExpression,
       compoundOperator,
       valueExpression,
     )
   }
 
-  steps.push(new AssignStepAST([[targetName, valueExpression]]))
+  steps.push(
+    new AssignStepAST([{ key: targetExpression, value: valueExpression }]),
+  )
 
   return steps
 }
@@ -792,10 +812,13 @@ function callExpressionAssignStep(
     throwIfSpread(argumentsNode).map(convertExpression)
 
   return new AssignStepAST([
-    [
-      resultVariable,
-      new FunctionInvocationExpression(functionName, argumentExpressions),
-    ],
+    {
+      key: new VariableReferenceExpression(resultVariable),
+      value: new FunctionInvocationExpression(
+        functionName,
+        argumentExpressions,
+      ),
+    },
   ])
 }
 
@@ -1040,7 +1063,12 @@ function generalExpressionToAssignStep(
   node: TSESTree.Expression,
   ctx: ParsingContext,
 ): AssignStepAST {
-  return new AssignStepAST([[tempName(ctx), convertExpression(node)]])
+  return new AssignStepAST([
+    {
+      key: new VariableReferenceExpression(tempName(ctx)),
+      value: convertExpression(node),
+    },
+  ])
 }
 
 function returnStatementToReturnStep(
@@ -1412,8 +1440,14 @@ function finalizerInitializer(
   valueVariable: string,
 ): AssignStepAST {
   return new AssignStepAST([
-    [conditionVariable, nullEx],
-    [valueVariable, nullEx],
+    {
+      key: new VariableReferenceExpression(conditionVariable),
+      value: nullEx,
+    },
+    {
+      key: new VariableReferenceExpression(valueVariable),
+      value: nullEx,
+    },
   ])
 }
 
@@ -1454,11 +1488,14 @@ function finalizerDelayedException(
 ): WorkflowStepAST[] {
   return [
     new AssignStepAST([
-      [conditionVariableName, new PrimitiveExpression('raise')],
-      [
-        valueVariableName,
-        new VariableReferenceExpression(exceptionVariableName),
-      ],
+      {
+        key: new VariableReferenceExpression(conditionVariableName),
+        value: new PrimitiveExpression('raise'),
+      },
+      {
+        key: new VariableReferenceExpression(valueVariableName),
+        value: new VariableReferenceExpression(exceptionVariableName),
+      },
     ]),
   ]
 }
@@ -1475,8 +1512,14 @@ function delayedReturnAndJumpToFinalizer(
 
   return new AssignStepAST(
     [
-      [conditionVariable, new PrimitiveExpression('return')],
-      [valueVariable, value ?? nullEx],
+      {
+        key: new VariableReferenceExpression(conditionVariable),
+        value: new PrimitiveExpression('return'),
+      },
+      {
+        key: new VariableReferenceExpression(valueVariable),
+        value: value ?? nullEx,
+      },
     ],
     finalizerTarget,
   )

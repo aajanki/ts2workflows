@@ -248,10 +248,10 @@ function transformExpressionsAssign(
 ): WorkflowStepAST[] {
   if (step.assignments) {
     const newSteps: WorkflowStepAST[] = []
-    const newAssignments = step.assignments.map(([name, ex]) => {
-      const [steps2, ex2] = transform(ex)
+    const newAssignments = step.assignments.map(({ key, value }) => {
+      const [steps2, ex2] = transform(value)
       newSteps.push(...steps2)
-      return [name, ex2] as const
+      return { key, value: ex2 }
     })
     newSteps.push(new AssignStepAST(newAssignments, step.next, step.label))
     return newSteps
@@ -519,13 +519,18 @@ function extractNestedMapPrimitiveRecursive(
   }
 }
 
+interface MapsInListAccumulator {
+  tempVariables: VariableAssignment[]
+  elements: (Expression | Primitive)[]
+}
+
 function extractMapsInList(
   primitiveEx: (Primitive | Expression)[],
   generateName: () => string,
   nestingLevel: number,
 ) {
   const { tempVariables, elements } = primitiveEx.reduce(
-    (acc, val) => {
+    (acc: MapsInListAccumulator, val) => {
       if (isExpression(val)) {
         const { transformedExpression, tempVariables: temps } =
           extractNestedMaps(val, generateName, nestingLevel)
@@ -541,8 +546,8 @@ function extractMapsInList(
       return acc
     },
     {
-      tempVariables: [] as VariableAssignment[],
-      elements: [] as (Expression | Primitive)[],
+      tempVariables: [],
+      elements: [],
     },
   )
 
@@ -583,9 +588,11 @@ function extractMapsInMap(
   if (nestingLevel === 0) {
     newValue = properties
   } else {
-    const name = generateName()
-    tempVariables.push([name, new PrimitiveExpression(properties)])
-    newValue = new VariableReferenceExpression(name)
+    newValue = new VariableReferenceExpression(generateName())
+    tempVariables.push({
+      key: newValue,
+      value: new PrimitiveExpression(properties),
+    })
   }
 
   return {

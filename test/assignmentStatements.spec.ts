@@ -386,6 +386,155 @@ describe('Assignment statement', () => {
     assertTranspiled(code, expected)
   })
 
+  it('indexed assignment with a computed expression', () => {
+    const code = `function main() {
+      const i = 10;
+      values[i + 1] = 10;
+    }`
+
+    const expected = `
+    main:
+      steps:
+        - assign1:
+            assign:
+              - i: 10
+              - values[i + 1]: 10
+    `
+
+    assertTranspiled(code, expected)
+  })
+
+  it('indexed assignment with a function call expression as the index', () => {
+    const code = `function main() {
+      values[getIndex()] = 10;
+    }
+
+    function getIndex() {
+      return 5;
+    }`
+
+    const expected = `
+    main:
+      steps:
+        - assign1:
+            assign:
+              - values[getIndex()]: 10
+    getIndex:
+      steps:
+        - return1:
+            return: 5
+    `
+
+    assertTranspiled(code, expected)
+  })
+
+  it('indexed assignment with a member expression as the index', () => {
+    const code = `function main() {
+      const indexes = { first: 0 };
+      values[indexes.first] = 10;
+    }`
+
+    const expected = `
+    main:
+      steps:
+        - assign1:
+            assign:
+              - indexes:
+                  first: 0
+              - values[indexes.first]: 10
+    `
+
+    assertTranspiled(code, expected)
+  })
+
+  it('object property assignment with a variable as a key', () => {
+    const code = `function main() {
+      const key = "name";
+      data[key] = "Bean";
+    }`
+
+    const expected = `
+    main:
+      steps:
+        - assign1:
+            assign:
+              - key: name
+              - data[key]: Bean
+    `
+
+    assertTranspiled(code, expected)
+  })
+
+  it('object property assignment with a computed expression', () => {
+    const code = `function main() {
+      data["na" + "me"] = "Bean";
+    }`
+
+    const expected = `
+    main:
+      steps:
+        - assign1:
+            assign:
+              - data["na" + "me"]: Bean
+    `
+
+    assertTranspiled(code, expected)
+  })
+
+  it('object property assignment with a computed expression with variables', () => {
+    const code = `function main() {
+      const prefix = "na";
+      const postfix = "me";
+      data[prefix + postfix] = "Bean";
+    }`
+
+    const expected = `
+    main:
+      steps:
+        - assign1:
+            assign:
+              - prefix: na
+              - postfix: me
+              - data[prefix + postfix]: Bean
+    `
+
+    assertTranspiled(code, expected)
+  })
+
+  it('assignment to a member expression', () => {
+    const code = `function main() {
+      people[3].age = 38;
+    }`
+
+    const expected = `
+    main:
+      steps:
+        - assign1:
+            assign:
+              - people[3].age: 38
+    `
+
+    assertTranspiled(code, expected)
+  })
+
+  it('assignment to a member expression with a variable index', () => {
+    const code = `function main() {
+      const i = 10;
+      people[i].age = 38;
+    }`
+
+    const expected = `
+    main:
+      steps:
+        - assign1:
+            assign:
+              - i: 10
+              - people[i].age: 38
+    `
+
+    assertTranspiled(code, expected)
+  })
+
   it('addition assignment', () => {
     const code = `
     function main() {
@@ -417,6 +566,25 @@ describe('Assignment statement', () => {
         - assign1:
             assign:
               - people[4].age: \${people[4].age + 1}
+    `
+
+    assertTranspiled(code, expected)
+  })
+
+  it('addition assignment to a member expression with a computed expression', () => {
+    const code = `
+    function main() {
+      const i = 2;
+      people[4 + i].age += 1;
+    }`
+
+    const expected = `
+    main:
+      steps:
+        - assign1:
+            assign:
+              - i: 2
+              - people[4 + i].age: \${people[4 + i].age + 1}
     `
 
     assertTranspiled(code, expected)

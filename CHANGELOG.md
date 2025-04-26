@@ -1,5 +1,9 @@
 # ts2workflows changelog
 
+## unrelease
+
+- expressions as properties in assignments: `a[i + 4] = 1` (regression in version 0.9.0)
+
 ## Version 0.9.0 - 2025-04-23
 
 Breaking changes:

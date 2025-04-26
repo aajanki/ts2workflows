@@ -3,13 +3,18 @@ import { isRecord } from '../utils.js'
 import {
   Expression,
   LiteralValueOrLiteralExpression,
+  MemberExpression,
   VariableName,
+  VariableReferenceExpression,
   expressionToLiteralValueOrLiteralExpression,
 } from './expressions.js'
 import { Subworkflow, WorkflowParameter } from './workflows.js'
 
 export type StepName = string
-export type VariableAssignment = readonly [VariableName, Expression]
+export interface VariableAssignment {
+  key: VariableReferenceExpression | MemberExpression
+  value: Expression
+}
 export type WorkflowParameters = Record<VariableName, Expression>
 
 // According to the documentation
@@ -821,8 +826,11 @@ export function renderStep(
   switch (step.tag) {
     case 'assign':
       return {
-        assign: step.assignments.map(([key, val]) => {
-          return { [key]: expressionToLiteralValueOrLiteralExpression(val) }
+        assign: step.assignments.map(({ key, value }) => {
+          return {
+            [key.toString()]:
+              expressionToLiteralValueOrLiteralExpression(value),
+          }
         }),
         ...(step.next && { next: step.next }),
       }
