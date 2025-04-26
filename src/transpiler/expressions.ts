@@ -308,7 +308,7 @@ export function convertMemberExpression(
 
 function convertChainExpression(node: TSESTree.ChainExpression): Expression {
   const properties = chainExpressionToFlatArray(node.expression)
-  const args = optinalChainToMapGetArguments(properties)
+  const args = optionalChainToMapGetArguments(properties)
 
   return new FunctionInvocationExpression('map.get', args)
 }
@@ -348,7 +348,7 @@ function chainExpressionToFlatArray(
   }
 }
 
-function optinalChainToMapGetArguments(
+function optionalChainToMapGetArguments(
   properties: ChainedProperty[],
 ): Expression[] {
   if (properties.length <= 0) {
