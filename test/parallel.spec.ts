@@ -313,4 +313,21 @@ describe('Parallel statement', () => {
 
     expect(() => transpile(code)).to.throw()
   })
+
+  it("parallel() can't be used in an compound assignment expression", () => {
+    const code = `
+      function main(x) {
+        x += parallel([
+          () => {
+            return "branch 1";
+          },
+          () => {
+            return "branch 2";
+          },
+        ]);
+      }
+    `
+
+    expect(() => transpile(code)).to.throw()
+  })
 })

@@ -670,6 +670,42 @@ describe('Assignment statement', () => {
     assertTranspiled(code, expected)
   })
 
+  it('call step in a compound assignment', () => {
+    const code = `
+    function main(x) {
+      x %= call_step(sum, {a: 10, b: 11});
+    }
+
+    function sum(a, b) {
+      return a + b;
+    }`
+
+    const expected = `
+    main:
+      params:
+        - x
+      steps:
+        - call_sum_1:
+            call: sum
+            args:
+              a: 10
+              b: 11
+            result: __temp
+        - assign1:
+            assign:
+              - x: \${x % __temp}
+    sum:
+      params:
+        - a
+        - b
+      steps:
+        - return1:
+            return: \${a + b}
+    `
+
+    assertTranspiled(code, expected)
+  })
+
   it('addition assignment with a complex expression', () => {
     const code = `
     function main() {

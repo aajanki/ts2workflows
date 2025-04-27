@@ -46,9 +46,9 @@ import {
   convertMemberExpression,
   convertObjectExpression,
   convertObjectAsExpressionValues,
-  isMagicFunction,
+  isIntrinsic,
   throwIfSpread,
-  isMagicFunctionStatmentOnly,
+  isIntrinsicStatment as isIntrinsicStatement,
   convertVariableNameExpression,
 } from './expressions.js'
 import { blockingFunctions } from './generated/functionMetadata.js'
@@ -197,7 +197,7 @@ function convertInitializer(
       initializer.callee.type === AST_NODE_TYPES.Identifier
         ? initializer.callee.name
         : undefined
-    if (calleeName && isMagicFunctionStatmentOnly(calleeName)) {
+    if (calleeName && isIntrinsicStatement(calleeName)) {
       throw new WorkflowSyntaxError(
         `"${calleeName}" can't be called as part of an expression`,
         initializer.callee.loc,
@@ -716,20 +716,11 @@ function assignmentSteps(
   if (
     right.type === AST_NODE_TYPES.CallExpression &&
     right.callee.type === AST_NODE_TYPES.Identifier &&
-    isMagicFunction(right.callee.name)
+    isIntrinsic(right.callee.name)
   ) {
-    const calleeName = right.callee.name
-    if (isMagicFunctionStatmentOnly(calleeName)) {
-      throw new WorkflowSyntaxError(
-        `"${calleeName}" can't be called as part of an expression`,
-        right.callee.loc,
-      )
-    }
-
-    const resultVariable = tempName(ctx)
-    steps.push(...callExpressionToStep(right, resultVariable, ctx))
-
-    valueExpression = new VariableReferenceExpression(tempName(ctx))
+    const tr = intrisicInAssignmentExpression(right, ctx)
+    steps.push(...tr.steps)
+    valueExpression = tr.tempVariable
   } else {
     valueExpression = convertExpression(right)
   }
@@ -755,27 +746,11 @@ function compoundAssignmentSteps(
   if (
     right.type === AST_NODE_TYPES.CallExpression &&
     right.callee.type === AST_NODE_TYPES.Identifier &&
-    isMagicFunction(right.callee.name)
+    isIntrinsic(right.callee.name)
   ) {
-    const calleeName = right.callee.name
-    if (isMagicFunctionStatmentOnly(calleeName)) {
-      throw new WorkflowSyntaxError(
-        `"${calleeName}" can't be called as part of an expression`,
-        right.callee.loc,
-      )
-    }
-
-    const needsTempVariable = left.type !== AST_NODE_TYPES.Identifier
-    const resultVariable = needsTempVariable
-      ? tempName(ctx)
-      : targetExpression.toString()
-    steps.push(...callExpressionToStep(right, resultVariable, ctx))
-
-    if (!needsTempVariable) {
-      return steps
-    }
-
-    valueExpression = new VariableReferenceExpression(tempName(ctx))
+    const tr = intrisicInAssignmentExpression(right, ctx)
+    steps.push(...tr.steps)
+    valueExpression = tr.tempVariable
   } else {
     valueExpression = convertExpression(right)
   }
@@ -888,6 +863,34 @@ function extractSideEffectsFromMemberExpression(
       assignments: [],
     }
   }
+}
+
+/**
+ * Special case for handling call_step() RHS in assignment expressions.
+ *
+ * This can be removed once the generic convertExpression() is able to handle call_step.
+ */
+function intrisicInAssignmentExpression(
+  callEx: TSESTree.CallExpression,
+  ctx: ParsingContext,
+): { steps: WorkflowStepAST[]; tempVariable: VariableReferenceExpression } {
+  if (callEx.callee.type !== AST_NODE_TYPES.Identifier) {
+    throw new InternalTranspilingError('The callee should be an identifier')
+  }
+
+  const calleeName = callEx.callee.name
+  if (isIntrinsicStatement(calleeName)) {
+    throw new WorkflowSyntaxError(
+      `"${calleeName}" can't be called as part of an expression`,
+      callEx.callee.loc,
+    )
+  }
+
+  const resultVariable = tempName(ctx)
+  const steps = callExpressionToStep(callEx, resultVariable, ctx)
+  const tempVariable = new VariableReferenceExpression(resultVariable)
+
+  return { steps, tempVariable }
 }
 
 function callExpressionToStep(

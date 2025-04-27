@@ -436,7 +436,7 @@ function convertCallExpression(node: TSESTree.CallExpression): Expression {
   const calleeExpression = convertExpression(node.callee)
   if (isFullyQualifiedName(calleeExpression)) {
     const calleeName = calleeExpression.toString()
-    if (isMagicFunction(calleeName)) {
+    if (isIntrinsic(calleeName)) {
       let msg: string
       if (calleeName === 'call_step') {
         msg =
@@ -458,12 +458,12 @@ function convertCallExpression(node: TSESTree.CallExpression): Expression {
   }
 }
 
-export function isMagicFunction(calleeName: string): boolean {
-  const magicFunctions = ['parallel', 'retry_policy', 'call_step']
-  return magicFunctions.includes(calleeName)
+export function isIntrinsic(calleeName: string): boolean {
+  const intrinsics = ['parallel', 'retry_policy', 'call_step']
+  return intrinsics.includes(calleeName)
 }
 
-export function isMagicFunctionStatmentOnly(calleeName: string): boolean {
+export function isIntrinsicStatment(calleeName: string): boolean {
   const statementNames = ['parallel', 'retry_policy']
   return statementNames.includes(calleeName)
 }
