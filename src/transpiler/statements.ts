@@ -718,7 +718,7 @@ function assignmentSteps(
     right.callee.type === AST_NODE_TYPES.Identifier &&
     isIntrinsic(right.callee.name)
   ) {
-    const tr = intrisicInAssignmentExpression(right, ctx)
+    const tr = convertAssignmentExpressionIntrinsicRHS(right, ctx)
     steps.push(...tr.steps)
     valueExpression = tr.tempVariable
   } else {
@@ -748,7 +748,7 @@ function compoundAssignmentSteps(
     right.callee.type === AST_NODE_TYPES.Identifier &&
     isIntrinsic(right.callee.name)
   ) {
-    const tr = intrisicInAssignmentExpression(right, ctx)
+    const tr = convertAssignmentExpressionIntrinsicRHS(right, ctx)
     steps.push(...tr.steps)
     valueExpression = tr.tempVariable
   } else {
@@ -863,7 +863,7 @@ function extractSideEffectsFromMemberExpression(
  *
  * This can be removed once the generic convertExpression() is able to handle call_step.
  */
-function intrisicInAssignmentExpression(
+function convertAssignmentExpressionIntrinsicRHS(
   callEx: TSESTree.CallExpression,
   ctx: ParsingContext,
 ): { steps: WorkflowStepAST[]; tempVariable: VariableReferenceExpression } {
