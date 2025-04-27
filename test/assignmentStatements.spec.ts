@@ -602,8 +602,7 @@ describe('Assignment statement', () => {
         - assign1:
             assign:
               - i: 2
-              - __temp0: \${4 + i}
-              - people[__temp0].age: \${people[__temp0].age + 1}
+              - people[4 + i].age: \${people[4 + i].age + 1}
     `
 
     assertTranspiled(code, expected)

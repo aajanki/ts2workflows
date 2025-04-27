@@ -815,14 +815,7 @@ function extractSideEffectsFromMemberExpression(
   tempPrefix: string,
   tempIndex: number,
 ): { transformed: MemberExpression; assignments: VariableAssignment[] } {
-  if (
-    ex.computed &&
-    ex.property.expressionType !== 'primitive' &&
-    ex.property.expressionType !== 'variableReference'
-  ) {
-    // The check for potential side-effects could be made stricter.
-    // Currently, we end up in this branch also on some non-side effecting
-    // expressions such as i + 1.
+  if (ex.computed && !isPure(ex.property)) {
     let transformedObject: Expression
     let objectAssignments: VariableAssignment[]
 
