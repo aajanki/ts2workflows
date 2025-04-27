@@ -71,6 +71,51 @@ describe('Destructing', () => {
     assertTranspiled(code, expected)
   })
 
+  it('destructures array from call_step()', () => {
+    const code = `
+    function main() {
+      const [head] = call_step(test_array, {id: 1});
+    }
+      
+    function test_array(id) {
+      return [id]
+    }`
+
+    const expected = `
+    main:
+      steps:
+        - call_test_array_1:
+            call: test_array
+            args:
+              id: 1
+            result: __temp
+        - assign1:
+            assign:
+              - __temp_len: \${len(__temp)}
+        - switch1:
+            switch:
+              - condition: \${__temp_len >= 1}
+                steps:
+                  - assign2:
+                      assign:
+                        - head: \${__temp[0]}
+              - condition: true
+                steps:
+                  - assign3:
+                      assign:
+                        - head: null
+    test_array:
+      params:
+        - id
+      steps:
+        - return1:
+            return:
+              - \${id}
+    `
+
+    assertTranspiled(code, expected)
+  })
+
   it('destructures array in a nested property', () => {
     const code = `
     function main(data) {
@@ -892,6 +937,42 @@ describe('Destructing', () => {
               - name: \${map.get(__temp, "name")}
               - countryName: \${map.get(__temp.address.country, "name")}
               - code: \${map.get(__temp.address.country, "code")}
+    `
+
+    assertTranspiled(code, expected)
+  })
+
+  it('destructures object from call_step()', () => {
+    const code = `
+    function main() {
+      const { name } = call_step(test_object, {id: 1});
+    }
+      
+    function test_object(id) {
+      return {
+        name: "Bean"
+      }
+    }
+    `
+
+    const expected = `
+    main:
+      steps:
+        - call_test_object_1:
+            call: test_object
+            args:
+              id: 1
+            result: __temp
+        - assign1:
+            assign:
+              - name: \${map.get(__temp, "name")}
+    test_object:
+      params:
+        - id
+      steps:
+        - return1:
+            return:
+              name: "Bean"
     `
 
     assertTranspiled(code, expected)
