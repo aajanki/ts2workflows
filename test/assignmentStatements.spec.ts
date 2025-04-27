@@ -602,7 +602,69 @@ describe('Assignment statement', () => {
         - assign1:
             assign:
               - i: 2
-              - people[4 + i].age: \${people[4 + i].age + 1}
+              - __temp0: \${4 + i}
+              - people[__temp0].age: \${people[__temp0].age + 1}
+    `
+
+    assertTranspiled(code, expected)
+  })
+
+  it('compound assignment to a member expression with side-effects', () => {
+    const code = `
+    function main() {
+      values[getIndex() + 4] -= 1;
+    }
+
+    function getIndex() {
+      return 1;
+    }`
+
+    const expected = `
+    main:
+      steps:
+        - assign1:
+            assign:
+              - __temp0: \${getIndex() + 4}
+              - values[__temp0]: \${values[__temp0] - 1}
+    getIndex:
+      steps:
+        - return1:
+            return: 1
+    `
+
+    assertTranspiled(code, expected)
+  })
+
+  it('compound assignment to a member expression with many side-effects', () => {
+    const code = `
+    function main() {
+      data.objects[objectIndex()].values[valueIndex()] /= 2;
+    }
+
+    function objectIndex() {
+      return 2;
+    }
+
+    function valueIndex() {
+      return 1;
+    }`
+
+    const expected = `
+    main:
+      steps:
+        - assign1:
+            assign:
+              - __temp1: \${objectIndex()}
+              - __temp0: \${valueIndex()}
+              - data.objects[__temp1].values[__temp0]: \${data.objects[__temp1].values[__temp0] / 2}
+    objectIndex:
+      steps:
+        - return1:
+            return: 2
+    valueIndex:
+      steps:
+        - return2:
+            return: 1
     `
 
     assertTranspiled(code, expected)

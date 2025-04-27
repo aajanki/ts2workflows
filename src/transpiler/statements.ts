@@ -692,50 +692,84 @@ function assignmentExpressionToSteps(
       )
   }
 
-  if (node.left.type === AST_NODE_TYPES.ArrayPattern) {
-    if (node.operator === '=') {
-      return convertArrayDestructuring(node.left, node.right, ctx)
-    } else {
-      throw new WorkflowSyntaxError(
-        `Invalid left-hand side in assignment`,
-        node.left.loc,
-      )
-    }
-  } else if (node.left.type === AST_NODE_TYPES.ObjectPattern) {
-    if (node.operator === '=') {
-      return convertObjectDestructuring(node.left, node.right, ctx)
-    } else {
-      throw new WorkflowSyntaxError(
-        `Invalid left-hand side in assignment`,
-        node.left.loc,
-      )
-    }
+  if (compoundOperator === undefined) {
+    return assignmentSteps(node.left, node.right, ctx)
+  } else {
+    return compoundAssignmentSteps(node.left, node.right, compoundOperator, ctx)
   }
+}
 
-  const targetExpression = convertVariableNameExpression(node.left)
+function assignmentSteps(
+  left: TSESTree.Expression,
+  right: TSESTree.Expression,
+  ctx: ParsingContext,
+): WorkflowStepAST[] {
   let valueExpression: Expression
   const steps: WorkflowStepAST[] = []
 
+  if (left.type === AST_NODE_TYPES.ArrayPattern) {
+    return convertArrayDestructuring(left, right, ctx)
+  } else if (left.type === AST_NODE_TYPES.ObjectPattern) {
+    return convertObjectDestructuring(left, right, ctx)
+  }
+
   if (
-    node.right.type === AST_NODE_TYPES.CallExpression &&
-    node.right.callee.type === AST_NODE_TYPES.Identifier &&
-    isMagicFunction(node.right.callee.name)
+    right.type === AST_NODE_TYPES.CallExpression &&
+    right.callee.type === AST_NODE_TYPES.Identifier &&
+    isMagicFunction(right.callee.name)
   ) {
-    const calleeName = node.right.callee.name
+    const calleeName = right.callee.name
     if (isMagicFunctionStatmentOnly(calleeName)) {
       throw new WorkflowSyntaxError(
         `"${calleeName}" can't be called as part of an expression`,
-        node.right.callee.loc,
+        right.callee.loc,
       )
     }
 
-    const needsTempVariable =
-      compoundOperator === undefined ||
-      node.left.type !== AST_NODE_TYPES.Identifier
+    const resultVariable = tempName(ctx)
+    steps.push(...callExpressionToStep(right, resultVariable, ctx))
+
+    valueExpression = new VariableReferenceExpression(tempName(ctx))
+  } else {
+    valueExpression = convertExpression(right)
+  }
+
+  const targetExpression = convertVariableNameExpression(left)
+  steps.push(
+    new AssignStepAST([{ key: targetExpression, value: valueExpression }]),
+  )
+
+  return steps
+}
+
+function compoundAssignmentSteps(
+  left: TSESTree.Expression,
+  right: TSESTree.Expression,
+  operator: BinaryOperator,
+  ctx: ParsingContext,
+): WorkflowStepAST[] {
+  let valueExpression: Expression
+  const { expression: targetExpression, steps } =
+    convertCompoundAssignmentLeftHandSide(left, ctx)
+
+  if (
+    right.type === AST_NODE_TYPES.CallExpression &&
+    right.callee.type === AST_NODE_TYPES.Identifier &&
+    isMagicFunction(right.callee.name)
+  ) {
+    const calleeName = right.callee.name
+    if (isMagicFunctionStatmentOnly(calleeName)) {
+      throw new WorkflowSyntaxError(
+        `"${calleeName}" can't be called as part of an expression`,
+        right.callee.loc,
+      )
+    }
+
+    const needsTempVariable = left.type !== AST_NODE_TYPES.Identifier
     const resultVariable = needsTempVariable
       ? tempName(ctx)
       : targetExpression.toString()
-    steps.push(...callExpressionToStep(node.right, resultVariable, ctx))
+    steps.push(...callExpressionToStep(right, resultVariable, ctx))
 
     if (!needsTempVariable) {
       return steps
@@ -743,22 +777,117 @@ function assignmentExpressionToSteps(
 
     valueExpression = new VariableReferenceExpression(tempName(ctx))
   } else {
-    valueExpression = convertExpression(node.right)
+    valueExpression = convertExpression(right)
   }
 
-  if (compoundOperator) {
-    valueExpression = new BinaryExpression(
-      targetExpression,
-      compoundOperator,
-      valueExpression,
-    )
-  }
+  valueExpression = new BinaryExpression(
+    targetExpression,
+    operator,
+    valueExpression,
+  )
 
   steps.push(
     new AssignStepAST([{ key: targetExpression, value: valueExpression }]),
   )
 
   return steps
+}
+
+function convertCompoundAssignmentLeftHandSide(
+  left: TSESTree.Expression,
+  ctx: ParsingContext,
+): {
+  expression: MemberExpression | VariableReferenceExpression
+  steps: WorkflowStepAST[]
+} {
+  if (
+    left.type === AST_NODE_TYPES.ArrayPattern ||
+    left.type === AST_NODE_TYPES.ObjectPattern
+  ) {
+    throw new WorkflowSyntaxError(
+      `Invalid left-hand side in assignment`,
+      left.loc,
+    )
+  }
+
+  const leftEx = convertVariableNameExpression(left)
+
+  if (leftEx.expressionType === 'member') {
+    const { transformed, assignments } = extractSideEffectsFromMemberExpression(
+      leftEx,
+      tempName(ctx),
+      0,
+    )
+    const steps = [new AssignStepAST(assignments)]
+
+    return { expression: transformed, steps }
+  } else {
+    return {
+      expression: leftEx,
+      steps: [],
+    }
+  }
+}
+
+/**
+ * Extract side-effecting computed properties into temporary variable assignments.
+ *
+ * This is used on the left-hand side of a compound assignment expression, which
+ * should only be evaluted once.
+ */
+function extractSideEffectsFromMemberExpression(
+  ex: MemberExpression,
+  tempPrefix: string,
+  tempIndex: number,
+): { transformed: MemberExpression; assignments: VariableAssignment[] } {
+  if (
+    ex.computed &&
+    ex.property.expressionType !== 'primitive' &&
+    ex.property.expressionType !== 'variableReference'
+  ) {
+    // The check for potential side-effects could be made stricter.
+    // Currently, we end up in this branch also on some non-side effecting
+    // expressions such as i + 1.
+    let transformedObject: Expression
+    let objectAssignments: VariableAssignment[]
+
+    if (ex.object.expressionType === 'member') {
+      const object2 = extractSideEffectsFromMemberExpression(
+        ex.object,
+        tempPrefix,
+        tempIndex + 1,
+      )
+      transformedObject = object2.transformed
+      objectAssignments = object2.assignments
+    } else {
+      transformedObject = ex.object
+      objectAssignments = []
+    }
+
+    const tmp = new VariableReferenceExpression(`${tempPrefix}${tempIndex}`)
+    const transformed = new MemberExpression(transformedObject, tmp, true)
+    const assignments = objectAssignments
+    assignments.push({
+      key: tmp,
+      value: ex.property,
+    })
+
+    return { transformed, assignments }
+  } else if (ex.object.expressionType === 'member') {
+    const { transformed: object2, assignments: assignments } =
+      extractSideEffectsFromMemberExpression(ex.object, tempPrefix, tempIndex)
+    const transformed = new MemberExpression(object2, ex.property, ex.computed)
+
+    return {
+      transformed,
+      assignments,
+    }
+  } else {
+    return {
+      transformed: ex,
+      assignments: [],
+    }
+  }
 }
 
 function callExpressionToStep(
