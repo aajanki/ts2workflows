@@ -12,7 +12,7 @@ import { Subworkflow, WorkflowParameter } from './workflows.js'
 
 export type StepName = string
 export interface VariableAssignment {
-  key: VariableReferenceExpression | MemberExpression
+  name: VariableReferenceExpression | MemberExpression
   value: Expression
 }
 export type WorkflowParameters = Record<VariableName, Expression>
@@ -826,9 +826,9 @@ export function renderStep(
   switch (step.tag) {
     case 'assign':
       return {
-        assign: step.assignments.map(({ key, value }) => {
+        assign: step.assignments.map(({ name, value }) => {
           return {
-            [key.toString()]:
+            [name.toString()]:
               expressionToLiteralValueOrLiteralExpression(value),
           }
         }),

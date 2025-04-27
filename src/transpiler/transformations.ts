@@ -248,8 +248,8 @@ function transformExpressionsAssign(
 ): WorkflowStepAST[] {
   if (step.assignments) {
     const newSteps: WorkflowStepAST[] = []
-    const newAssignments = step.assignments.map(({ key, value }) => {
-      const [steps2, transformedKey] = transform(key)
+    const newAssignments = step.assignments.map(({ name, value }) => {
+      const [steps2, transformedKey] = transform(name)
       const [steps3, transformedValue] = transform(value)
       newSteps.push(...steps2)
       newSteps.push(...steps3)
@@ -263,7 +263,7 @@ function transformExpressionsAssign(
         )
       }
 
-      return { key: transformedKey, value: transformedValue }
+      return { name: transformedKey, value: transformedValue }
     })
     newSteps.push(new AssignStepAST(newAssignments, step.next, step.label))
     return newSteps
@@ -602,7 +602,7 @@ function extractMapsInMap(
   } else {
     newValue = new VariableReferenceExpression(generateName())
     tempVariables.push({
-      key: newValue,
+      name: newValue,
       value: new PrimitiveExpression(properties),
     })
   }

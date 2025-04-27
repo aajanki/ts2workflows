@@ -24,11 +24,11 @@ describe('workflow step AST', () => {
   it('renders an assign step', () => {
     const step = new AssignStepAST([
       {
-        key: new VariableReferenceExpression('city'),
+        name: new VariableReferenceExpression('city'),
         value: new PrimitiveExpression('New New York'),
       },
       {
-        key: new VariableReferenceExpression('value'),
+        name: new VariableReferenceExpression('value'),
         value: parseExpression('1 + 2'),
       },
     ])
@@ -45,23 +45,23 @@ describe('workflow step AST', () => {
   it('assigns variables with index notation', () => {
     const step = new AssignStepAST([
       {
-        key: new VariableReferenceExpression('my_list'),
+        name: new VariableReferenceExpression('my_list'),
         value: new PrimitiveExpression([0, 1, 2, 3, 4]),
       },
       {
-        key: new VariableReferenceExpression('idx'),
+        name: new VariableReferenceExpression('idx'),
         value: new PrimitiveExpression(0),
       },
       {
-        key: new VariableReferenceExpression('my_list[0]'),
+        name: new VariableReferenceExpression('my_list[0]'),
         value: new PrimitiveExpression('Value0'),
       },
       {
-        key: new VariableReferenceExpression('my_list[idx + 1]'),
+        name: new VariableReferenceExpression('my_list[idx + 1]'),
         value: new PrimitiveExpression('Value1'),
       },
       {
-        key: new VariableReferenceExpression('my_list[len(my_list) - 1]'),
+        name: new VariableReferenceExpression('my_list[len(my_list) - 1]'),
         value: new PrimitiveExpression('LastValue'),
       },
     ])
@@ -126,7 +126,7 @@ describe('workflow step AST', () => {
       'increase_counter',
       new AssignStepAST([
         {
-          key: new VariableReferenceExpression('a'),
+          name: new VariableReferenceExpression('a'),
           value: parseExpression('mars_counter + 1'),
         },
       ]),
@@ -459,7 +459,7 @@ describe('workflow step AST', () => {
           'addStep',
           new AssignStepAST([
             {
-              key: new VariableReferenceExpression('sum'),
+              name: new VariableReferenceExpression('sum'),
               value: parseExpression('sum + v'),
             },
           ]),
@@ -489,7 +489,7 @@ describe('workflow step AST', () => {
           'addStep',
           new AssignStepAST([
             {
-              key: new VariableReferenceExpression('sum'),
+              name: new VariableReferenceExpression('sum'),
               value: parseExpression('sum + i*v'),
             },
           ]),
@@ -521,7 +521,7 @@ describe('workflow step AST', () => {
           'addStep',
           new AssignStepAST([
             {
-              key: new VariableReferenceExpression('sum'),
+              name: new VariableReferenceExpression('sum'),
               value: parseExpression('sum + v'),
             },
           ]),
@@ -595,7 +595,7 @@ describe('workflow step AST', () => {
             'assign_1',
             new AssignStepAST([
               {
-                key: new VariableReferenceExpression('myVariable[0]'),
+                name: new VariableReferenceExpression('myVariable[0]'),
                 value: new PrimitiveExpression('Set in branch 1'),
               },
             ]),
@@ -606,7 +606,7 @@ describe('workflow step AST', () => {
             'assign_2',
             new AssignStepAST([
               {
-                key: new VariableReferenceExpression('myVariable[1]'),
+                name: new VariableReferenceExpression('myVariable[1]'),
                 value: new PrimitiveExpression('Set in branch 2'),
               },
             ]),
@@ -655,7 +655,7 @@ describe('workflow step AST', () => {
             'add',
             new AssignStepAST([
               {
-                key: new VariableReferenceExpression('total'),
+                name: new VariableReferenceExpression('total'),
                 value: parseExpression('total + balance'),
               },
             ]),
