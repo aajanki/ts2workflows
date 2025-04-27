@@ -470,7 +470,6 @@ describe('Call statement', () => {
       steps:
         - call_sys_now_1:
             call: sys.now
-            args: {}
             result: timestamp
     `
 

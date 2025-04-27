@@ -910,7 +910,7 @@ function renderCallStep(step: CallStepAST): Record<string, unknown> {
 
   return {
     call: step.call,
-    ...(args !== undefined && { args }),
+    ...(args && Object.keys(args).length > 0 && { args }),
     ...(step.result !== undefined && { result: step.result }),
   }
 }
