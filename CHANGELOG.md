@@ -5,6 +5,7 @@
 - Accept binary expressions as properties in assignments: `a[i + 4] = 1` (regression since 0.9.0)
 - Evaluate side-effects only once on the left-hand side in compound assignments: `x[f()] += 1`
 - Fix calling `call_step()` on the right-hand side of a compound assignment: `x += call_step(sum, {a: 10, b: 11})`
+- Output an error is a subworkflow is empty because empty body is not allowed on GCP
 
 ## Version 0.9.0 - 2025-04-23
 

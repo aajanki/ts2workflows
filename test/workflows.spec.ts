@@ -4,14 +4,18 @@ import { assertTranspiled } from './testutils.js'
 
 describe('workflow transpiler', () => {
   it('transpiles a function with parameters', () => {
-    const code = 'function my_workflow(a, b, c) {}'
+    const code = `function my_workflow(a, b, c) {
+      return a + b + c;
+    }`
     const expected = `
     my_workflow:
       params:
         - a
         - b
         - c
-      steps: []
+      steps:
+        - return1:
+            return: \${a + b + c}
     `
 
     assertTranspiled(code, expected)
@@ -40,18 +44,27 @@ describe('workflow transpiler', () => {
 
   it('transpiles multiple subworkflows', () => {
     const code = `
-    function workflow1() {}
-    function workflow2(first_param) {}
+    function workflow1() {
+      return 1;
+    }
+
+    function workflow2(first_param) {
+      return 2;
+    }
     `
 
     const expected = `
     workflow1:
-      steps: []
+      steps:
+        - return1:
+            return: 1
 
     workflow2:
       params:
         - first_param
-      steps: []
+      steps:
+        - return2:
+            return: 2
     `
 
     assertTranspiled(code, expected)
@@ -170,22 +183,34 @@ describe('workflow transpiler', () => {
   })
 
   it('throws if the default value is an expression', () => {
-    const code = `function my_workflow(a = 1 + 2) {}`
+    const code = `function my_workflow(a = 1 + 2) {
+      return null;
+    }`
 
     expect(() => transpile(code)).to.throw()
   })
 
   it('handles function with positional and optional parameters', () => {
-    const code = `function my_workflow(positional_arg, optional_arg = 100) {}`
+    const code = `function my_workflow(positional_arg, optional_arg = 100) {
+      return null;
+    }`
 
     const expected = `
     my_workflow:
       params:
         - positional_arg
         - optional_arg: 100
-      steps: []
+      steps:
+        - return1:
+            return: null
     `
 
     assertTranspiled(code, expected)
+  })
+
+  it('throws if the subworkflow body is empty', () => {
+    const code = `function empty_workflow() {}`
+
+    expect(() => transpile(code)).to.throw()
   })
 })

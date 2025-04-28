@@ -93,6 +93,13 @@ function parseSubworkflows(
   const workflowParams = parseWorkflowParams(node.params)
   const steps = transformAST(parseStatement(node.body, {}))
 
+  if (steps.length === 0) {
+    throw new WorkflowSyntaxError(
+      'Empty subworkflow body is not allowed on GCP Workflows',
+      node.body.loc,
+    )
+  }
+
   return new SubworkflowAST(node.id.name, steps, workflowParams)
 }
 
