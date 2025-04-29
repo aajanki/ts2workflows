@@ -245,7 +245,7 @@ function removeJumpTargetsParallel(
 }
 
 function removeJumpTargetsSwitch(step: SwitchStepASTNamed): SwitchStepASTNamed {
-  const transformedConditions = step.conditions.map((cond) => {
+  const transformedConditions = step.branches.map((cond) => {
     return {
       condition: cond.condition,
       steps: removeJumpTargetSteps(cond.steps),
@@ -402,7 +402,7 @@ function renameJumpTargetsSwitch(
     updatedNext = replaceLabels.get(step.next) ?? step.next
   }
 
-  const updatedConditions = step.conditions.map((cond) => {
+  const updatedConditions = step.branches.map((cond) => {
     let updatedCondNext: StepName | undefined = undefined
     if (cond.next) {
       updatedCondNext = replaceLabels.get(cond.next) ?? cond.next

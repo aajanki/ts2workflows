@@ -183,7 +183,7 @@ function validateJumpTargetsInWorkflow(
         })
       }
 
-      step.conditions.forEach((cond) => {
+      step.branches.forEach((cond) => {
         if (cond.next && !validNextTarget(cond.next)) {
           issues.push({
             type: 'missingJumpTarget',

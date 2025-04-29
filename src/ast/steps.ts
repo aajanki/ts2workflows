@@ -485,14 +485,14 @@ export class SwitchStepAST {
 
 export class SwitchStepASTNamed {
   readonly tag = 'switch'
-  readonly conditions: SwitchConditionAST<NamedWorkflowStep>[]
+  readonly branches: SwitchConditionAST<NamedWorkflowStep>[]
   readonly next?: StepName
 
   constructor(
-    conditions: SwitchConditionAST<NamedWorkflowStep>[],
+    branches: SwitchConditionAST<NamedWorkflowStep>[],
     next?: StepName,
   ) {
-    this.conditions = conditions
+    this.branches = branches
     this.next = next
   }
 }
@@ -508,7 +508,9 @@ export interface SwitchConditionAST<
 // https://cloud.google.com/workflows/docs/reference/syntax/catching-errors
 export class TryStepAST {
   readonly tag = 'try'
+  // Steps in the try block
   readonly trySteps: WorkflowStepAST[]
+  // Steps in the except block
   readonly exceptSteps?: WorkflowStepAST[]
   readonly retryPolicy?: string | CustomRetryPolicy
   readonly errorMap?: VariableName
@@ -553,20 +555,20 @@ export class TryStepAST {
 
 export class TryStepASTNamed {
   readonly tag = 'try'
-  readonly retryPolicy?: string | CustomRetryPolicy
-  readonly errorMap?: VariableName
   // Steps in the try block
   readonly trySteps: NamedWorkflowStep[]
   // Steps in the except block
   readonly exceptSteps?: NamedWorkflowStep[]
+  readonly retryPolicy?: string | CustomRetryPolicy
+  readonly errorMap?: VariableName
 
   constructor(
-    steps: NamedWorkflowStep[],
+    trySteps: NamedWorkflowStep[],
     exceptSteps?: NamedWorkflowStep[],
     retryPolicy?: string | CustomRetryPolicy,
     errorMap?: VariableName,
   ) {
-    this.trySteps = steps
+    this.trySteps = trySteps
     this.retryPolicy = retryPolicy
     this.errorMap = errorMap
     this.exceptSteps = exceptSteps
@@ -783,7 +785,7 @@ export function nestedSteps(
       return nestedStepsParallel(step)
 
     case 'switch':
-      return step.conditions.map((x) => x.steps)
+      return step.branches.map((x) => x.steps)
 
     case 'try':
       return nestedStepsTry(step)
@@ -878,7 +880,7 @@ export function renderStep(
 
     case 'switch':
       return {
-        switch: step.conditions.map(renderSwitchCondition),
+        switch: step.branches.map(renderSwitchCondition),
         ...(step.next && { next: step.next }),
       }
 
