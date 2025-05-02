@@ -118,6 +118,7 @@ function extractFunctionDefinitions(
       ]
 
     case AST_NODE_TYPES.TSInterfaceDeclaration:
+    case AST_NODE_TYPES.TSTypeAliasDeclaration:
     case AST_NODE_TYPES.VariableDeclaration:
       // Ignore type and variable definitions
       return []
