@@ -423,12 +423,13 @@ describe('Try-catch-finally statement', () => {
     const code = `
     function main() {
       try {
+        retry_policy(http.default_retry);
+
         const response = http.get("https://visit.dreamland.test/");
         return response;
       } catch {
         log("Error!");
       }
-      retry_policy(http.default_retry)
     }`
 
     const expected = `
@@ -459,6 +460,8 @@ describe('Try-catch-finally statement', () => {
     const code = `
     function main() {
       try {
+        retry_policy(http.default_retry);
+
         const response = http.get("https://visit.dreamland.test/");
         return response;
       } catch {
@@ -466,7 +469,6 @@ describe('Try-catch-finally statement', () => {
       } finally {
         closeConnection();
       }
-      retry_policy(http.default_retry)
     }`
 
     const expected = `
@@ -527,12 +529,13 @@ describe('Try-catch-finally statement', () => {
     const code = `
     function main() {
       try {
+        retry_policy(http.default_retry);
+
         const response = http.get("https://visit.dreamland.test/");
         return response;
       } finally {
         closeConnection();
       }
-      retry_policy(http.default_retry)
     }`
 
     const expected = `
@@ -863,16 +866,17 @@ describe('Try-catch-finally statement', () => {
     const code = `
     function main() {
       try {
+        retry_policy({
+          predicate: http.default_retry_predicate,
+          max_retries: 3,
+          backoff: { initial_delay: 0.5, max_delay: 60, multiplier: 2.5 }
+        });
+
         const response = http.get("https://visit.dreamland.test/");
         return response;
       } catch {
         log("Error!");
       }
-      retry_policy({
-        predicate: http.default_retry_predicate,
-        max_retries: 3,
-        backoff: { initial_delay: 0.5, max_delay: 60, multiplier: 2.5 }
-      })
     }`
 
     const expected = `
@@ -909,16 +913,17 @@ describe('Try-catch-finally statement', () => {
     const code = `
     function main() {
       try {
+        retry_policy({
+          predicate: custom_predicate,
+          max_retries: 3,
+          backoff: { initial_delay: 0.5, max_delay: 60, multiplier: 2.5 }
+        })
+
         const response = http.get("https://visit.dreamland.test/");
         return response;
       } catch {
         log("Error!");
       }
-      retry_policy({
-        predicate: custom_predicate,
-        max_retries: 3,
-        backoff: { initial_delay: 0.5, max_delay: 60, multiplier: 2.5 }
-      })
     }
 
     function custom_predicate(e) {
@@ -965,16 +970,17 @@ describe('Try-catch-finally statement', () => {
     const code = `
     function main() {
       try {
+        retry_policy({
+          predicate: http.default_retry_predicate,
+          max_retries: "5",
+          backoff: { initial_delay: "5", max_delay: "60", multiplier: "2" }
+        });
+
         const response = http.get("https://visit.dreamland.test/");
         return response;
       } catch {
         log("Error!");
       }
-      retry_policy({
-        predicate: http.default_retry_predicate,
-        max_retries: "5",
-        backoff: { initial_delay: "5", max_delay: "60", multiplier: "2" }
-      })
     }`
 
     const expected = `
@@ -1013,16 +1019,17 @@ describe('Try-catch-finally statement', () => {
       const multiplier = 2;
 
       try {
+        retry_policy({
+          predicate: http.default_retry_predicate,
+          max_retries: sys.get_env("MAX_RETRIES"),
+          backoff: { initial_delay: 0.5, max_delay: 60, multiplier: multiplier }
+        });
+
         const response = http.get("https://visit.dreamland.test/");
         return response;
       } catch {
         log("Error!");
       }
-      retry_policy({
-        predicate: http.default_retry_predicate,
-        max_retries: sys.get_env("MAX_RETRIES"),
-        backoff: { initial_delay: 0.5, max_delay: 60, multiplier: multiplier }
-      })
     }`
 
     const expected = `
@@ -1064,16 +1071,17 @@ describe('Try-catch-finally statement', () => {
     const code = `
     function main() {
       try {
+        retry_policy({
+          predicate: http.default_retry_predicate,
+          max_retries: 3,
+          backoff: { max_delay: 60 } // missing initial_delay and multiplier
+        });
+
         const response = http.get("https://visit.dreamland.test/");
         return response;
       } catch {
         log("Error!");
       }
-      retry_policy({
-        predicate: http.default_retry_predicate,
-        max_retries: 3,
-        backoff: { max_delay: 60 } // missing initial_delay and multiplier
-      })
     }`
 
     const expected = `
@@ -1108,16 +1116,17 @@ describe('Try-catch-finally statement', () => {
     const code = `
     function main() {
       try {
+        retry_policy({
+          // predicate missing
+          max_retries: 3,
+          backoff: { initial_delay: 0.5, max_delay: 60, multiplier: 3 }
+        });
+
         const response = http.get("https://visit.dreamland.test/");
         return response;
       } catch {
         log("Error!");
       }
-      retry_policy({
-        // predicate missing
-        max_retries: 3,
-        backoff: { initial_delay: 0.5, max_delay: 60, multiplier: 3 }
-      })
     }`
 
     const expected = `
@@ -1153,6 +1162,8 @@ describe('Try-catch-finally statement', () => {
     const code = `
     function main() {
       try {
+        retry_policy(http.default_retry);
+
         const response = http.get("https://visit.dreamland.test/");
         try {
           const a = 1;
@@ -1160,7 +1171,6 @@ describe('Try-catch-finally statement', () => {
       } catch (e) {
         log("Error!");
       }
-      retry_policy(http.default_retry);
     }`
 
     const expected = `
@@ -1199,15 +1209,17 @@ describe('Try-catch-finally statement', () => {
     const code = `
     function main() {
       try {
+        retry_policy(http.default_retry);
+
         const response = http.get("https://visit.dreamland.test/");
         try {
+          retry_policy(custom_retry);
+
           const a = 1;
         } catch (e) {}
-        retry_policy(custom_retry);
       } catch (e) {
         log("Error!");
       }
-      retry_policy(http.default_retry);
     }`
 
     const expected = `
@@ -1247,12 +1259,13 @@ describe('Try-catch-finally statement', () => {
     const code = `
     function main() {
       try {
+        retry_policy();
+
         const response = http.get("https://visit.dreamland.test/");
         return response;
       } catch {
         log("Error!");
       }
-      retry_policy()
     }`
 
     expect(() => transpile(code)).to.throw()
@@ -1262,29 +1275,28 @@ describe('Try-catch-finally statement', () => {
     const code = `
     function main() {
       try {
+        retry_policy(1000);
+
         const response = http.get("https://visit.dreamland.test/");
         return response;
       } catch {
         log("Error!");
       }
-      retry_policy(1000)
     }`
 
     expect(() => transpile(code)).to.throw()
   })
 
-  it('ignores retry that is not immediately after a try block', () => {
+  it('ignores retry_policy() outside of try block', () => {
     const code = `
     function main() {
+      retry_policy(http.default_retry);
+
       try {
         const response = http.get("https://visit.dreamland.test/");
       } catch {
         log("Error!");
       }
-
-      log("try block completed")
-
-      retry_policy(http.default_retry)
     }`
 
     const expected = `
@@ -1303,9 +1315,39 @@ describe('Try-catch-finally statement', () => {
                   - assign1:
                       assign:
                         - __temp: \${log("Error!")}
-          - assign2:
-              assign:
-                - __temp: \${log("try block completed")}
+    `
+
+    assertTranspiled(code, expected)
+  })
+
+  it('ignores retry_policy() in catch block', () => {
+    const code = `
+    function main() {
+      try {
+        const response = http.get("https://visit.dreamland.test/");
+      } catch {
+        retry_policy(http.default_retry);
+
+        log("Error!");
+      }
+    }`
+
+    const expected = `
+      main:
+        steps:
+          - try1:
+              try:
+                steps:
+                  - call_http_get_1:
+                      call: http.get
+                      args:
+                        url: https://visit.dreamland.test/
+                      result: response
+              except:
+                steps:
+                  - assign1:
+                      assign:
+                        - __temp: \${log("Error!")}
     `
 
     assertTranspiled(code, expected)
@@ -1358,12 +1400,13 @@ describe('Try-catch-finally statement', () => {
     const code = `
     function main() {
       try {
+        const x = 1 + retry_policy(http.default_retry);
+
         const response = http.get("https://visit.dreamland.test/");
         return response;
       } catch {
         log("Error!");
       }
-      const x = 1 + retry_policy(http.default_retry)
     }`
 
     expect(() => transpile(code)).to.throw()

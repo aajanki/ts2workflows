@@ -1,5 +1,11 @@
 # ts2workflows changelog
 
+## unreleased
+
+Breaking changes:
+
+- retry_policy() must be called inside a try block
+
 ## Version 0.10.0 - 2025-04-28
 
 - Accept binary expressions as properties in assignments: `a[i + 4] = 1` (regression in 0.9.0)

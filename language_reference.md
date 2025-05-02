@@ -694,24 +694,25 @@ If an exception gets thrown inside a try block, the stack trace in Workflows log
 
 ## Retrying on errors
 
-It is possible to set a retry policy for a try-catch statement. Because Typescript does not have `retry` keyword, the retry is implemented by a special `retry_policy` intrinsic function. It must be called immediately after a try-catch block. `retry_policy` is ignored elsewhere.
+It is possible to set a retry policy for a try-catch statement. Because Typescript does not have `retry` keyword, the retry is implemented by a `retry_policy` intrinsic function. It must be called inside a try block. `retry_policy` is ignored elsewhere. Only the first `retry_policy` in a try block has any effect.
 
 The arguments of `retry_policy` specify which errors are retried and how many times. The arguments can be either a policy provided by GCP Workflows or a custom retry policy as explained in the next sections.
 
-If an exception gets thrown in a try block and the retry policy covers the exception, the try block is executed again. Finally and catch blocks are run after possible retry attempts. The following sample retries `http.get()` if it throws an HTTP error and executes `sys.log('Error!')` and `closeConnection()` after retry attempts.
+If an exception gets thrown in a try block and the retry policy covers the exception, the try block is executed again. Finally and catch blocks are run if the try block keeps failing after all retry attempts have been used up. The following sample retries `http.get()` if it throws an HTTP error covered by `http.default_retry`. It logs `sys.log('Error!')` if the number of retry attempts exceed retry policy's maximum retry attempt count. `closeConnection()` is run always regardless of whether the HTTP request succeeded or failed.
 
 ```javascript
 import { http, retry_policy, sys } from 'ts2workflows/types/workflowslib'
 
 function main() {
   try {
+    retry_policy(http.default_retry)
+
     http.get('https://visit.dreamland.test/')
   } catch (err) {
     sys.log('Error!')
   } finally {
     closeConnection()
   }
-  retry_policy(http.default_retry)
 }
 ```
 
@@ -724,11 +725,12 @@ import { http, retry_policy } from 'ts2workflows/types/workflowslib'
 
 function main() {
   try {
+    retry_policy(http.default_retry)
+
     http.get('https://visit.dreamland.test/')
   } catch (err) {
     return 'Error!'
   }
-  retry_policy(http.default_retry)
 }
 ```
 
@@ -743,19 +745,20 @@ import { http, retry_policy } from 'ts2workflows/types/workflowslib'
 
 function main() {
   try {
+    retry_policy({
+      predicate: http.default_retry_predicate,
+      max_retries: 3,
+      backoff: {
+        initial_delay: 0.5,
+        max_delay: 60,
+        multiplier: 2,
+      },
+    })
+
     http.get('https://visit.dreamland.test/')
   } catch (err) {
     return 'Error!'
   }
-  retry_policy({
-    predicate: http.default_retry_predicate,
-    max_retries: 3,
-    backoff: {
-      initial_delay: 0.5,
-      max_delay: 60,
-      multiplier: 2,
-    },
-  })
 }
 ```
 
@@ -904,7 +907,7 @@ function retry_policy(
 ): void
 ```
 
-A retry policy can be attached to a `try`-`catch` block be calling `retry_policy` as the next statement after the `try`-`catch`. ts2workflows ignores `retry_policy` everywhere else except after a `try`-`catch`.
+A retry policy can be attached to a `try`-`catch` block by calling `retry_policy` inside the `try` block. ts2workflows ignores `retry_policy` everywhere else.
 
 See the section on [retrying errors](#retrying-on-errors).
 

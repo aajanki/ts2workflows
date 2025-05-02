@@ -40,7 +40,7 @@ import {
   trueEx,
 } from '../ast/expressions.js'
 import { InternalTranspilingError, WorkflowSyntaxError } from '../errors.js'
-import { chainPairs, isRecord } from '../utils.js'
+import { isRecord } from '../utils.js'
 import {
   convertExpression,
   convertMemberExpression,
@@ -72,20 +72,9 @@ export function parseStatement(
   node: TSESTree.Statement,
   ctx: ParsingContext,
 ): WorkflowStepAST[] {
-  return parseStatementRecursively(node, undefined, ctx)
-}
-
-function parseStatementRecursively(
-  node: TSESTree.Statement,
-  nextNode: TSESTree.Statement | undefined,
-  ctx: ParsingContext,
-): WorkflowStepAST[] {
   switch (node.type) {
     case AST_NODE_TYPES.BlockStatement:
-      return chainPairs(
-        R.partialRight(parseStatementRecursively, [ctx]),
-        node.body,
-      )
+      return node.body.flatMap((node) => parseStatement(node, ctx))
 
     case AST_NODE_TYPES.VariableDeclaration:
       return convertVariableDeclarations(node.declarations, ctx)
@@ -132,17 +121,8 @@ function parseStatementRecursively(
     case AST_NODE_TYPES.ContinueStatement:
       return [continueStatementToNextStep(node, ctx)]
 
-    case AST_NODE_TYPES.TryStatement: {
-      let retryPolicy: CustomRetryPolicy | string | undefined = undefined
-      if (
-        nextNode?.type === AST_NODE_TYPES.ExpressionStatement &&
-        nextNode.expression.type === AST_NODE_TYPES.CallExpression
-      ) {
-        retryPolicy = parseRetryPolicy(nextNode.expression)
-      }
-
-      return tryStatementToTrySteps(node, retryPolicy, ctx)
-    }
+    case AST_NODE_TYPES.TryStatement:
+      return tryStatementToTrySteps(node, ctx)
 
     case AST_NODE_TYPES.LabeledStatement:
       return labeledStep(node, ctx)
@@ -1454,9 +1434,10 @@ function continueStatementToNextStep(
 
 function tryStatementToTrySteps(
   node: TSESTree.TryStatement,
-  retryPolicy: string | CustomRetryPolicy | undefined,
   ctx: ParsingContext,
 ): WorkflowStepAST[] {
+  const retryPolicy = extractRetryPolicy(node.block)
+
   if (!node.finalizer) {
     // Basic try-catch without a finally block
     const baseTryStep = parseTryCatchRetry(node, ctx, retryPolicy)
@@ -1662,32 +1643,40 @@ function labeledStep(
   return steps
 }
 
-function parseRetryPolicy(
-  node: TSESTree.CallExpression,
+function extractRetryPolicy(
+  tryBlock: TSESTree.BlockStatement,
 ): CustomRetryPolicy | string | undefined {
-  const callee = node.callee
-  if (
-    callee.type !== AST_NODE_TYPES.Identifier ||
-    callee.name !== 'retry_policy'
-  ) {
-    // Ignore everything else besides retry_policy()
-    return undefined
+  // Find and parse the first retry_policy() in tryBlock
+  for (const statement of tryBlock.body) {
+    if (
+      statement.type === AST_NODE_TYPES.ExpressionStatement &&
+      statement.expression.type === AST_NODE_TYPES.CallExpression &&
+      statement.expression.callee.type === AST_NODE_TYPES.Identifier &&
+      statement.expression.callee.name === 'retry_policy'
+    ) {
+      if (statement.expression.arguments.length < 1) {
+        throw new WorkflowSyntaxError(
+          'Required argument missing',
+          statement.expression.loc,
+        )
+      }
+
+      const arg0 = throwIfSpread(statement.expression.arguments).map(
+        convertExpression,
+      )[0]
+      const argsLoc = statement.expression.arguments[0].loc
+
+      if (isFullyQualifiedName(arg0)) {
+        return arg0.toString()
+      } else if (arg0.expressionType === 'primitive' && isRecord(arg0.value)) {
+        return retryPolicyFromParams(arg0.value, argsLoc)
+      } else {
+        throw new WorkflowSyntaxError('Unexpected type', argsLoc)
+      }
+    }
   }
 
-  if (node.arguments.length < 1) {
-    throw new WorkflowSyntaxError('Required argument missing', node.loc)
-  }
-
-  const arg0 = throwIfSpread(node.arguments).map(convertExpression)[0]
-  const argsLoc = node.arguments[0].loc
-
-  if (isFullyQualifiedName(arg0)) {
-    return arg0.toString()
-  } else if (arg0.expressionType === 'primitive' && isRecord(arg0.value)) {
-    return retryPolicyFromParams(arg0.value, argsLoc)
-  } else {
-    throw new WorkflowSyntaxError('Unexpected type', argsLoc)
-  }
+  return undefined
 }
 
 function retryPolicyFromParams(
