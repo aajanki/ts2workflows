@@ -31,15 +31,38 @@ describe('Assignment statement', () => {
     assertTranspiled(code, expected)
   })
 
-  it('transpiles a var assignment', () => {
-    const code = 'function main() { var a = 1; }'
+  it('var declaration is not supported', () => {
+    const code = `function main() { var a = 1; }`
+
+    expect(() => transpile(code)).to.throw()
+  })
+
+  it('using declaration is not supported', () => {
+    const code = `function main() { using r = getResource(); }`
+
+    expect(() => transpile(code)).to.throw()
+  })
+
+  it('await using declaration is not supported', () => {
+    const code = `function main() { await using db = getConnection(); }`
+
+    expect(() => transpile(code)).to.throw()
+  })
+
+  it('allows variables to be re-declared', () => {
+    // This is invalid as a Typescript program, but valid as a ts2workflows/GCP Workflows program
+    const code = `function main() {
+      let x = 5;
+      let x = 6;
+    }`
 
     const expected = `
     main:
       steps:
         - assign1:
             assign:
-              - a: 1
+              - x: 5
+              - x: 6
     `
 
     assertTranspiled(code, expected)

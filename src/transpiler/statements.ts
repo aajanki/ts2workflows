@@ -77,7 +77,7 @@ export function parseStatement(
       return node.body.flatMap((node) => parseStatement(node, ctx))
 
     case AST_NODE_TYPES.VariableDeclaration:
-      return convertVariableDeclarations(node.declarations, ctx)
+      return convertVariableDeclarations(node, ctx)
 
     case AST_NODE_TYPES.ExpressionStatement:
       if (node.expression.type === AST_NODE_TYPES.AssignmentExpression) {
@@ -151,10 +151,17 @@ export function parseStatement(
 }
 
 function convertVariableDeclarations(
-  declarations: TSESTree.LetOrConstOrVarDeclarator[],
+  node: TSESTree.LetOrConstOrVarDeclaration | TSESTree.UsingDeclaration,
   ctx: ParsingContext,
 ): WorkflowStepAST[] {
-  return declarations.flatMap((decl) => {
+  if (node.kind !== 'const' && node.kind !== 'let') {
+    throw new WorkflowSyntaxError(
+      'Only const and let variable declarations are supported',
+      node.loc,
+    )
+  }
+
+  return node.declarations.flatMap((decl) => {
     if (decl.id.type === AST_NODE_TYPES.Identifier) {
       return convertInitializer(decl.id.name, decl.init, ctx)
     } else if (decl.id.type === AST_NODE_TYPES.ArrayPattern) {

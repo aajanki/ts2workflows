@@ -46,7 +46,7 @@ Note that `null` and `undefined` still are distinct types on the type checking s
 
 Expressions that combine variables with operators such as `+`, `>`, `==` perform implict type conversions according to the [rules listed on GCP Workflows documentation](https://cloud.google.com/workflows/docs/reference/syntax/datatypes#implicit-conversions). For example, applying `+` to a string and a number concatenates the values into a string.
 
-⚠️ Checking if a variable is null or not must be done by an explicit comparison: `if (var != null) {...}`. Relying on an implicit conversion (`if (var) {...}` where `var` is not a boolean) results in a TypeError at runtime.
+⚠️ Checking if a variable is null or not must be done by an explicit comparison: `if (myVar != null) {...}`. Relying on an implicit conversion (`if (myVvar) {...}` where `myVar` is not a boolean) results in a TypeError at runtime.
 
 ## Expressions
 
@@ -155,6 +155,25 @@ The typeof operator is useful as a type guard in Typescript (e.g. `typeof x === 
 String literals can include interpolated variables. The syntax is same as in Typescript. For example, `Hello ${name}`.
 
 ⚠️ Interpolated values can (only) be numbers, strings, booleans or nulls. Other types will throw a TypeError at runtime.
+
+## Variable scopes
+
+Variable scopes are determined by the [GCP Workflows scoping rules](https://cloud.google.com/workflows/docs/reference/syntax/variables#variable-scope).
+
+Variables have function scope, that is they are available in the function where they are defined. Variables defined in `for` and `except` blocks are exceptions; they belong to a local scope of the block in which they are declared.
+
+⚠️ TypeScript has more strict scoping rules. In Typescript, variables declared with `let` or `const` are accessible only on the block in which they are declared (i.e. variable declared inside an if branch cannot be accessed after the if block ends). Programs written according to TypeScript scoping rules always produce valid GCP Workflows programs, too.
+
+Trying to read a variable before it is assigned causes a runtime error.
+
+⚠️ If variable is not initialized at declaration, its value is implicitly set to `null`. For example, the following program will return `null`. (Note that the sample is not valid as a TypeScript program. TypeScript compiler consideres variable `x` to be used before it is assigned.)
+
+```typescript
+function main(): void {
+  let x: number | null
+  return x
+}
+```
 
 ## Subworkflow definitions
 

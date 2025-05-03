@@ -978,10 +978,10 @@ describe('Labelled statement', () => {
   it('takes the first label when combining assignment steps', () => {
     const code = `
     function test() {
-      var a = 1
-      var b = 2
-      setImportantVariable: var c = 3
-      setAnotherVariable: var d = 4
+      const a = 1
+      const b = 2
+      setImportantVariable: const c = 3
+      setAnotherVariable: const d = 4
     }`
 
     const expected = `
