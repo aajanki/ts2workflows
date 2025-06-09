@@ -228,10 +228,10 @@ export declare namespace list {
 
 export declare namespace map {
   function _delete<T>(map: Record<string, T>, key: string): Record<string, T>
-  export function get<T, K extends string | string[]>(
-    map: Record<string, T>,
-    keys: K,
-  ): K extends string ? T | null : unknown
+  // map.get() with a string key, returns a map value or null
+  export function get<T>(map: Record<string, T>, keys: string): T | null
+  // map.get() with string[] key or non-object lookup, the return value is not known
+  export function get(map: any, keys: string | string[]): unknown
   export function merge<T, U>(
     first: Record<string, T>,
     second: Record<string, U>,
