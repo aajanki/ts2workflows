@@ -26,6 +26,11 @@ type BooleanNumberStringListOrDict =
   | BooleanNumberStringListOrDict[]
   | Record<string, BooleanNumberStringListOrDict>
 
+type HTTPQuery = Record<
+  string,
+  string | number | boolean | (string | number | boolean)[]
+>
+
 // GCP Workflows expression helpers
 
 export declare function double(x: string | number): number
@@ -91,10 +96,7 @@ export declare namespace http {
     timeout?: number,
     body?: any,
     headers?: Record<string, string>,
-    query?: Record<
-      string,
-      string | number | boolean | (string | number | boolean)[]
-    >,
+    query?: HTTPQuery,
     auth?: Record<string, string>,
     private_service_name?: string,
     ca_certificate?: string,
@@ -107,10 +109,7 @@ export declare namespace http {
     url: string,
     timeout?: number,
     headers?: Record<string, string>,
-    query?: Record<
-      string,
-      string | number | boolean | (string | number | boolean)[]
-    >,
+    query?: HTTPQuery,
     auth?: Record<string, string>,
     private_service_name?: string,
     ca_certificate?: string,
@@ -141,10 +140,7 @@ export declare namespace http {
     timeout?: number,
     body?: any,
     headers?: Record<string, string>,
-    query?: Record<
-      string,
-      string | number | boolean | (string | number | boolean)[]
-    >,
+    query?: HTTPQuery,
     auth?: Record<string, string>,
     private_service_name?: string,
     ca_certificate?: string,
@@ -158,10 +154,7 @@ export declare namespace http {
     timeout?: number,
     body?: any,
     headers?: Record<string, string>,
-    query?: Record<
-      string,
-      string | number | boolean | (string | number | boolean)[]
-    >,
+    query?: HTTPQuery,
     auth?: Record<string, string>,
     private_service_name?: string,
     ca_certificate?: string,
@@ -176,10 +169,7 @@ export declare namespace http {
     timeout?: number,
     body?: any,
     headers?: Record<string, string>,
-    query?: Record<
-      string,
-      string | number | boolean | (string | number | boolean)[]
-    >,
+    query?: HTTPQuery,
     auth?: Record<string, string>,
     private_service_name?: string,
     ca_certificate?: string,
