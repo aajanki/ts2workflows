@@ -16,7 +16,7 @@ type WorkflowsValue =
   | string
   | bytes
   | WorkflowsValue[]
-  | Record<string, WorkflowsValue>
+  | { [key: string]: WorkflowsValue }
   | null
 
 type BooleanNumberStringListOrDict =
@@ -24,7 +24,7 @@ type BooleanNumberStringListOrDict =
   | number
   | string
   | BooleanNumberStringListOrDict[]
-  | Record<string, BooleanNumberStringListOrDict>
+  | { [key: string]: BooleanNumberStringListOrDict }
 
 type HTTPQuery = Record<
   string,
