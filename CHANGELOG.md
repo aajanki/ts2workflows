@@ -6,6 +6,7 @@ Breaking changes:
 
 - retry_policy() must be called inside a try block
 - variable declarations with `var` are not supported, only `let` and `const`
+- Type annotation fixes
 
 ## Version 0.10.0 - 2025-04-28
 

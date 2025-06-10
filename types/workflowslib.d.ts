@@ -10,24 +10,32 @@ export interface bytes {
   readonly [__bytes_tag]: 'bytes'
 }
 
+type WorkflowsValue =
+  | boolean
+  | number
+  | string
+  | bytes
+  | WorkflowsValue[]
+  | Record<string, WorkflowsValue>
+  | null
+
+type BooleanNumberStringListOrDict =
+  | boolean
+  | number
+  | string
+  | BooleanNumberStringListOrDict[]
+  | Record<string, BooleanNumberStringListOrDict>
+
 // GCP Workflows expression helpers
 
 export declare function double(x: string | number): number
 export declare function int(x: string | number): number
 export declare function string(x: string | number | boolean): string
-export declare function keys(map: Record<string, any>): string[]
-export declare function len(value: any[] | Record<string, any> | string): number
-export declare function get_type(
-  value:
-    | boolean
-    | number
-    | string
-    | unknown[]
-    | Record<string, unknown>
-    | null
-    | bytes
-    | undefined,
-): string
+export declare function keys(map: Record<string, WorkflowsValue>): string[]
+export declare function len(
+  value: WorkflowsValue[] | Record<string, WorkflowsValue> | string,
+): number
+export declare function get_type(value: WorkflowsValue | undefined): string
 
 // GCP Workflows standard library functions
 
@@ -184,16 +192,9 @@ export declare namespace http {
 }
 
 export declare namespace json {
-  function decode(data: bytes | string): unknown
+  function decode(data: bytes | string): WorkflowsValue
   function encode(
-    data:
-      | string
-      | number
-      | boolean
-      | unknown[]
-      | Record<string, unknown>
-      | null
-      | undefined,
+    data: WorkflowsValue | undefined,
     indent?:
       | boolean
       | {
@@ -202,14 +203,7 @@ export declare namespace json {
         },
   ): bytes
   function encode_to_string(
-    data:
-      | string
-      | number
-      | boolean
-      | unknown[]
-      | Record<string, unknown>
-      | null
-      | undefined,
+    data: WorkflowsValue | undefined,
     indent?:
       | boolean
       | {
@@ -229,7 +223,10 @@ export declare namespace map {
   // map.get() with a string key, returns a map value or null
   export function get<T>(map: Record<string, T>, keys: string): T | null
   // map.get() with string[] key or non-object lookup, the return value is not known
-  export function get(map: any, keys: string | string[]): unknown
+  export function get(
+    map: WorkflowsValue | undefined,
+    keys: string | string[],
+  ): WorkflowsValue
   export function merge<T, U>(
     first: Record<string, T>,
     second: Record<string, U>,
@@ -261,10 +258,10 @@ export declare namespace sys {
   function get_env(name: string): string | null
   function get_env(name: string, default_value: string): string
   function log(
-    data?: number | boolean | string | unknown[] | Record<string, any>,
+    data?: BooleanNumberStringListOrDict,
     severity?: string,
-    text?: number | boolean | string | unknown[] | Record<string, any>,
-    json?: Record<string, any>,
+    text?: BooleanNumberStringListOrDict,
+    json?: Record<string, WorkflowsValue>,
     timeout?: number,
   ): void
   function now(): number
@@ -454,9 +451,9 @@ export declare namespace googleapis {
       interface GoogleLongrunningOperation {
         done: boolean
         error?: Status
-        metadata?: Record<string, unknown>
+        metadata?: Record<string, any>
         name: string
-        response: Record<string, unknown>
+        response: Record<string, any>
       }
       interface GoogleLongrunningListOperationsResponse {
         nextPageToken?: string
@@ -474,7 +471,7 @@ export declare namespace googleapis {
         displayName: string
         labels: Record<string, string>
         locationId: string
-        metadata?: Record<string, unknown>
+        metadata?: Record<string, any>
         name: string
       }
       interface ListCollectionIdsRequest {
@@ -536,7 +533,7 @@ export declare namespace googleapis {
       }
       interface Status {
         code: number
-        details: Record<string, unknown>[]
+        details: Record<string, any>[]
         message: string
       }
       interface StructuredQuery {
@@ -749,5 +746,5 @@ export declare function retry_policy(
 
 export declare function call_step<T, A extends any[]>(
   func: (...args: A) => T,
-  arguments: Record<string, any>,
+  arguments: Record<string, WorkflowsValue>,
 ): T
