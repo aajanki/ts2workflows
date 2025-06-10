@@ -15,10 +15,8 @@ export interface bytes {
 export declare function double(x: string | number): number
 export declare function int(x: string | number): number
 export declare function string(x: string | number | boolean): string
-export declare function keys(map: Record<string, unknown>): string[]
-export declare function len(
-  value: unknown[] | Record<string, unknown> | string,
-): number
+export declare function keys(map: Record<string, any>): string[]
+export declare function len(value: any[] | Record<string, any> | string): number
 export declare function get_type(
   value:
     | boolean
@@ -83,7 +81,7 @@ export declare namespace http {
   function _delete<ResponseType = unknown>(
     url: string,
     timeout?: number,
-    body?: unknown,
+    body?: any,
     headers?: Record<string, string>,
     query?: Record<
       string,
@@ -116,7 +114,7 @@ export declare namespace http {
   export function patch<ResponseType = unknown>(
     url: string,
     timeout?: number,
-    body?: unknown,
+    body?: any,
     headers?: Record<string, string>,
     query?: Record<
       string,
@@ -133,7 +131,7 @@ export declare namespace http {
   export function post<ResponseType = unknown>(
     url: string,
     timeout?: number,
-    body?: unknown,
+    body?: any,
     headers?: Record<string, string>,
     query?: Record<
       string,
@@ -150,7 +148,7 @@ export declare namespace http {
   export function put<ResponseType = unknown>(
     url: string,
     timeout?: number,
-    body?: unknown,
+    body?: any,
     headers?: Record<string, string>,
     query?: Record<
       string,
@@ -168,7 +166,7 @@ export declare namespace http {
     method: string,
     url: string,
     timeout?: number,
-    body?: unknown,
+    body?: any,
     headers?: Record<string, string>,
     query?: Record<
       string,
@@ -250,23 +248,23 @@ export declare namespace math {
 }
 
 export declare namespace retry {
-  function always(exception: unknown): void
+  function always(exception: any): void
   const default_backoff: {
     initial_delay: number
     max_delay: number
     multiplier: number
   }
-  function never(exception: unknown): void
+  function never(exception: any): void
 }
 
 export declare namespace sys {
   function get_env(name: string): string | null
   function get_env(name: string, default_value: string): string
   function log(
-    data?: number | boolean | string | unknown[] | object,
+    data?: number | boolean | string | unknown[] | Record<string, any>,
     severity?: string,
-    text?: number | boolean | string | unknown[] | object,
-    json?: object,
+    text?: number | boolean | string | unknown[] | Record<string, any>,
+    json?: Record<string, any>,
     timeout?: number,
   ): void
   function now(): number
@@ -751,5 +749,5 @@ export declare function retry_policy(
 
 export declare function call_step<T, A extends any[]>(
   func: (...args: A) => T,
-  arguments: Record<string, unknown>,
+  arguments: Record<string, any>,
 ): T
