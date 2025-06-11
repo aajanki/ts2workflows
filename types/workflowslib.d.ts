@@ -37,11 +37,11 @@ type HTTPQuery = Record<
 export declare function double(x: string | number): number
 export declare function int(x: string | number): number
 export declare function string(x: string | number | boolean): string
-export declare function keys(map: Record<string, WorkflowsValue>): string[]
+export declare function keys(map: Record<string, unknown>): string[]
 export declare function len(
-  value: WorkflowsValue[] | Record<string, WorkflowsValue> | string,
+  value: unknown[] | Record<string, unknown> | string,
 ): number
-export declare function get_type(value: WorkflowsValue | undefined): string
+export declare function get_type(value: unknown): string
 
 // GCP Workflows standard library functions
 // https://cloud.google.com/workflows/docs/reference/stdlib/overview
@@ -206,36 +206,24 @@ export declare namespace json {
 }
 
 export declare namespace list {
-  function concat<T extends WorkflowsValue, U extends WorkflowsValue>(
-    objs: T[],
-    val: U,
-  ): (T | U)[]
-  function prepend<T extends WorkflowsValue, U extends WorkflowsValue>(
-    objs: T[],
-    val: U,
-  ): (T | U)[]
+  function concat<T, U>(objs: T[], val: U): (T | U)[]
+  function prepend<T, U>(objs: T[], val: U): (T | U)[]
 }
 
 export declare namespace map {
-  function _delete<T extends WorkflowsValue>(
-    map: Record<string, T>,
-    key: string,
-  ): Record<string, T>
+  function _delete<T>(map: Record<string, T>, key: string): Record<string, T>
   // map.get() with a string key, returns a property value or null
-  export function get<T extends WorkflowsValue>(
-    map: Record<string, T>,
-    keys: string,
-  ): T | null
+  export function get<T>(map: Record<string, T>, keys: string): T | null
   // map.get() with string[] key or non-object lookup, the return type is unknown
   export function get(map: any, keys: string | string[]): WorkflowsValue
-  export function merge<T extends WorkflowsValue, U extends WorkflowsValue>(
+  export function merge<T, U>(
     first: Record<string, T>,
     second: Record<string, U>,
   ): Record<string, T | U>
-  export function merge_nested<
-    T extends WorkflowsValue,
-    U extends WorkflowsValue,
-  >(first: Record<string, T>, second: Record<string, U>): Record<string, T | U>
+  export function merge_nested<T, U>(
+    first: Record<string, T>,
+    second: Record<string, U>,
+  ): Record<string, T | U>
   export { _delete as delete }
 }
 
@@ -262,7 +250,7 @@ export declare namespace sys {
     data?: BooleanNumberStringListOrDict,
     severity?: string,
     text?: BooleanNumberStringListOrDict,
-    json?: Record<string, WorkflowsValue>,
+    json?: Record<string, any>,
     timeout?: number,
   ): void
   function now(): number
@@ -747,5 +735,5 @@ export declare function retry_policy(
 
 export declare function call_step<T, A extends any[]>(
   func: (...args: A) => T,
-  arguments: Record<string, WorkflowsValue>,
+  arguments: Record<string, any>,
 ): T
