@@ -10,6 +10,7 @@ export interface bytes {
   readonly [__bytes_tag]: 'bytes'
 }
 
+// GCP Workflows data types
 type WorkflowsValue =
   | boolean
   | number
@@ -43,6 +44,7 @@ export declare function len(
 export declare function get_type(value: WorkflowsValue | undefined): string
 
 // GCP Workflows standard library functions
+// https://cloud.google.com/workflows/docs/reference/stdlib/overview
 
 export declare namespace base64 {
   function decode(data: bytes, padding?: boolean): string
@@ -50,7 +52,7 @@ export declare namespace base64 {
 }
 
 export declare namespace events {
-  function await_callback<ResponseType = unknown>(
+  function await_callback<ResponseType = WorkflowsValue>(
     callback: {
       url: string
     },
@@ -91,7 +93,7 @@ export declare namespace http {
   export function default_retry_predicate_non_idempotent(
     errormap: Record<string, any>,
   ): boolean
-  function _delete<ResponseType = unknown>(
+  function _delete<ResponseType = WorkflowsValue>(
     url: string,
     timeout?: number,
     body?: any,
@@ -105,7 +107,7 @@ export declare namespace http {
     code: number
     headers: Record<string, string>
   }
-  export function get<ResponseType = unknown>(
+  export function get<ResponseType = WorkflowsValue>(
     url: string,
     timeout?: number,
     headers?: Record<string, string>,
@@ -118,7 +120,7 @@ export declare namespace http {
     code: number
     headers: Record<string, string>
   }
-  export function patch<ResponseType = unknown>(
+  export function patch<ResponseType = WorkflowsValue>(
     url: string,
     timeout?: number,
     body?: any,
@@ -135,7 +137,7 @@ export declare namespace http {
     code: number
     headers: Record<string, string>
   }
-  export function post<ResponseType = unknown>(
+  export function post<ResponseType = WorkflowsValue>(
     url: string,
     timeout?: number,
     body?: any,
@@ -149,7 +151,7 @@ export declare namespace http {
     code: number
     headers: Record<string, string>
   }
-  export function put<ResponseType = unknown>(
+  export function put<ResponseType = WorkflowsValue>(
     url: string,
     timeout?: number,
     body?: any,
@@ -163,7 +165,7 @@ export declare namespace http {
     code: number
     headers: Record<string, string>
   }
-  export function request<ResponseType = unknown>(
+  export function request<ResponseType = WorkflowsValue>(
     method: string,
     url: string,
     timeout?: number,
@@ -204,27 +206,36 @@ export declare namespace json {
 }
 
 export declare namespace list {
-  function concat<T, U>(objs: T[], val: U): (T | U)[]
-  function prepend<T, U>(objs: T[], val: U): (T | U)[]
+  function concat<T extends WorkflowsValue, U extends WorkflowsValue>(
+    objs: T[],
+    val: U,
+  ): (T | U)[]
+  function prepend<T extends WorkflowsValue, U extends WorkflowsValue>(
+    objs: T[],
+    val: U,
+  ): (T | U)[]
 }
 
 export declare namespace map {
-  function _delete<T>(map: Record<string, T>, key: string): Record<string, T>
-  // map.get() with a string key, returns a map value or null
-  export function get<T>(map: Record<string, T>, keys: string): T | null
-  // map.get() with string[] key or non-object lookup, the return value is not known
-  export function get(
-    map: WorkflowsValue | undefined,
-    keys: string | string[],
-  ): WorkflowsValue
-  export function merge<T, U>(
+  function _delete<T extends WorkflowsValue>(
+    map: Record<string, T>,
+    key: string,
+  ): Record<string, T>
+  // map.get() with a string key, returns a property value or null
+  export function get<T extends WorkflowsValue>(
+    map: Record<string, T>,
+    keys: string,
+  ): T | null
+  // map.get() with string[] key or non-object lookup, the return type is unknown
+  export function get(map: any, keys: string | string[]): WorkflowsValue
+  export function merge<T extends WorkflowsValue, U extends WorkflowsValue>(
     first: Record<string, T>,
     second: Record<string, U>,
   ): Record<string, T | U>
-  export function merge_nested<T, U>(
-    first: Record<string, T>,
-    second: Record<string, U>,
-  ): Record<string, T | U>
+  export function merge_nested<
+    T extends WorkflowsValue,
+    U extends WorkflowsValue,
+  >(first: Record<string, T>, second: Record<string, U>): Record<string, T | U>
   export { _delete as delete }
 }
 
