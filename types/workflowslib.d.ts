@@ -11,7 +11,7 @@ export interface bytes {
 }
 
 // GCP Workflows data types
-type WorkflowsValue =
+export type WorkflowsValue =
   | boolean
   | number
   | string
