@@ -89,6 +89,10 @@ function extractFunctionDefinitions(
         node.declaration.type === AST_NODE_TYPES.TSInterfaceDeclaration
       ) {
         return extractFunctionDefinitions(node.declaration, ctx)
+      } else if (
+        node.declaration.type === AST_NODE_TYPES.TSTypeAliasDeclaration
+      ) {
+        return []
       } else {
         throw new Error(
           `Declaration of ${node.declaration.type} not implemented`,
