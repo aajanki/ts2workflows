@@ -2,13 +2,22 @@
 
 ts2workflows converts Typescript code to a [GCP Workflows](https://cloud.google.com/workflows/docs/apis) program.
 
+![NPM Version](https://img.shields.io/npm/v/ts2workflows)
+![Node LTS](https://img.shields.io/node/v-lts/ts2workflows)
+
 Only a subset of Typescript features are supported. The [language reference](language_reference.md) describes the supported Typescript features.
 
 See the [samples](samples) directory for code examples.
 
 Project status: It's possible to write Workflows programs, but the transpiler has not been extensively tested. Expect some rough edges!
 
-## Command for transpiling a Typescript file to Workflows syntax
+## Installation
+
+```
+npm install ts2workflows
+```
+
+## Usage
 
 Converting Typescript code in a file samples/sample1.ts into GCP Workflows YAML syntax on stdout:
 
@@ -28,7 +37,7 @@ When developing ts2workflows, you can run the transpiler directly from the sourc
 npx tsx src/cli.ts samples/sample1.ts
 ```
 
-## Type checking
+## Type checking workflow sources
 
 One benefit of writing the workflow programs in Typescript is that the sources can be type checked.
 
@@ -48,20 +57,22 @@ import { http, retry_policy } from 'ts2workflows/types/workflowslib'
 
 Type checking step is completely separate from the transpiling. The ts2workflows command ignores type annotations.
 
-## Build
+## Development
+
+### Build
 
 ```
 npm install
 npm run build
 ```
 
-## Run unit tests
+### Run unit tests
 
 ```
 npm run test
 ```
 
-## Architecture
+### Architecture
 
 A transpilation using ts2workflows consists of five phases:
 
