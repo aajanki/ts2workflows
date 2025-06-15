@@ -186,7 +186,7 @@ export declare namespace http {
 export declare namespace json {
   function decode(data: bytes | string): WorkflowsValue
   function encode(
-    data: WorkflowsValue | undefined,
+    data: unknown,
     indent?:
       | boolean
       | {
@@ -195,7 +195,7 @@ export declare namespace json {
         },
   ): bytes
   function encode_to_string(
-    data: WorkflowsValue | undefined,
+    data: unknown,
     indent?:
       | boolean
       | {
