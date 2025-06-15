@@ -4,9 +4,10 @@
 
 Breaking changes:
 
-- retry_policy() must be called inside a try block
-- variable declarations with `var` are not supported, only `let` and `const`
 - Requires Node 20 or newer
+- retry_policy() must be called inside a try block
+- Variable declarations with `var` are not supported, only `let` and `const`
+- Reset step name counters at the start of a subworkflow
 
 Fixes:
 

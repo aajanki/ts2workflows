@@ -81,7 +81,7 @@ describe('Parallel statement', () => {
 
     branch2:
       steps:
-        - return2:
+        - return1:
             return: "B"
     `
 

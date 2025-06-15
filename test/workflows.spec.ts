@@ -63,7 +63,7 @@ describe('workflow transpiler', () => {
       params:
         - first_param
       steps:
-        - return2:
+        - return1:
             return: 2
     `
 

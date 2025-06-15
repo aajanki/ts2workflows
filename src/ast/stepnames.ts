@@ -36,9 +36,9 @@ export class StepNameGenerator {
 }
 
 export function generateStepNames(ast: WorkflowAST): WorkflowApp {
-  const stepNameGenerator = new StepNameGenerator()
   const subworkflows = ast.subworkflows
     .map((subworkflow) => {
+      const stepNameGenerator = new StepNameGenerator()
       return subworkflow.withStepNames((x) => stepNameGenerator.generate(x))
     })
     .map(fixJumpLabels)

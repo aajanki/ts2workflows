@@ -187,7 +187,7 @@ describe('Function definition', () => {
 
     workflow2:
       steps:
-        - return2:
+        - return1:
             return: 1
     `
 

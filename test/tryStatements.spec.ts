@@ -959,7 +959,7 @@ describe('Try-catch-finally statement', () => {
         params:
           - e
         steps:
-          - return2:
+          - return1:
               return: false
     `
 

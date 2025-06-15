@@ -685,7 +685,7 @@ describe('Assignment statement', () => {
             return: 2
     valueIndex:
       steps:
-        - return2:
+        - return1:
             return: 1
     `
 
