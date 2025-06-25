@@ -15,6 +15,7 @@ describe('function listing', () => {
       'main',
     )
 
+    expect(functions).to.have.lengthOf(4)
     expect(functions).to.have.members([
       'main',
       'compute',
@@ -30,6 +31,7 @@ describe('function listing', () => {
       'main',
     )
 
+    expect(functions).to.have.lengthOf(5)
     expect(functions).to.have.members([
       'main',
       'compute',
@@ -46,6 +48,7 @@ describe('function listing', () => {
       'main',
     )
 
+    expect(functions).to.have.lengthOf(5)
     expect(functions).to.have.members([
       'main',
       'compute',
@@ -62,6 +65,7 @@ describe('function listing', () => {
       'main',
     )
 
+    expect(functions).to.have.lengthOf(4)
     expect(functions).to.have.members([
       'main',
       'count',
