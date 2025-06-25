@@ -38,6 +38,22 @@ describe('function listing', () => {
       'getSecondNumber',
     ])
   })
+
+  it('finds imported function with alias', () => {
+    const functions = listFunctions(
+      'test/linkertestsources/case3.ts',
+      ['test/linkertestsources/computation.ts'],
+      'main',
+    )
+
+    expect(functions).to.have.members([
+      'main',
+      'compute',
+      'average',
+      'getFirstNumber',
+      'getSecondNumber',
+    ])
+  })
 })
 
 function listFunctions(
