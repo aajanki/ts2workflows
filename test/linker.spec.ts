@@ -10,7 +10,7 @@ import {
 describe('function listing', () => {
   it('finds nested function calls', () => {
     const functions = listFunctions(
-      'test/linkertestsources/case1.ts',
+      'test/linkertestsources/simple.ts',
       [],
       'main',
     )
@@ -25,7 +25,7 @@ describe('function listing', () => {
 
   it('finds imported functions', () => {
     const functions = listFunctions(
-      'test/linkertestsources/case2.ts',
+      'test/linkertestsources/import.ts',
       ['test/linkertestsources/computation.ts'],
       'main',
     )
@@ -41,7 +41,7 @@ describe('function listing', () => {
 
   it('finds imported function with alias', () => {
     const functions = listFunctions(
-      'test/linkertestsources/case3.ts',
+      'test/linkertestsources/importalias.ts',
       ['test/linkertestsources/computation.ts'],
       'main',
     )
@@ -52,6 +52,21 @@ describe('function listing', () => {
       'average',
       'getFirstNumber',
       'getSecondNumber',
+    ])
+  })
+
+  it('lists recursive function calls', () => {
+    const functions = listFunctions(
+      'test/linkertestsources/recursion.ts',
+      [],
+      'main',
+    )
+
+    expect(functions).to.have.members([
+      'main',
+      'count',
+      'mutualRecursion',
+      'mutualRecursion2',
     ])
   })
 })
