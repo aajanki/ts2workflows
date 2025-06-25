@@ -7,28 +7,13 @@ import {
   getFunctionDeclarationByName,
 } from '../src/transpiler/linker'
 
-describe('Function finder', () => {
+describe('function listing', () => {
   it('finds nested function calls', () => {
-    const sources = {
-      'main.ts': `
-        function main() {
-          return compute()
-        }
-
-        function compute() {
-          return getFirstValue() + getSecondValue()
-        }
-
-        function getFirstValue() {
-          return 1
-        }
-
-        function getSecondValue() {
-          return 2
-        }`,
-    }
-
-    const functions = listFunctions(sources, 'main.ts', 'main')
+    const functions = listFunctions(
+      'test/linkertestsources/case1.ts',
+      [],
+      'main',
+    )
 
     expect(functions).to.have.members([
       'main',
@@ -37,55 +22,48 @@ describe('Function finder', () => {
       'getSecondValue',
     ])
   })
+
+  it('finds imported functions', () => {
+    const functions = listFunctions(
+      'test/linkertestsources/case2.ts',
+      ['test/linkertestsources/computation.ts'],
+      'main',
+    )
+
+    expect(functions).to.have.members([
+      'main',
+      'compute',
+      'average',
+      'getFirstNumber',
+      'getSecondNumber',
+    ])
+  })
 })
 
 function listFunctions(
-  sources: Record<string, string>,
-  mainFile: string,
+  mainSourceFile: string,
+  otherSourceFiles: string[],
   mainFunctionName: string,
 ): string[] {
   const compilerOptions: ts.CompilerOptions = {
-    target: ts.ScriptTarget.ES2022,
-    module: ts.ModuleKind.ES2015,
+    target: ts.ScriptTarget.ES5,
+    module: ts.ModuleKind.ES2022,
+    moduleResolution: ts.ModuleResolutionKind.Bundler,
     skipLibCheck: true,
+    types: [],
+    rootDir: 'test/linkertestsources',
   }
 
-  const virtualFiles: Record<string, ts.SourceFile> = Object.fromEntries(
-    Object.entries(sources).map(([name, source]) => {
-      return [name, ts.createSourceFile(name, source, ts.ScriptTarget.ES2022)]
-    }),
-  )
-
-  const defaultHost = ts.createCompilerHost(compilerOptions)
-  const compilerHost: ts.CompilerHost = {
-    ...defaultHost,
-    getSourceFile: (fname, languageVersion) => {
-      if (fname in virtualFiles) {
-        return virtualFiles[fname]
-      } else {
-        return defaultHost.getSourceFile(fname, languageVersion)
-      }
-    },
-    fileExists: (fname) =>
-      fname in virtualFiles || defaultHost.fileExists(fname),
-    readFile: (fname) => {
-      if (fname in sources) {
-        return sources[fname]
-      } else {
-        return defaultHost.readFile(fname)
-      }
-    },
-    //writeFile: (_fname, _content) => {},
-    getCurrentDirectory: () => '',
-  }
-  const program = ts.createProgram([mainFile], compilerOptions, compilerHost)
+  const compilerHost = ts.createCompilerHost(compilerOptions)
+  const allSources = [mainSourceFile].concat(otherSourceFiles)
+  const program = ts.createProgram(allSources, compilerOptions, compilerHost)
   const typeChecker = program.getTypeChecker()
   const diagnostics = ts.getPreEmitDiagnostics(program)
 
   expect(diagnostics).to.be.empty
 
   const mainFunctionDecl = getFunctionDeclarationByName(
-    virtualFiles[mainFile],
+    program.getSourceFile(mainSourceFile)!,
     mainFunctionName,
   )
 
