@@ -81,18 +81,17 @@ function findNestedFunctions(
       if (sourceFile) {
         const name = decl?.name?.getText()
 
-        if (!name) {
-          throw new Error('No name found for a function declaration!')
-        }
+        // declaration of an anonymous function does not have a name
+        if (name) {
+          const declNode = getFunctionDeclarationByName(sourceFile, name)
 
-        const declNode = getFunctionDeclarationByName(sourceFile, name)
-
-        if (declNode) {
-          functionDeclarations.push(declNode)
-        } else {
-          throw new Error(
-            `Function declaration not found for ${name} in ${sourceFile.fileName}`,
-          )
+          if (declNode) {
+            functionDeclarations.push(declNode)
+          } else {
+            throw new Error(
+              `Function declaration not found for ${name} in ${sourceFile.fileName}`,
+            )
+          }
         }
       } else {
         throw new Error('Function signature not found')

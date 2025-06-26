@@ -73,6 +73,38 @@ describe('function listing', () => {
       'mutualRecursion2',
     ])
   })
+
+  it('lists functions with qualified names', () => {
+    const functions = listFunctions(
+      'test/linkertestsources/qualifiedname.ts',
+      [],
+      'main',
+    )
+
+    expect(functions).to.have.lengthOf(2)
+    expect(functions).to.have.members(['main', 'sin'])
+  })
+
+  it('lists functions imported from a .d.ts file', () => {
+    const functions = listFunctions(
+      'test/linkertestsources/importdeclaration.ts',
+      [],
+      'main',
+    )
+
+    expect(functions).to.have.lengthOf(2)
+    expect(functions).to.have.members(['main', 'abs'])
+  })
+
+  it('does not include anonoymous functions', () => {
+    const functions = listFunctions(
+      'test/linkertestsources/anonymous.ts',
+      [],
+      'main',
+    )
+
+    expect(functions).to.deep.equal(['main'])
+  })
 })
 
 function listFunctions(
@@ -95,7 +127,7 @@ function listFunctions(
   const typeChecker = program.getTypeChecker()
   const diagnostics = ts.getPreEmitDiagnostics(program)
 
-  expect(diagnostics).to.be.empty
+  expect(diagnostics).to.deep.equal([])
 
   const mainFunctionDecl = getFunctionDeclarationByName(
     program.getSourceFile(mainSourceFile)!,

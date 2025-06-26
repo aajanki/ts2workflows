@@ -1,4 +1,4 @@
-export function main() {
+function main() {
   const a = count(10, 0)
   const b = mutualRecursion(5)
 
