@@ -20,6 +20,6 @@ jobs:
           node-version: ${{ matrix.node }}
       - run: npm ci
       - run: npm run lint
-      - run: npm test-coverage
+      - run: npm run test-coverage
       - name: Type check the sample source files
         run: npx tsc --project samples/tsconfig.json
