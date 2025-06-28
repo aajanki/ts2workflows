@@ -72,6 +72,12 @@ npm run build
 npm run test
 ```
 
+Run tests and print the test coverage:
+
+```
+npm run test-coverage
+```
+
 ### Architecture
 
 A transpilation using ts2workflows consists of five phases:
