@@ -4,21 +4,21 @@
 
 Breaking changes:
 
-- Requires Node 20 or newer
-- retry_policy() must be called inside a try block
+- Requires Node 20 or newer and Typescript 5.4.0 or newer
+- retry_policy() must be called inside a try block, not after
 - Variable declarations with `var` are not supported, only `let` and `const`
-- Reset step name counters at the start of a subworkflow
+- Step name numbering starts from 1 at the start of each subworkflow
 
 Fixes:
 
-- Type annotation fixes
+- Type annotation fixes in workflowslib
 
 ## Version 0.10.0 - 2025-04-28
 
 - Accept binary expressions as properties in assignments: `a[i + 4] = 1` (regression in 0.9.0)
 - Evaluate side-effects only once on the left-hand side in compound assignments: `x[f()] += 1`
 - Fix calling `call_step()` on the right-hand side of a compound assignment: `x += call_step(sum, {a: 10, b: 11})`
-- Output an error is a subworkflow is empty because empty body is not allowed on GCP
+- Output an error if a subworkflow is empty because empty body is not allowed on GCP
 
 ## Version 0.9.0 - 2025-04-23
 
