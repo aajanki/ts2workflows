@@ -1,5 +1,4 @@
 import * as R from 'ramda'
-import { isRecord } from '../utils.js'
 import {
   Expression,
   LiteralValueOrLiteralExpression,
@@ -9,6 +8,7 @@ import {
   expressionToLiteralValueOrLiteralExpression,
 } from './expressions.js'
 import { Subworkflow, WorkflowParameter } from './workflows.js'
+import { InternalTranspilingError } from '../errors.js'
 
 export type StepName = string
 export interface VariableAssignment {
@@ -68,9 +68,9 @@ export type WorkflowStepAST =
   | ForRangeStepAST
   | NextStepAST
   | ParallelStepAST
+  | ParallelIterationStepAST
   | RaiseStepAST
   | ReturnStepAST
-  | StepsStepAST
   | SwitchStepAST
   | TryStepAST
   | JumpTargetAST
@@ -84,9 +84,9 @@ export type WorkflowStepASTWithNamedNested =
   | ForStepASTNamed
   | NextStepAST
   | ParallelStepASTNamed
+  | ParallelIterationStepASTNamed
   | RaiseStepAST
   | ReturnStepAST
-  | StepsStepASTNamed
   | SwitchStepASTNamed
   | TryStepASTNamed
   | JumpTargetAST
@@ -302,20 +302,20 @@ export class NextStepAST {
 // https://cloud.google.com/workflows/docs/reference/syntax/parallel-steps
 export class ParallelStepAST {
   readonly tag = 'parallel'
-  readonly steps: Record<StepName, StepsStepAST> | ForStepAST
+  readonly branches: ParallelBranch<WorkflowStepAST>[]
   readonly shared?: VariableName[]
   readonly concurrencyLimit?: number
   readonly exceptionPolicy?: string
   readonly label?: string
 
   constructor(
-    steps: Record<StepName, StepsStepAST> | ForStepAST,
+    branches: ParallelBranch<WorkflowStepAST>[],
     shared?: VariableName[],
     concurrencyLimit?: number,
     exceptionPolicy?: string,
     label?: string,
   ) {
-    this.steps = steps
+    this.branches = branches
     this.shared = shared
     this.concurrencyLimit = concurrencyLimit
     this.exceptionPolicy = exceptionPolicy
@@ -324,7 +324,7 @@ export class ParallelStepAST {
 
   withLabel(newLabel?: string): ParallelStepAST {
     return new ParallelStepAST(
-      this.steps,
+      this.branches,
       this.shared,
       this.concurrencyLimit,
       this.exceptionPolicy,
@@ -335,15 +335,10 @@ export class ParallelStepAST {
   applyNestedSteps(
     fn: (steps: WorkflowStepAST[]) => WorkflowStepAST[],
   ): ParallelStepAST {
-    let transformedSteps: Record<StepName, StepsStepAST> | ForStepAST
-    if (this.steps instanceof ForStepAST) {
-      transformedSteps = this.steps.applyNestedSteps(fn)
-    } else {
-      transformedSteps = R.map(
-        (s) => new StepsStepAST(fn(s.steps), s.label),
-        this.steps,
-      )
-    }
+    const transformedSteps = this.branches.map(({ name, steps }) => ({
+      name,
+      steps: steps.map((s) => s.applyNestedSteps(fn)),
+    }))
 
     return new ParallelStepAST(
       transformedSteps,
@@ -357,14 +352,13 @@ export class ParallelStepAST {
 
 export class ParallelStepASTNamed {
   readonly tag = 'parallel'
-  readonly branches?: NamedWorkflowStep[] // Either steps for each branch
-  readonly forStep?: ForStepASTNamed // ... or a parallel for
+  readonly branches: ParallelBranch<NamedWorkflowStep>[]
   readonly shared?: VariableName[]
   readonly concurrenceLimit?: number
   readonly exceptionPolicy?: string
 
   constructor(
-    steps: Record<StepName, StepsStepASTNamed> | ForStepASTNamed,
+    branches: ParallelBranch<NamedWorkflowStep>[],
     shared?: VariableName[],
     concurrencyLimit?: number,
     exceptionPolicy?: string,
@@ -372,14 +366,78 @@ export class ParallelStepASTNamed {
     this.shared = shared
     this.concurrenceLimit = concurrencyLimit
     this.exceptionPolicy = exceptionPolicy
+    this.branches = branches
+  }
+}
 
-    if (!isRecord(steps)) {
-      this.forStep = steps
-    } else {
-      this.branches = Object.entries(steps).map((x) => {
-        return { name: x[0], step: x[1] }
-      })
-    }
+export interface ParallelBranch<T extends WorkflowStepAST | NamedWorkflowStep> {
+  readonly name: StepName
+  readonly steps: T[]
+}
+
+// https://cloud.google.com/workflows/docs/reference/syntax/parallel-steps#parallel-iteration
+export class ParallelIterationStepAST {
+  readonly tag = 'parallel-for'
+  readonly forStep: ForStepAST
+  readonly shared?: VariableName[]
+  readonly concurrencyLimit?: number
+  readonly exceptionPolicy?: string
+  readonly label?: string
+
+  constructor(
+    forStep: ForStepAST,
+    shared?: VariableName[],
+    concurrencyLimit?: number,
+    exceptionPolicy?: string,
+    label?: string,
+  ) {
+    this.forStep = forStep
+    this.shared = shared
+    this.concurrencyLimit = concurrencyLimit
+    this.exceptionPolicy = exceptionPolicy
+    this.label = label
+  }
+
+  withLabel(newLabel?: string): ParallelIterationStepAST {
+    return new ParallelIterationStepAST(
+      this.forStep,
+      this.shared,
+      this.concurrencyLimit,
+      this.exceptionPolicy,
+      newLabel,
+    )
+  }
+
+  applyNestedSteps(
+    fn: (steps: WorkflowStepAST[]) => WorkflowStepAST[],
+  ): ParallelIterationStepAST {
+    return new ParallelIterationStepAST(
+      this.forStep.applyNestedSteps(fn),
+      this.shared,
+      this.concurrencyLimit,
+      this.exceptionPolicy,
+      this.label,
+    )
+  }
+}
+
+export class ParallelIterationStepASTNamed {
+  readonly tag = 'parallel-for'
+  readonly forStep: ForStepASTNamed
+  readonly shared?: VariableName[]
+  readonly concurrenceLimit?: number
+  readonly exceptionPolicy?: string
+
+  constructor(
+    forStep: ForStepASTNamed,
+    shared?: VariableName[],
+    concurrencyLimit?: number,
+    exceptionPolicy?: string,
+  ) {
+    this.shared = shared
+    this.concurrenceLimit = concurrencyLimit
+    this.exceptionPolicy = exceptionPolicy
+    this.forStep = forStep
   }
 }
 
@@ -420,37 +478,6 @@ export class ReturnStepAST {
 
   applyNestedSteps(): ReturnStepAST {
     return this
-  }
-}
-
-// https://cloud.google.com/workflows/docs/reference/syntax/steps#embedded-steps
-export class StepsStepAST {
-  readonly tag = 'steps'
-  readonly steps: WorkflowStepAST[]
-  readonly label?: string
-
-  constructor(steps: WorkflowStepAST[], label?: string) {
-    this.steps = steps
-    this.label = label
-  }
-
-  withLabel(newLabel?: string): StepsStepAST {
-    return new StepsStepAST(this.steps, newLabel)
-  }
-
-  applyNestedSteps(
-    fn: (steps: WorkflowStepAST[]) => WorkflowStepAST[],
-  ): StepsStepAST {
-    return new StepsStepAST(fn(this.steps), this.label)
-  }
-}
-
-export class StepsStepASTNamed {
-  readonly tag = 'steps'
-  readonly steps: NamedWorkflowStep[]
-
-  constructor(steps: NamedWorkflowStep[]) {
-    this.steps = steps
   }
 }
 
@@ -625,8 +652,8 @@ export function namedSteps(
     case 'parallel':
       return namedStepsParallel(step, generateName)
 
-    case 'steps':
-      return namedStepsSteps(step, generateName)
+    case 'parallel-for':
+      return namedStepsParallelIteration(step, generateName)
 
     case 'switch':
       return namedStepsSwitch(step, generateName)
@@ -677,30 +704,17 @@ function namedStepsForRange(
 function namedStepsParallel(
   step: ParallelStepAST,
   generateName: (prefix: string) => string,
-) {
-  let steps: Record<StepName, StepsStepASTNamed> | ForStepASTNamed
+): NamedWorkflowStep {
   const mainLabel = step.label ?? generateName('parallel')
-  if (!isRecord(step.steps)) {
-    const forStep = namedSteps(step.steps, generateName).step
-
-    if (forStep.tag !== 'for') {
-      throw new Error(
-        `Encountered a step of type ${forStep.tag} when a for step was expected`,
-      )
-    }
-
-    steps = forStep
-  } else {
-    steps = R.map((step) => {
-      const named = step.steps.map((x) => namedSteps(x, generateName))
-      return new StepsStepASTNamed(named)
-    }, step.steps)
-  }
+  const transformed = step.branches.map(({ name, steps: nestedSteps }) => ({
+    name,
+    steps: nestedSteps.map((x) => namedSteps(x, generateName)),
+  }))
 
   return {
     name: mainLabel,
     step: new ParallelStepASTNamed(
-      steps,
+      transformed,
       step.shared,
       step.concurrencyLimit,
       step.exceptionPolicy,
@@ -708,14 +722,26 @@ function namedStepsParallel(
   }
 }
 
-function namedStepsSteps(
-  step: StepsStepAST,
+function namedStepsParallelIteration(
+  step: ParallelIterationStepAST,
   generateName: (prefix: string) => string,
 ): NamedWorkflowStep {
+  const mainLabel = step.label ?? generateName('parallel')
+  const forStep = namedSteps(step.forStep, generateName).step
+
+  if (forStep.tag !== 'for') {
+    throw new InternalTranspilingError(
+      `Encountered a step of type ${forStep.tag} when a for step was expected`,
+    )
+  }
+
   return {
-    name: step.label ?? generateName('steps'),
-    step: new StepsStepASTNamed(
-      step.steps.map((nested) => namedSteps(nested, generateName)),
+    name: mainLabel,
+    step: new ParallelIterationStepASTNamed(
+      forStep,
+      step.shared,
+      step.concurrencyLimit,
+      step.exceptionPolicy,
     ),
   }
 }
@@ -778,11 +804,17 @@ export function nestedSteps(
       return []
 
     case 'for':
-    case 'steps':
       return [step.steps]
 
     case 'parallel':
-      return nestedStepsParallel(step)
+      return [
+        step.branches.flatMap(({ steps }) => {
+          return steps
+        }),
+      ]
+
+    case 'parallel-for':
+      return [step.forStep.steps]
 
     case 'switch':
       return step.branches.map((x) => x.steps)
@@ -790,21 +822,6 @@ export function nestedSteps(
     case 'try':
       return nestedStepsTry(step)
   }
-}
-
-function nestedStepsParallel(
-  step: ParallelStepASTNamed,
-): NamedWorkflowStep[][] {
-  const nested = []
-  if (step.branches && step.branches.length > 0) {
-    // return each branch as a separate child
-    nested.push(...step.branches.map((x) => [x]))
-  }
-  if (step.forStep?.steps && step.forStep.steps.length > 0) {
-    nested.push(step.forStep.steps)
-  }
-
-  return nested
 }
 
 function nestedStepsTry(step: TryStepASTNamed): NamedWorkflowStep[][] {
@@ -846,19 +863,10 @@ export function renderStep(
       }
 
     case 'parallel':
-      return {
-        parallel: {
-          ...(step.shared && { shared: step.shared }),
-          ...(step.concurrenceLimit !== undefined && {
-            concurrency_limit: step.concurrenceLimit,
-          }),
-          ...(step.exceptionPolicy !== undefined && {
-            exception_policy: step.exceptionPolicy,
-          }),
-          ...(step.branches && { branches: renderSteps(step.branches) }),
-          ...(step.forStep && { for: renderForBody(step.forStep) }),
-        },
-      }
+      return renderParallelStep(step)
+
+    case 'parallel-for':
+      return renderParallelIterationStep(step)
 
     case 'next':
       return {
@@ -873,11 +881,6 @@ export function renderStep(
     case 'return':
       return renderReturnStep(step)
 
-    case 'steps':
-      return {
-        steps: renderSteps(step.steps),
-      }
-
     case 'switch':
       return {
         switch: step.branches.map(renderSwitchCondition),
@@ -889,6 +892,48 @@ export function renderStep(
 
     case 'jumptarget':
       return {}
+  }
+}
+
+function renderParallelStep(
+  step: ParallelStepASTNamed,
+): Record<string, unknown> {
+  const renderedBranches: Record<string, unknown> = {
+    branches: step.branches.map(({ name, steps }) => ({
+      [name]: {
+        steps: renderSteps(steps),
+      },
+    })),
+  }
+
+  return {
+    parallel: {
+      ...renderedBranches,
+      ...(step.shared && { shared: step.shared }),
+      ...(step.concurrenceLimit !== undefined && {
+        concurrency_limit: step.concurrenceLimit,
+      }),
+      ...(step.exceptionPolicy !== undefined && {
+        exception_policy: step.exceptionPolicy,
+      }),
+    },
+  }
+}
+
+function renderParallelIterationStep(
+  step: ParallelIterationStepASTNamed,
+): Record<string, unknown> {
+  return {
+    parallel: {
+      for: renderForBody(step.forStep),
+      ...(step.shared && { shared: step.shared }),
+      ...(step.concurrenceLimit !== undefined && {
+        concurrency_limit: step.concurrenceLimit,
+      }),
+      ...(step.exceptionPolicy !== undefined && {
+        exception_policy: step.exceptionPolicy,
+      }),
+    },
   }
 }
 

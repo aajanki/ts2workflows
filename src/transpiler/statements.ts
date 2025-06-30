@@ -8,11 +8,12 @@ import {
   ForStepAST,
   JumpTargetAST,
   NextStepAST,
+  ParallelBranch,
+  ParallelIterationStepAST,
   ParallelStepAST,
   RaiseStepAST,
   ReturnStepAST,
   StepName,
-  StepsStepAST,
   SwitchConditionAST,
   SwitchStepAST,
   TryStepAST,
@@ -1015,7 +1016,7 @@ function blockingFunctionCallStep(
 function callExpressionToParallelStep(
   node: TSESTree.CallExpression,
   ctx: ParsingContext,
-): ParallelStepAST {
+): ParallelStepAST | ParallelIterationStepAST {
   if (
     node.callee.type !== AST_NODE_TYPES.Identifier ||
     node.callee.name !== 'parallel'
@@ -1023,31 +1024,6 @@ function callExpressionToParallelStep(
     throw new InternalTranspilingError(
       `The parameter must be a call to "parallel"`,
     )
-  }
-
-  const ctx2: ParsingContext = Object.assign({}, ctx, {
-    parallelNestingLevel: ctx.parallelNestingLevel
-      ? ctx.parallelNestingLevel + 1
-      : 1,
-  })
-
-  let steps: Record<StepName, StepsStepAST> | ForStepAST = {}
-  if (node.arguments.length > 0) {
-    switch (node.arguments[0].type) {
-      case AST_NODE_TYPES.ArrayExpression:
-        steps = parseParallelBranches(node.arguments[0], ctx2)
-        break
-
-      case AST_NODE_TYPES.ArrowFunctionExpression:
-        steps = parseParallelIteration(node.arguments[0], ctx2)
-        break
-
-      default:
-        throw new WorkflowSyntaxError(
-          'The first parameter must be an array of functions or an arrow function',
-          node.arguments[0].loc,
-        )
-    }
   }
 
   let shared: string[] | undefined = undefined
@@ -1060,17 +1036,48 @@ function callExpressionToParallelStep(
     exceptionPolicy = options.exceptionPolicy
   }
 
-  return new ParallelStepAST(steps, shared, concurrencyLimit, exceptionPolicy)
+  const ctx2: ParsingContext = Object.assign({}, ctx, {
+    parallelNestingLevel: ctx.parallelNestingLevel
+      ? ctx.parallelNestingLevel + 1
+      : 1,
+  })
+
+  switch (node.arguments[0]?.type) {
+    case AST_NODE_TYPES.ArrayExpression:
+      return new ParallelStepAST(
+        parseParallelBranches(node.arguments[0], ctx2),
+        shared,
+        concurrencyLimit,
+        exceptionPolicy,
+      )
+
+    case AST_NODE_TYPES.ArrowFunctionExpression:
+      return new ParallelIterationStepAST(
+        parseParallelIteration(node.arguments[0], ctx2),
+        shared,
+        concurrencyLimit,
+        exceptionPolicy,
+      )
+
+    case undefined:
+      throw new WorkflowSyntaxError('At least one argument required', node.loc)
+
+    default:
+      throw new WorkflowSyntaxError(
+        'The first parameter must be an array of functions or an arrow function',
+        node.arguments[0].loc,
+      )
+  }
 }
 
 function parseParallelBranches(
   node: TSESTree.ArrayExpression,
   ctx: ParsingContext,
-): Record<StepName, StepsStepAST> {
+): ParallelBranch<WorkflowStepAST>[] {
   const branches = node.elements.map((arg) => {
     switch (arg?.type) {
       case AST_NODE_TYPES.Identifier:
-        return new StepsStepAST([new CallStepAST(arg.name)])
+        return [new CallStepAST(arg.name)]
 
       case AST_NODE_TYPES.ArrowFunctionExpression:
         if (arg.body.type !== AST_NODE_TYPES.BlockStatement) {
@@ -1079,7 +1086,7 @@ function parseParallelBranches(
             arg.body.loc,
           )
         }
-        return new StepsStepAST(parseStatement(arg.body, ctx))
+        return parseStatement(arg.body, ctx)
 
       default:
         throw new WorkflowSyntaxError(
@@ -1089,7 +1096,7 @@ function parseParallelBranches(
     }
   })
 
-  return Object.fromEntries(branches.map((step, i) => [`branch${i + 1}`, step]))
+  return branches.map((steps, i) => ({ name: `branch${i + 1}`, steps }))
 }
 
 function parseParallelIteration(

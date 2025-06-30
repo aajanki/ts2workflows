@@ -6,10 +6,10 @@ import {
   AssignStepAST,
   CallStepAST,
   ForStepASTNamed,
+  ParallelIterationStepASTNamed,
   ParallelStepASTNamed,
   RaiseStepAST,
   ReturnStepAST,
-  StepsStepASTNamed,
   SwitchStepASTNamed,
   TryStepASTNamed,
   WorkflowStepASTWithNamedNested,
@@ -548,24 +548,30 @@ describe('workflow step AST', () => {
   })
 
   it('renders parallel branches', () => {
-    const step = new ParallelStepASTNamed({
-      branch1: new StepsStepASTNamed([
-        namedStep(
-          'say_hello_1',
-          new CallStepAST('sys.log', {
-            text: new PrimitiveExpression('Hello from branch 1'),
-          }),
-        ),
-      ]),
-      branch2: new StepsStepASTNamed([
-        namedStep(
-          'say_hello_2',
-          new CallStepAST('sys.log', {
-            text: new PrimitiveExpression('Hello from branch 2'),
-          }),
-        ),
-      ]),
-    })
+    const step = new ParallelStepASTNamed([
+      {
+        name: 'branch1',
+        steps: [
+          namedStep(
+            'say_hello_1',
+            new CallStepAST('sys.log', {
+              text: new PrimitiveExpression('Hello from branch 1'),
+            }),
+          ),
+        ],
+      },
+      {
+        name: 'branch2',
+        steps: [
+          namedStep(
+            'say_hello_2',
+            new CallStepAST('sys.log', {
+              text: new PrimitiveExpression('Hello from branch 2'),
+            }),
+          ),
+        ],
+      },
+    ])
 
     const expected = `
     parallel:
@@ -589,30 +595,36 @@ describe('workflow step AST', () => {
 
   it('renders parallel branches with shared variables and concurrency limit', () => {
     const step = new ParallelStepASTNamed(
-      {
-        branch1: new StepsStepASTNamed([
-          namedStep(
-            'assign_1',
-            new AssignStepAST([
-              {
-                name: new VariableReferenceExpression('myVariable[0]'),
-                value: new PrimitiveExpression('Set in branch 1'),
-              },
-            ]),
-          ),
-        ]),
-        branch2: new StepsStepASTNamed([
-          namedStep(
-            'assign_2',
-            new AssignStepAST([
-              {
-                name: new VariableReferenceExpression('myVariable[1]'),
-                value: new PrimitiveExpression('Set in branch 2'),
-              },
-            ]),
-          ),
-        ]),
-      },
+      [
+        {
+          name: 'branch1',
+          steps: [
+            namedStep(
+              'assign_1',
+              new AssignStepAST([
+                {
+                  name: new VariableReferenceExpression('myVariable[0]'),
+                  value: new PrimitiveExpression('Set in branch 1'),
+                },
+              ]),
+            ),
+          ],
+        },
+        {
+          name: 'branch2',
+          steps: [
+            namedStep(
+              'assign_2',
+              new AssignStepAST([
+                {
+                  name: new VariableReferenceExpression('myVariable[1]'),
+                  value: new PrimitiveExpression('Set in branch 2'),
+                },
+              ]),
+            ),
+          ],
+        },
+      ],
       ['myVariable'],
       2,
     )
@@ -638,7 +650,7 @@ describe('workflow step AST', () => {
   })
 
   it('renders a parallel for step', () => {
-    const step = new ParallelStepASTNamed(
+    const step = new ParallelIterationStepASTNamed(
       new ForStepASTNamed(
         [
           namedStep(

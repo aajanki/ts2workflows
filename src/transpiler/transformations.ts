@@ -235,7 +235,7 @@ const transformStepExpressions = R.curry(function (
     case 'forrange':
     case 'next':
     case 'parallel':
-    case 'steps':
+    case 'parallel-for':
     case 'try':
     case 'jumptarget':
       return [step]
