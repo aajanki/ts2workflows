@@ -39,12 +39,6 @@ export class Subworkflow {
     this.params = params
   }
 
-  render(): Record<string, unknown> {
-    return {
-      [this.name]: this.renderBody(),
-    }
-  }
-
   renderBody(): Record<string, unknown> {
     const body = {}
     if (this.params && this.params.length > 0) {
