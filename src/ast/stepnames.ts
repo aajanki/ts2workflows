@@ -236,7 +236,7 @@ function removeJumpTargetsParallelIteration(
   return new ParallelIterationStepASTNamed(
     removeJumpTargetsFor(step.forStep),
     step.shared,
-    step.concurrenceLimit,
+    step.concurrencyLimit,
     step.exceptionPolicy,
   )
 }
@@ -372,7 +372,7 @@ function renameJumpTargetsParallelIteration(
   return new ParallelIterationStepASTNamed(
     renameJumpTargetsFor(step.forStep, replaceLabels),
     step.shared,
-    step.concurrenceLimit,
+    step.concurrencyLimit,
     step.exceptionPolicy,
   )
 }
