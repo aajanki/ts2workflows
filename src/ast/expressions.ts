@@ -306,15 +306,8 @@ function primitiveExpressionToLiteralValueOrLiteralExpression(
         return primitiveExpressionToLiteralValueOrLiteralExpression(
           new PrimitiveExpression(x),
         )
-      } else if (
-        x === null ||
-        typeof x === 'string' ||
-        typeof x === 'number' ||
-        typeof x === 'boolean'
-      ) {
-        return x
       } else {
-        return `\${${primitiveToString(x)}}`
+        return x
       }
     })
   } else if (isRecord(ex.value)) {
@@ -325,15 +318,8 @@ function primitiveExpressionToLiteralValueOrLiteralExpression(
         return primitiveExpressionToLiteralValueOrLiteralExpression(
           new PrimitiveExpression(v),
         )
-      } else if (
-        v === null ||
-        typeof v === 'string' ||
-        typeof v === 'number' ||
-        typeof v === 'boolean'
-      ) {
-        return v
       } else {
-        return `\${${primitiveToString(v)}}`
+        return v
       }
     })
 
