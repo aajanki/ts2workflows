@@ -180,9 +180,14 @@ describe('Expressions and operators', () => {
 
   it('parses unary operators', () => {
     assertExpression('-25', -25)
+    assertExpression('+25', 25)
+    assertExpression('!0', '${not 0}')
+    assertExpression('!true', '${not true}')
     assertExpression('-a', '${-a}')
+    assertExpression('+a', '${+a}')
     assertExpression('a - + b', '${a - +b}')
     assertExpression('a * -b', '${a * -b}')
+    assertExpression('!a', '${not a}')
   })
 
   it('parses logical expressions', () => {
