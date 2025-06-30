@@ -246,6 +246,15 @@ describe('Expressions and operators', () => {
     )
   })
 
+  it('adds parenthesis if operator precedence requires it', () => {
+    assertExpression('(4 + (x + 6))', '${4 + x + 6}')
+    assertExpression('(4 + (x * 6))', '${4 + x * 6}')
+    assertExpression('(4 * (x + 6))', '${4 * (x + 6)}')
+    assertExpression('(4 + x) + 6', '${4 + x + 6}')
+    assertExpression('(4 * x) + 6', '${4 * x + 6}')
+    assertExpression('(4 + x) * 6', '${(4 + x) * 6}')
+  })
+
   it('parses expressions in lists', () => {
     assertExpression('[0, 1+2]', [0, '${1 + 2}'])
     assertExpression('[1+2, 2*(x + 10)]', ['${1 + 2}', '${2 * (x + 10)}'])
