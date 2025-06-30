@@ -12,7 +12,7 @@ export interface WorkflowParameter {
 export class WorkflowApp {
   readonly subworkflows: Subworkflow[]
 
-  constructor(subworkflows: Subworkflow[] = []) {
+  constructor(subworkflows: Subworkflow[]) {
     this.subworkflows = subworkflows
   }
 
