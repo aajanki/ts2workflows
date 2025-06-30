@@ -81,20 +81,7 @@ export class PrimitiveExpression {
   // Return the string representation of this expression.
   // Not enclosed in ${}.
   toString(): string {
-    const val = this.value
-    if (Array.isArray(val)) {
-      const elements = val.map((v) => {
-        return isExpression(v) ? v.toString() : primitiveToString(v)
-      })
-      return `[${elements.join(', ')}]`
-    } else if (isRecord(val)) {
-      const elements = Object.entries(val).map(([k, v]) => {
-        return `"${k}": ${isExpression(v) ? v.toString() : primitiveToString(v)}`
-      })
-      return `{${elements.join(', ')}}`
-    } else {
-      return `${JSON.stringify(val)}`
-    }
+    return primitiveToString(this.value)
   }
 }
 
@@ -232,8 +219,8 @@ function primitiveToString(val: Primitive): string {
   if (Array.isArray(val)) {
     return `[${valuesToString(val).join(', ')}]`
   } else if (val !== null && typeof val === 'object') {
-    const elements = Object.values(valuesToString(val)).map(
-      ([k, v]) => `"${k}":${v}`,
+    const elements = Object.entries(valuesToString(val)).map(
+      ([k, v]) => `"${k}": ${v}`,
     )
 
     return `{${elements.join(',')}}`
