@@ -547,6 +547,39 @@ describe('workflow step AST', () => {
     assertRenderStep(step, expected)
   })
 
+  it('renders a for-range step without rangeEnd', () => {
+    const step = new ForStepASTNamed(
+      [
+        namedStep(
+          'addStep',
+          new AssignStepAST([
+            {
+              name: new VariableReferenceExpression('sum'),
+              value: parseExpression('sum + v'),
+            },
+          ]),
+        ),
+      ],
+      'v',
+      undefined,
+      undefined,
+      1,
+      undefined,
+    )
+
+    const expected = `
+    for:
+        value: v
+        range: [1, null]
+        steps:
+          - addStep:
+              assign:
+                - sum: \${sum + v}
+    `
+
+    assertRenderStep(step, expected)
+  })
+
   it('renders parallel branches', () => {
     const step = new ParallelStepASTNamed([
       {
@@ -682,6 +715,60 @@ describe('workflow step AST', () => {
     const expected = `
     parallel:
         shared: [total]
+        for:
+            value: userId
+            in: ['11', '12', '13', '14']
+            steps:
+              - getBalance:
+                  call: http.get
+                  args:
+                      url: \${"https://example.com/balance/" + userId}
+                  result: balance
+              - add:
+                  assign:
+                    - total: \${total + balance}
+    `
+
+    assertRenderStep(step, expected)
+  })
+
+  it('renders a parallel for step with optional parameters', () => {
+    const step = new ParallelIterationStepASTNamed(
+      new ForStepASTNamed(
+        [
+          namedStep(
+            'getBalance',
+            new CallStepAST(
+              'http.get',
+              {
+                url: parseExpression('"https://example.com/balance/" + userId'),
+              },
+              'balance',
+            ),
+          ),
+          namedStep(
+            'add',
+            new AssignStepAST([
+              {
+                name: new VariableReferenceExpression('total'),
+                value: parseExpression('total + balance'),
+              },
+            ]),
+          ),
+        ],
+        'userId',
+        new PrimitiveExpression(['11', '12', '13', '14']),
+      ),
+      ['total'],
+      2,
+      'continueAll',
+    )
+
+    const expected = `
+    parallel:
+        shared: [total]
+        concurrency_limit: 2
+        exception_policy: continueAll
         for:
             value: userId
             in: ['11', '12', '13', '14']

@@ -854,8 +854,10 @@ function renderForBody(step: ForStepASTNamed): object {
 function renderForRangeLimit(
   value: number | Expression | undefined,
 ): LiteralValueOrLiteralExpression {
-  if (value === undefined || typeof value === 'number') {
-    return value ?? null
+  if (value === undefined) {
+    return null
+  } else if (typeof value === 'number') {
+    return value
   } else {
     return expressionToLiteralValueOrLiteralExpression(value)
   }
