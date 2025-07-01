@@ -79,6 +79,85 @@ describe('Type annotations', () => {
   })
 })
 
+describe('Type definitions', () => {
+  it('ignores type alias on the top level', () => {
+    const code = `
+    type Person = { name: string };
+
+    function main() {
+      return 1;
+    }`
+
+    const expected = `
+    main:
+      steps:
+        - return1:
+            return: 1
+    `
+
+    assertTranspiled(code, expected)
+  })
+
+  it('ignores type alias inside a function', () => {
+    const code = `function main() {
+      type Person = { name: string };
+
+      const p: Person = { name: "Bean" };
+    }`
+
+    const expected = `
+    main:
+      steps:
+        - assign1:
+            assign:
+              - p:
+                  name: "Bean"
+    `
+
+    assertTranspiled(code, expected)
+  })
+
+  it('ignores interface on the top level', () => {
+    const code = `
+    interface Person { name: string }
+
+    function main() {
+      const p: Person = { name: "Bean" };
+    }`
+
+    const expected = `
+    main:
+      steps:
+        - assign1:
+            assign:
+              - p:
+                  name: "Bean"
+    `
+
+    assertTranspiled(code, expected)
+  })
+
+  it('ignores interface inside a function', () => {
+    const code = `
+    function main() {
+      interface Person { name: string }
+
+      const p = { name: "Bean" };
+    }`
+
+    const expected = `
+    main:
+      steps:
+        - assign1:
+            assign:
+              - p:
+                  name: "Bean"
+    `
+
+    assertTranspiled(code, expected)
+  })
+})
+
 describe('Generics', () => {
   it('accepts generics in function calls', () => {
     const code = `function main() {
