@@ -1749,7 +1749,7 @@ function tempName(ctx: ParsingContext): VariableName {
     // variables on the outside. Sharing the variable name would cause deployment
     // error, if the variable is not marked as shared by including it in the
     // "shared" array.
-    return `__temp_parallel${ctx.parallelNestingLevel ?? 0}`
+    return `__temp_parallel${ctx.parallelNestingLevel}`
   } else {
     return '__temp'
   }
