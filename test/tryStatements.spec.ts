@@ -934,6 +934,45 @@ describe('Try-catch-finally statement', () => {
     assertTranspiled(code, expected)
   })
 
+  it('throws if retry policy is missing the backoff parameters', () => {
+    const code = `
+    function main() {
+      try {
+        retry_policy({
+          predicate: http.default_retry_predicate,
+          max_retries: 3,
+        });
+
+        const response = http.get("https://visit.dreamland.test/");
+        return response;
+      } catch {
+        log("Error!");
+      }
+    }`
+
+    expect(() => transpile(code)).to.throw()
+  })
+
+  it('throws if retry policy backoff is not an object literal', () => {
+    const code = `
+    function main() {
+      try {
+        retry_policy({
+          predicate: http.default_retry_predicate,
+          max_retries: 3,
+          backoff: 'yes, please'
+        });
+
+        const response = http.get("https://visit.dreamland.test/");
+        return response;
+      } catch {
+        log("Error!");
+      }
+    }`
+
+    expect(() => transpile(code)).to.throw()
+  })
+
   it('retries with a custom predicate', () => {
     const code = `
     function main() {

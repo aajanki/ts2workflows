@@ -178,6 +178,14 @@ describe('Expressions and operators', () => {
     assertExpression('"Queen" + " Dagmar"', '${"Queen" + " Dagmar"}')
   })
 
+  it('throws on an unsupported binary operator', () => {
+    const code = `function test(x) {
+      return x >>> 2;
+    }`
+
+    expect(() => transpile(code)).to.throw()
+  })
+
   it('parses unary operators', () => {
     assertExpression('-25', -25)
     assertExpression('+25', 25)
@@ -188,6 +196,14 @@ describe('Expressions and operators', () => {
     assertExpression('a - + b', '${a - +b}')
     assertExpression('a * -b', '${a * -b}')
     assertExpression('!a', '${not a}')
+  })
+
+  it('throws on an unsupported unary operator', () => {
+    const code = `function test(x) {
+      return ~x;
+    }`
+
+    expect(() => transpile(code)).to.throw()
   })
 
   it('parses logical expressions', () => {
@@ -216,7 +232,9 @@ describe('Expressions and operators', () => {
     assertExpression('x <= 0', '${x <= 0}')
     assertExpression('status != 0', '${status != 0}')
     assertExpression('response != "ERROR"', '${response != "ERROR"}')
+    assertExpression('response !== "ERROR"', '${response != "ERROR"}')
     assertExpression('country == "Norway"', '${country == "Norway"}')
+    assertExpression('country === "Norway"', '${country == "Norway"}')
   })
 
   it('parses boolean operators', () => {
@@ -514,6 +532,30 @@ describe('Expressions and operators', () => {
       steps:
         - return1:
             return: \${text.replace_all_regex(text.replace_all_regex(get_type(x), "^(bytes|list|map|null)$", "object"), "^(double|integer)$", "number")}
+    `
+
+    assertTranspiled(code, expected)
+  })
+
+  it('transpiles void operator', () => {
+    const code = `function main(): void {
+      void sideEffect();
+    }
+      
+    function sideEffect(): number {
+      return 1;
+    }`
+
+    const expected = `
+    main:
+      steps:
+        - assign1:
+            assign:
+              - __temp: \${sideEffect()}
+    sideEffect:
+      steps:
+        - return1:
+            return: 1
     `
 
     assertTranspiled(code, expected)
