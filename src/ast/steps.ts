@@ -715,7 +715,7 @@ export function renderStep(
               expressionToLiteralValueOrLiteralExpression(value),
           }
         }),
-        ...(step.next && { next: step.next }),
+        ...(step.next !== undefined && { next: step.next }),
       }
 
     case 'call':
@@ -748,7 +748,7 @@ export function renderStep(
     case 'switch':
       return {
         switch: step.branches.map(renderSwitchCondition),
-        ...(step.next && { next: step.next }),
+        ...(step.next !== undefined && { next: step.next }),
       }
 
     case 'try':
@@ -808,7 +808,7 @@ function renderSwitchCondition(
   return {
     condition: expressionToLiteralValueOrLiteralExpression(cond.condition),
     ...(includeSteps && { steps: renderSteps(cond.steps) }),
-    ...(cond.next && { next: cond.next }),
+    ...(cond.next !== undefined && { next: cond.next }),
   }
 }
 
