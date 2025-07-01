@@ -76,7 +76,8 @@ function parseTopLevelStatement(
     case AST_NODE_TYPES.TSInterfaceDeclaration:
     case AST_NODE_TYPES.TSTypeAliasDeclaration:
     case AST_NODE_TYPES.TSDeclareFunction:
-      // Ignore "type", "interface" and "declare function" at the top-level
+    case AST_NODE_TYPES.EmptyStatement:
+      // Ignore "type", "interface", "declare function" and empty statements at the top-level
       return []
 
     default:

@@ -208,6 +208,27 @@ describe('workflow transpiler', () => {
     assertTranspiled(code, expected)
   })
 
+  it('accepts empty statements at top level', () => {
+    const code = `
+    ;
+
+    function main() {
+      return 1;
+    }
+
+    ;
+    `
+
+    const expected = `
+    main:
+      steps:
+        - return1:
+            return: 1
+    `
+
+    assertTranspiled(code, expected)
+  })
+
   it('throws if the subworkflow body is empty', () => {
     const code = `function empty_workflow() {}`
 

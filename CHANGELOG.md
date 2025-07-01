@@ -6,6 +6,7 @@ Fixes:
 
 - Empty body in an if statements generated invalid code
 - In certain cases nested map literals generated invalid output
+- Empty statements are accepted at the top level
 
 ## Version 0.11.0 - 2026-06-28
 
