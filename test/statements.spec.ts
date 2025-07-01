@@ -598,6 +598,35 @@ describe('If statement', () => {
 
     assertTranspiled(code, expected)
   })
+
+  it('if with an empty body', () => {
+    const code = `
+    function main(x) {
+      let isPositive = true;
+      if (x > 0) {} else { isPositive = false; }
+    }`
+
+    const expected = `
+    main:
+      params:
+        - x
+      steps:
+        - assign1:
+            assign:
+              - isPositive: true
+        - switch1:
+            switch:
+              - condition: \${x > 0}
+                steps: []
+              - condition: true
+                steps:
+                  - assign2:
+                      assign:
+                        - isPositive: false
+    `
+
+    assertTranspiled(code, expected)
+  })
 })
 
 describe('Switch statement', () => {

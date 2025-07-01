@@ -77,6 +77,31 @@ describe('Try-catch-finally statement', () => {
     assertTranspiled(code, expected)
   })
 
+  it('empty try block', () => {
+    const code = `
+    function main() {
+      try {
+      } catch {
+        log("Error!");
+      }
+    }`
+
+    const expected = `
+      main:
+        steps:
+          - try1:
+              try:
+                steps: []
+              except:
+                steps:
+                  - assign1:
+                      assign:
+                        - __temp: \${log("Error!")}
+    `
+
+    assertTranspiled(code, expected)
+  })
+
   it('empty catch block', () => {
     const code = `
     function main() {

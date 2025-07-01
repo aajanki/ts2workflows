@@ -1,5 +1,12 @@
 # ts2workflows changelog
 
+## unreleased
+
+Fixes:
+
+- Empty body in an if statements generated invalid code
+- In certain cases nested map literals generated invalid output
+
 ## Version 0.11.0 - 2026-06-28
 
 Breaking changes:

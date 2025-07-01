@@ -804,9 +804,10 @@ function renderParallelIterationStep(
 function renderSwitchCondition(
   cond: SwitchConditionAST<NamedWorkflowStep>,
 ): object {
+  const includeSteps = cond.steps.length > 0 || cond.next === undefined
   return {
     condition: expressionToLiteralValueOrLiteralExpression(cond.condition),
-    ...(cond.steps.length > 0 && { steps: renderSteps(cond.steps) }),
+    ...(includeSteps && { steps: renderSteps(cond.steps) }),
     ...(cond.next && { next: cond.next }),
   }
 }
