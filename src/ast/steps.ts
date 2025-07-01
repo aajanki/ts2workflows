@@ -8,7 +8,6 @@ import {
   expressionToLiteralValueOrLiteralExpression,
 } from './expressions.js'
 import { Subworkflow, WorkflowParameter } from './workflows.js'
-import { InternalTranspilingError } from '../errors.js'
 
 export type StepName = string
 export interface VariableAssignment {
@@ -591,13 +590,14 @@ function namedStepsParallelIteration(
   generateName: (prefix: string) => string,
 ): NamedWorkflowStep {
   const mainLabel = step.label ?? generateName('parallel')
-  const forStep = namedSteps(step.forStep, generateName).step
-
-  if (forStep.tag !== 'for') {
-    throw new InternalTranspilingError(
-      `Encountered a step of type ${forStep.tag} when a for step was expected`,
-    )
-  }
+  const forStep = new ForStepASTNamed(
+    step.forStep.steps.map((nestedStep) =>
+      namedSteps(nestedStep, generateName),
+    ),
+    step.forStep.loopVariableName,
+    step.forStep.listExpression,
+    step.forStep.indexVariableName,
+  )
 
   return {
     name: mainLabel,
@@ -630,7 +630,7 @@ function namedStepsSwitch(
 function namedStepsTry(
   step: TryStepAST,
   generateName: (prefix: string) => string,
-) {
+): NamedWorkflowStep {
   const mainLabel = step.label ?? generateName('try')
   const namedTrySteps = step.trySteps.map((nested) =>
     namedSteps(nested, generateName),
