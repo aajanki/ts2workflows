@@ -240,30 +240,26 @@ function transformExpressionsAssign(
   transform: (ex: Expression) => [WorkflowStepAST[], Expression],
   step: AssignStepAST,
 ): WorkflowStepAST[] {
-  if (step.assignments) {
-    const newSteps: WorkflowStepAST[] = []
-    const newAssignments = step.assignments.map(({ name, value }) => {
-      const [steps2, transformedKey] = transform(name)
-      const [steps3, transformedValue] = transform(value)
-      newSteps.push(...steps2)
-      newSteps.push(...steps3)
+  const newSteps: WorkflowStepAST[] = []
+  const newAssignments = step.assignments.map(({ name, value }) => {
+    const [steps2, transformedKey] = transform(name)
+    const [steps3, transformedValue] = transform(value)
+    newSteps.push(...steps2)
+    newSteps.push(...steps3)
 
-      if (
-        transformedKey.expressionType !== 'variableReference' &&
-        transformedKey.expressionType !== 'member'
-      ) {
-        throw new InternalTranspilingError(
-          'Unexpected key type when transforming assign step',
-        )
-      }
+    if (
+      transformedKey.expressionType !== 'variableReference' &&
+      transformedKey.expressionType !== 'member'
+    ) {
+      throw new InternalTranspilingError(
+        'Unexpected key type when transforming assign step',
+      )
+    }
 
-      return { name: transformedKey, value: transformedValue }
-    })
-    newSteps.push(new AssignStepAST(newAssignments, step.next, step.label))
-    return newSteps
-  } else {
-    return [step]
-  }
+    return { name: transformedKey, value: transformedValue }
+  })
+  newSteps.push(new AssignStepAST(newAssignments, step.next, step.label))
+  return newSteps
 }
 
 function transformExpressionsCall(
@@ -288,34 +284,26 @@ function transformExpressionsFor(
   transform: (ex: Expression) => [WorkflowStepAST[], Expression],
   step: ForStepAST,
 ): WorkflowStepAST[] {
-  if (step.listExpression) {
-    const [newSteps, newListExpression] = transform(step.listExpression)
-    newSteps.push(
-      new ForStepAST(
-        step.steps,
-        step.loopVariableName,
-        newListExpression,
-        step.indexVariableName,
-        step.label,
-      ),
-    )
-    return newSteps
-  } else {
-    return [step]
-  }
+  const [newSteps, newListExpression] = transform(step.listExpression)
+  newSteps.push(
+    new ForStepAST(
+      step.steps,
+      step.loopVariableName,
+      newListExpression,
+      step.indexVariableName,
+      step.label,
+    ),
+  )
+  return newSteps
 }
 
 function transformExpressionsRaise(
   transform: (ex: Expression) => [WorkflowStepAST[], Expression],
   step: RaiseStepAST,
 ): WorkflowStepAST[] {
-  if (step.value) {
-    const [newSteps, newEx] = transform(step.value)
-    newSteps.push(new RaiseStepAST(newEx, step.label))
-    return newSteps
-  } else {
-    return [step]
-  }
+  const [newSteps, newEx] = transform(step.value)
+  newSteps.push(new RaiseStepAST(newEx, step.label))
+  return newSteps
 }
 
 function transformExpressionsReturn(
