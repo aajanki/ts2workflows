@@ -258,6 +258,31 @@ describe('Call statement', () => {
     assertTranspiled(code, expected)
   })
 
+  it('creates call steps for blocking calls in for loops', () => {
+    const code = `function check_post_result() {
+      for (const i of [1, 2, 3]) {
+        const res = http.get(\`https://visit.dreamland.test/page-\${i}.html\`)
+      }
+    }`
+
+    const expected = `
+    check_post_result:
+      steps:
+        - for1:
+            for:
+              value: i
+              in: [1, 2, 3]
+              steps:
+                - call_http_get_1:
+                    call: http.get
+                    args:
+                      url: \${"https://visit.dreamland.test/page-" + default(i, "null") + ".html"}
+                    result: res
+    `
+
+    assertTranspiled(code, expected)
+  })
+
   it('creates call steps for blocking calls in return expressions', () => {
     const code = `function download() {
       return http.get("https://visit.dreamland.test/")
@@ -350,6 +375,47 @@ describe('Call statement', () => {
             result: __temp0
         - return1:
             return: \${map.get(map.get(__temp0, "body"), "value")}
+    `
+
+    assertTranspiled(code, expected)
+  })
+
+  it('ignores extra arguments in a blocking function call', () => {
+    const code = `function main() {
+      sys.sleep(1000, 2000, 3000)
+    }`
+
+    const expected = `
+    main:
+      steps:
+        - call_sys_sleep_1:
+            call: sys.sleep
+            args:
+              seconds: 1000
+    `
+
+    assertTranspiled(code, expected)
+  })
+
+  it('ignores extra arguments in a blocking function call in a nested expression', () => {
+    const code = `function main(callbackobj) {
+      handle(events.await_callback(callbackobj, 1000, 'a', null, 89))
+    }`
+
+    const expected = `
+    main:
+      params:
+        - callbackobj
+      steps:
+        - call_events_await_callback_1:
+            call: events.await_callback
+            args:
+              callback: \${callbackobj}
+              timeout: 1000
+            result: __temp0
+        - assign1:
+            assign:
+              - __temp: \${handle(__temp0)}
     `
 
     assertTranspiled(code, expected)
@@ -474,6 +540,18 @@ describe('Call statement', () => {
     `
 
     assertTranspiled(code, expected)
+  })
+
+  it('rejects function calls at top level', () => {
+    const code = `
+    function main() {
+      return 1;
+    }
+
+    main();
+    `
+
+    expect(() => transpile(code)).to.throw()
   })
 })
 
@@ -967,6 +1045,47 @@ describe('Return statement', () => {
                   value: 5
         - return1:
             return: \${__temp0.value}
+    `
+
+    assertTranspiled(code, expected)
+  })
+})
+
+describe('Empty statement', () => {
+  it('accepts an empty statement in a function', () => {
+    const code = `
+    function main() {
+      ;
+
+      return 1;
+    }`
+
+    const expected = `
+    main:
+      steps:
+        - return1:
+            return: 1
+    `
+
+    assertTranspiled(code, expected)
+  })
+
+  it('accepts empty statements at top level', () => {
+    const code = `
+    ;
+
+    function main() {
+      return 1;
+    }
+
+    ;
+    `
+
+    const expected = `
+    main:
+      steps:
+        - return1:
+            return: 1
     `
 
     assertTranspiled(code, expected)

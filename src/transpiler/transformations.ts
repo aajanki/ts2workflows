@@ -172,12 +172,6 @@ function replaceBlockingCalls(
 
     const blockingCallArgumentNames = blockingFunctions.get(ex.functionName)
     if (blockingCallArgumentNames) {
-      if (ex.arguments.length > blockingCallArgumentNames.length) {
-        throw new InternalTranspilingError(
-          'FunctionInvocationTerm has more arguments than metadata allows!',
-        )
-      }
-
       const nameAndValue = R.zip(blockingCallArgumentNames, ex.arguments)
       const callArgs = R.fromPairs(nameAndValue)
       const tempCallResultVariable = generateName()

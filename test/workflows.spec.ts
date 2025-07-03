@@ -164,6 +164,15 @@ describe('workflow transpiler', () => {
     assertTranspiled(code, expected)
   })
 
+  it('rejects rest parameters', () => {
+    const code = `
+    function test(...rest): string {
+      return ""
+    }`
+
+    expect(() => transpile(code)).to.throw()
+  })
+
   it('rejects optional function argument with default value', () => {
     const code = `
     function test(name?: string = "Bean"): string {
@@ -203,27 +212,6 @@ describe('workflow transpiler', () => {
       steps:
         - return1:
             return: null
-    `
-
-    assertTranspiled(code, expected)
-  })
-
-  it('accepts empty statements at top level', () => {
-    const code = `
-    ;
-
-    function main() {
-      return 1;
-    }
-
-    ;
-    `
-
-    const expected = `
-    main:
-      steps:
-        - return1:
-            return: 1
     `
 
     assertTranspiled(code, expected)
