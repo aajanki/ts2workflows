@@ -193,15 +193,8 @@ function convertBinaryExpression(
       )
   }
 
-  if (instance.left.type === AST_NODE_TYPES.PrivateIdentifier) {
-    throw new WorkflowSyntaxError(
-      'Private identifier not supported',
-      instance.left.loc,
-    )
-  }
-
   return new BinaryExpression(
-    convertExpression(instance.left),
+    convertExpression(throwIfPrivateIdentifier(instance.left)),
     op,
     convertExpression(instance.right),
   )
@@ -291,17 +284,10 @@ function convertTypeOfExpression(value: Expression): Expression {
 export function convertMemberExpression(
   node: TSESTree.MemberExpression,
 ): Expression {
-  if (node.property.type === AST_NODE_TYPES.PrivateIdentifier) {
-    throw new WorkflowSyntaxError(
-      'Private identifier not supported',
-      node.property.loc,
-    )
-  }
-
   const object = convertExpression(node.object)
   return new MemberExpression(
     object,
-    convertExpression(node.property),
+    convertExpression(throwIfPrivateIdentifier(node.property)),
     node.computed,
   )
 }
@@ -323,15 +309,8 @@ function chainExpressionToFlatArray(
   node: TSESTree.Expression,
 ): ChainedProperty[] {
   if (node.type === AST_NODE_TYPES.MemberExpression) {
-    if (node.property.type === AST_NODE_TYPES.PrivateIdentifier) {
-      throw new WorkflowSyntaxError(
-        'Private identifier not supported',
-        node.property.loc,
-      )
-    }
-
     const data = {
-      property: node.property,
+      property: throwIfPrivateIdentifier(node.property),
       optional: node.optional,
       computed: node.computed,
     }
@@ -540,6 +519,16 @@ export function throwIfSpread<
   ) as Exclude<T, TSESTree.SpreadElement>[]
 
   return argumentExpressions
+}
+
+export function throwIfPrivateIdentifier(
+  prop: TSESTree.Expression | TSESTree.PrivateIdentifier,
+): TSESTree.Expression {
+  if (prop.type === AST_NODE_TYPES.PrivateIdentifier) {
+    throw new WorkflowSyntaxError('Private identifier not supported', prop.loc)
+  }
+
+  return prop
 }
 
 export function convertVariableNameExpression(
