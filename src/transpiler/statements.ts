@@ -1086,6 +1086,14 @@ function parseParallelBranches(
             arg.body.loc,
           )
         }
+
+        if (arg.params.length > 0) {
+          throw new WorkflowSyntaxError(
+            'Parallel functions must not take arguments',
+            arg.params[0].loc,
+          )
+        }
+
         return parseStatement(arg.body, ctx)
 
       default:
