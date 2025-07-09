@@ -1,7 +1,5 @@
-import * as YAML from 'yaml'
-
 import { VariableName, LiteralValueOrLiteralExpression } from './expressions.js'
-import { NamedWorkflowStep, nestedSteps, renderStep } from './steps.js'
+import { NamedWorkflowStep, renderStep } from './steps.js'
 
 export interface WorkflowParameter {
   name: VariableName
@@ -14,7 +12,7 @@ export interface WorkflowParameter {
 export class WorkflowApp {
   readonly subworkflows: Subworkflow[]
 
-  constructor(subworkflows: Subworkflow[] = []) {
+  constructor(subworkflows: Subworkflow[]) {
     this.subworkflows = subworkflows
   }
 
@@ -41,12 +39,6 @@ export class Subworkflow {
     this.params = params
   }
 
-  render(): Record<string, unknown> {
-    return {
-      [this.name]: this.renderBody(),
-    }
-  }
-
   renderBody(): Record<string, unknown> {
     const body = {}
     if (this.params && this.params.length > 0) {
@@ -69,35 +61,4 @@ export class Subworkflow {
 
     return body
   }
-
-  *iterateStepsDepthFirst(): IterableIterator<NamedWorkflowStep> {
-    const visited = new Set()
-
-    function* visitPreOrder(
-      step: NamedWorkflowStep,
-    ): IterableIterator<NamedWorkflowStep> {
-      if (!visited.has(step)) {
-        visited.add(step)
-
-        yield step
-
-        for (const x of nestedSteps(step.step).flat()) {
-          yield* visitPreOrder(x)
-        }
-      }
-    }
-
-    for (const step of this.steps) {
-      yield* visitPreOrder(step)
-    }
-  }
-}
-
-/**
- * Print the workflow as a YAML string.
- */
-export function toYAMLString(workflow: WorkflowApp): string {
-  return YAML.stringify(workflow.render(), {
-    lineWidth: 100,
-  })
 }

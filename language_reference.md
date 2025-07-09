@@ -20,6 +20,14 @@ Semicolon can be used as optional statement delimitter.
 - Array: `[1, 2, 3]`
 - Map: `{temperature: -12, unit: "Celsius"}`
 
+The Typescript type alias `WorkflowsValue` (provided by `ts2workflows/types/workflowslib`) represents any valid Workflows value. Sample usage:
+
+```typescript
+import { WorkflowsValue } from 'ts2workflows/types/workflowslib'
+
+const x: WorkflowsValue = [1, 2]
+```
+
 ### Array type
 
 ⚠️ Arrays are not objects in GCP Workflows. In particular, methods like `[].map()` and `[].concat()` are not available.

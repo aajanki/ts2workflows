@@ -330,4 +330,54 @@ describe('Parallel statement', () => {
 
     expect(() => transpile(code)).to.throw()
   })
+
+  it('throws if parallel is called with an expression as arrow function body', () => {
+    const code = `
+    function main() {
+      parallel(() => 1);
+    }`
+
+    expect(() => transpile(code)).to.throw()
+  })
+
+  it('throws if parallel is called with an expression as arrow function body 2', () => {
+    const code = `
+    function main() {
+      parallel([() => 1, () => 2]);
+    }`
+
+    expect(() => transpile(code)).to.throw()
+  })
+
+  it('throws if arrow function in parallel has arguments', () => {
+    const code = `
+    function main() {
+      parallel((x) => { return x + 1 });
+    }`
+
+    expect(() => transpile(code)).to.throw()
+  })
+
+  it('throws if arrow function in parallel has arguments 2', () => {
+    const code = `
+    function main() {
+      let total = 0;
+
+      parallel(
+        [ (x) => { total += x } ],
+        { shared: ["total"] }
+      );
+    }`
+
+    expect(() => transpile(code)).to.throw()
+  })
+
+  it('throws if parallel is called without arguments', () => {
+    const code = `
+    function main() {
+      parallel();
+    }`
+
+    expect(() => transpile(code)).to.throw()
+  })
 })

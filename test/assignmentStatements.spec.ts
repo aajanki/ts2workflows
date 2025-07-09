@@ -802,6 +802,54 @@ describe('Assignment statement', () => {
     assertTranspiled(code, expected)
   })
 
+  it('logical and assignment', () => {
+    const code = `
+    function main() {
+      let x = false;
+      x &&= true;
+    }`
+
+    const expected = `
+    main:
+      steps:
+        - assign1:
+            assign:
+              - x: false
+              - x: \${x and true}
+    `
+
+    assertTranspiled(code, expected)
+  })
+
+  it('logical or assignment', () => {
+    const code = `
+    function main() {
+      let x = false;
+      x ||= true;
+    }`
+
+    const expected = `
+    main:
+      steps:
+        - assign1:
+            assign:
+              - x: false
+              - x: \${x or true}
+    `
+
+    assertTranspiled(code, expected)
+  })
+
+  it('throws on unsupported compound operator', () => {
+    const code = `
+    function main() {
+      let x = 1;
+      x >>= 4;
+    }`
+
+    expect(() => transpile(code)).to.throw()
+  })
+
   it('throws if the left-hand side of an assignment is a complex expression', () => {
     const code = `
     function main() {

@@ -1,5 +1,4 @@
 import * as R from 'ramda'
-import { isRecord } from '../utils.js'
 import {
   Expression,
   LiteralValueOrLiteralExpression,
@@ -38,19 +37,11 @@ export interface WorkflowAST {
 }
 
 export class SubworkflowAST {
-  readonly name: string
-  readonly steps: WorkflowStepAST[]
-  readonly params?: WorkflowParameter[]
-
   constructor(
-    name: string,
-    steps: WorkflowStepAST[],
-    params?: WorkflowParameter[],
-  ) {
-    this.name = name
-    this.steps = steps
-    this.params = params
-  }
+    private readonly name: string,
+    private readonly steps: WorkflowStepAST[],
+    private readonly params?: WorkflowParameter[],
+  ) {}
 
   withStepNames(generate: (prefix: string) => string): Subworkflow {
     const steps = this.steps.map((step) => namedSteps(step, generate))
@@ -68,9 +59,9 @@ export type WorkflowStepAST =
   | ForRangeStepAST
   | NextStepAST
   | ParallelStepAST
+  | ParallelIterationStepAST
   | RaiseStepAST
   | ReturnStepAST
-  | StepsStepAST
   | SwitchStepAST
   | TryStepAST
   | JumpTargetAST
@@ -84,9 +75,9 @@ export type WorkflowStepASTWithNamedNested =
   | ForStepASTNamed
   | NextStepAST
   | ParallelStepASTNamed
+  | ParallelIterationStepASTNamed
   | RaiseStepAST
   | ReturnStepAST
-  | StepsStepASTNamed
   | SwitchStepASTNamed
   | TryStepASTNamed
   | JumpTargetAST
@@ -99,19 +90,12 @@ export interface NamedWorkflowStep {
 // https://cloud.google.com/workflows/docs/reference/syntax/variables#assign-step
 export class AssignStepAST {
   readonly tag = 'assign'
-  readonly assignments: VariableAssignment[]
-  readonly label?: string
-  readonly next?: string
 
   constructor(
-    assignments: VariableAssignment[],
-    next?: string,
-    label?: string,
-  ) {
-    this.assignments = assignments
-    this.next = next
-    this.label = label
-  }
+    public readonly assignments: VariableAssignment[],
+    public readonly next?: string,
+    public readonly label?: string,
+  ) {}
 
   withNext(newNext?: string): AssignStepAST {
     if (newNext === this.next) {
@@ -133,22 +117,13 @@ export class AssignStepAST {
 // https://cloud.google.com/workflows/docs/reference/syntax/calls
 export class CallStepAST {
   readonly tag = 'call'
-  readonly call: string
-  readonly args?: WorkflowParameters
-  readonly result?: VariableName
-  readonly label?: string
 
   constructor(
-    call: string,
-    args?: WorkflowParameters,
-    result?: VariableName,
-    label?: string,
-  ) {
-    this.call = call
-    this.args = args
-    this.result = result
-    this.label = label
-  }
+    public readonly call: string,
+    public readonly args?: WorkflowParameters,
+    public readonly result?: VariableName,
+    public readonly label?: string,
+  ) {}
 
   labelPrefix(): string {
     return 'call_' + this.call.replaceAll(/[^a-zA-Z0-9]/g, '_') + '_'
@@ -166,25 +141,14 @@ export class CallStepAST {
 // https://cloud.google.com/workflows/docs/reference/syntax/iteration
 export class ForStepAST {
   readonly tag = 'for'
-  readonly steps: WorkflowStepAST[]
-  readonly loopVariableName: VariableName
-  readonly indexVariableName?: VariableName
-  readonly listExpression: Expression
-  readonly label?: string
 
   constructor(
-    steps: WorkflowStepAST[],
-    loopVariableName: VariableName,
-    listExpression: Expression,
-    indexVariable?: VariableName,
-    label?: string,
-  ) {
-    this.steps = steps
-    this.loopVariableName = loopVariableName
-    this.listExpression = listExpression
-    this.indexVariableName = indexVariable
-    this.label = label
-  }
+    public readonly steps: WorkflowStepAST[],
+    public readonly loopVariableName: VariableName,
+    public readonly listExpression: Expression,
+    public readonly indexVariableName?: VariableName,
+    public readonly label?: string,
+  ) {}
 
   withLabel(newLabel?: string): ForStepAST {
     return new ForStepAST(
@@ -211,25 +175,14 @@ export class ForStepAST {
 
 export class ForRangeStepAST {
   readonly tag = 'forrange'
-  readonly steps: WorkflowStepAST[]
-  readonly loopVariableName: VariableName
-  readonly rangeStart: number | Expression
-  readonly rangeEnd: number | Expression
-  readonly label?: string
 
   constructor(
-    steps: WorkflowStepAST[],
-    loopVariableName: VariableName,
-    rangeStart: number | Expression,
-    rangeEnd: number | Expression,
-    label?: string,
-  ) {
-    this.steps = steps
-    this.loopVariableName = loopVariableName
-    this.rangeStart = rangeStart
-    this.rangeEnd = rangeEnd
-    this.label = label
-  }
+    public readonly steps: WorkflowStepAST[],
+    public readonly loopVariableName: VariableName,
+    public readonly rangeStart: number | Expression,
+    public readonly rangeEnd: number | Expression,
+    public readonly label?: string,
+  ) {}
 
   withLabel(newLabel?: string): ForRangeStepAST {
     return new ForRangeStepAST(
@@ -256,39 +209,24 @@ export class ForRangeStepAST {
 
 export class ForStepASTNamed {
   readonly tag = 'for'
-  readonly steps: NamedWorkflowStep[]
-  readonly loopVariableName: VariableName
-  readonly indexVariableName?: VariableName
-  readonly listExpression?: Expression
-  readonly rangeStart?: number | Expression
-  readonly rangeEnd?: number | Expression
 
   constructor(
-    steps: NamedWorkflowStep[],
-    loopVariableName: VariableName,
-    listExpression?: Expression,
-    indexVariable?: VariableName,
-    rangeStart?: number | Expression,
-    rangeEnd?: number | Expression,
-  ) {
-    this.steps = steps
-    this.loopVariableName = loopVariableName
-    this.listExpression = listExpression
-    this.indexVariableName = indexVariable
-    this.rangeStart = rangeStart
-    this.rangeEnd = rangeEnd
-  }
+    public readonly steps: NamedWorkflowStep[],
+    public readonly loopVariableName: VariableName,
+    public readonly listExpression?: Expression,
+    public readonly indexVariableName?: VariableName,
+    public readonly rangeStart?: number | Expression,
+    public readonly rangeEnd?: number | Expression,
+  ) {}
 }
 
 export class NextStepAST {
   readonly tag = 'next'
-  readonly target: string
-  readonly label?: string
 
-  constructor(target: string, label?: string) {
-    this.target = target
-    this.label = label
-  }
+  constructor(
+    public readonly target: string,
+    public readonly label?: string,
+  ) {}
 
   withLabel(newLabel?: string): NextStepAST {
     return new NextStepAST(this.target, newLabel)
@@ -302,29 +240,18 @@ export class NextStepAST {
 // https://cloud.google.com/workflows/docs/reference/syntax/parallel-steps
 export class ParallelStepAST {
   readonly tag = 'parallel'
-  readonly steps: Record<StepName, StepsStepAST> | ForStepAST
-  readonly shared?: VariableName[]
-  readonly concurrencyLimit?: number
-  readonly exceptionPolicy?: string
-  readonly label?: string
 
   constructor(
-    steps: Record<StepName, StepsStepAST> | ForStepAST,
-    shared?: VariableName[],
-    concurrencyLimit?: number,
-    exceptionPolicy?: string,
-    label?: string,
-  ) {
-    this.steps = steps
-    this.shared = shared
-    this.concurrencyLimit = concurrencyLimit
-    this.exceptionPolicy = exceptionPolicy
-    this.label = label
-  }
+    public readonly branches: ParallelBranch<WorkflowStepAST>[],
+    public readonly shared?: VariableName[],
+    public readonly concurrencyLimit?: number,
+    public readonly exceptionPolicy?: string,
+    public readonly label?: string,
+  ) {}
 
   withLabel(newLabel?: string): ParallelStepAST {
     return new ParallelStepAST(
-      this.steps,
+      this.branches,
       this.shared,
       this.concurrencyLimit,
       this.exceptionPolicy,
@@ -335,15 +262,10 @@ export class ParallelStepAST {
   applyNestedSteps(
     fn: (steps: WorkflowStepAST[]) => WorkflowStepAST[],
   ): ParallelStepAST {
-    let transformedSteps: Record<StepName, StepsStepAST> | ForStepAST
-    if (this.steps instanceof ForStepAST) {
-      transformedSteps = this.steps.applyNestedSteps(fn)
-    } else {
-      transformedSteps = R.map(
-        (s) => new StepsStepAST(fn(s.steps), s.label),
-        this.steps,
-      )
-    }
+    const transformedSteps = this.branches.map(({ name, steps }) => ({
+      name,
+      steps: steps.map((s) => s.applyNestedSteps(fn)),
+    }))
 
     return new ParallelStepAST(
       transformedSteps,
@@ -357,42 +279,74 @@ export class ParallelStepAST {
 
 export class ParallelStepASTNamed {
   readonly tag = 'parallel'
-  readonly branches?: NamedWorkflowStep[] // Either steps for each branch
-  readonly forStep?: ForStepASTNamed // ... or a parallel for
-  readonly shared?: VariableName[]
-  readonly concurrenceLimit?: number
-  readonly exceptionPolicy?: string
 
   constructor(
-    steps: Record<StepName, StepsStepASTNamed> | ForStepASTNamed,
-    shared?: VariableName[],
-    concurrencyLimit?: number,
-    exceptionPolicy?: string,
-  ) {
-    this.shared = shared
-    this.concurrenceLimit = concurrencyLimit
-    this.exceptionPolicy = exceptionPolicy
+    public readonly branches: ParallelBranch<NamedWorkflowStep>[],
+    public readonly shared?: VariableName[],
+    public readonly concurrenceLimit?: number,
+    public readonly exceptionPolicy?: string,
+  ) {}
+}
 
-    if (!isRecord(steps)) {
-      this.forStep = steps
-    } else {
-      this.branches = Object.entries(steps).map((x) => {
-        return { name: x[0], step: x[1] }
-      })
-    }
+export interface ParallelBranch<T extends WorkflowStepAST | NamedWorkflowStep> {
+  readonly name: StepName
+  readonly steps: T[]
+}
+
+// https://cloud.google.com/workflows/docs/reference/syntax/parallel-steps#parallel-iteration
+export class ParallelIterationStepAST {
+  readonly tag = 'parallel-for'
+
+  constructor(
+    public readonly forStep: ForStepAST,
+    public readonly shared?: VariableName[],
+    public readonly concurrencyLimit?: number,
+    public readonly exceptionPolicy?: string,
+    public readonly label?: string,
+  ) {}
+
+  withLabel(newLabel?: string): ParallelIterationStepAST {
+    return new ParallelIterationStepAST(
+      this.forStep,
+      this.shared,
+      this.concurrencyLimit,
+      this.exceptionPolicy,
+      newLabel,
+    )
   }
+
+  applyNestedSteps(
+    fn: (steps: WorkflowStepAST[]) => WorkflowStepAST[],
+  ): ParallelIterationStepAST {
+    return new ParallelIterationStepAST(
+      this.forStep.applyNestedSteps(fn),
+      this.shared,
+      this.concurrencyLimit,
+      this.exceptionPolicy,
+      this.label,
+    )
+  }
+}
+
+export class ParallelIterationStepASTNamed {
+  readonly tag = 'parallel-for'
+
+  constructor(
+    public readonly forStep: ForStepASTNamed,
+    public readonly shared?: VariableName[],
+    public readonly concurrencyLimit?: number,
+    public readonly exceptionPolicy?: string,
+  ) {}
 }
 
 // https://cloud.google.com/workflows/docs/reference/syntax/raising-errors
 export class RaiseStepAST {
   readonly tag = 'raise'
-  readonly value: Expression
-  readonly label?: string
 
-  constructor(value: Expression, label?: string) {
-    this.value = value
-    this.label = label
-  }
+  constructor(
+    public readonly value: Expression,
+    public readonly label?: string,
+  ) {}
 
   withLabel(newLabel?: string): RaiseStepAST {
     return new RaiseStepAST(this.value, newLabel)
@@ -406,13 +360,11 @@ export class RaiseStepAST {
 // https://cloud.google.com/workflows/docs/reference/syntax/completing
 export class ReturnStepAST {
   readonly tag = 'return'
-  readonly value?: Expression
-  readonly label?: string
 
-  constructor(value: Expression | undefined, label?: string) {
-    this.value = value
-    this.label = label
-  }
+  constructor(
+    public readonly value: Expression | undefined,
+    public readonly label?: string,
+  ) {}
 
   withLabel(newLabel?: string): ReturnStepAST {
     return new ReturnStepAST(this.value, newLabel)
@@ -423,47 +375,14 @@ export class ReturnStepAST {
   }
 }
 
-// https://cloud.google.com/workflows/docs/reference/syntax/steps#embedded-steps
-export class StepsStepAST {
-  readonly tag = 'steps'
-  readonly steps: WorkflowStepAST[]
-  readonly label?: string
-
-  constructor(steps: WorkflowStepAST[], label?: string) {
-    this.steps = steps
-    this.label = label
-  }
-
-  withLabel(newLabel?: string): StepsStepAST {
-    return new StepsStepAST(this.steps, newLabel)
-  }
-
-  applyNestedSteps(
-    fn: (steps: WorkflowStepAST[]) => WorkflowStepAST[],
-  ): StepsStepAST {
-    return new StepsStepAST(fn(this.steps), this.label)
-  }
-}
-
-export class StepsStepASTNamed {
-  readonly tag = 'steps'
-  readonly steps: NamedWorkflowStep[]
-
-  constructor(steps: NamedWorkflowStep[]) {
-    this.steps = steps
-  }
-}
-
 // https://cloud.google.com/workflows/docs/reference/syntax/conditions
 export class SwitchStepAST {
   readonly tag = 'switch'
-  readonly branches: SwitchConditionAST<WorkflowStepAST>[]
-  readonly label?: string
 
-  constructor(branches: SwitchConditionAST<WorkflowStepAST>[], label?: string) {
-    this.branches = branches
-    this.label = label
-  }
+  constructor(
+    public readonly branches: SwitchConditionAST<WorkflowStepAST>[],
+    public readonly label?: string,
+  ) {}
 
   withLabel(newLabel?: string): SwitchStepAST {
     return new SwitchStepAST(this.branches, newLabel)
@@ -485,16 +404,11 @@ export class SwitchStepAST {
 
 export class SwitchStepASTNamed {
   readonly tag = 'switch'
-  readonly branches: SwitchConditionAST<NamedWorkflowStep>[]
-  readonly next?: StepName
 
   constructor(
-    branches: SwitchConditionAST<NamedWorkflowStep>[],
-    next?: StepName,
-  ) {
-    this.branches = branches
-    this.next = next
-  }
+    public readonly branches: SwitchConditionAST<NamedWorkflowStep>[],
+    public readonly next?: StepName,
+  ) {}
 }
 
 export interface SwitchConditionAST<
@@ -508,27 +422,14 @@ export interface SwitchConditionAST<
 // https://cloud.google.com/workflows/docs/reference/syntax/catching-errors
 export class TryStepAST {
   readonly tag = 'try'
-  // Steps in the try block
-  readonly trySteps: WorkflowStepAST[]
-  // Steps in the except block
-  readonly exceptSteps?: WorkflowStepAST[]
-  readonly retryPolicy?: string | CustomRetryPolicy
-  readonly errorMap?: VariableName
-  readonly label?: string
 
   constructor(
-    trySteps: WorkflowStepAST[],
-    exceptSteps?: WorkflowStepAST[],
-    retryPolicy?: string | CustomRetryPolicy,
-    errorMap?: VariableName,
-    label?: string,
-  ) {
-    this.trySteps = trySteps
-    this.exceptSteps = exceptSteps
-    this.retryPolicy = retryPolicy
-    this.errorMap = errorMap
-    this.label = label
-  }
+    public readonly trySteps: WorkflowStepAST[],
+    public readonly exceptSteps?: WorkflowStepAST[],
+    public readonly retryPolicy?: string | CustomRetryPolicy,
+    public readonly errorMap?: VariableName,
+    public readonly label?: string,
+  ) {}
 
   withLabel(newLabel?: string): TryStepAST {
     return new TryStepAST(
@@ -555,24 +456,13 @@ export class TryStepAST {
 
 export class TryStepASTNamed {
   readonly tag = 'try'
-  // Steps in the try block
-  readonly trySteps: NamedWorkflowStep[]
-  // Steps in the except block
-  readonly exceptSteps?: NamedWorkflowStep[]
-  readonly retryPolicy?: string | CustomRetryPolicy
-  readonly errorMap?: VariableName
 
   constructor(
-    trySteps: NamedWorkflowStep[],
-    exceptSteps?: NamedWorkflowStep[],
-    retryPolicy?: string | CustomRetryPolicy,
-    errorMap?: VariableName,
-  ) {
-    this.trySteps = trySteps
-    this.retryPolicy = retryPolicy
-    this.errorMap = errorMap
-    this.exceptSteps = exceptSteps
-  }
+    public readonly trySteps: NamedWorkflowStep[],
+    public readonly exceptSteps?: NamedWorkflowStep[],
+    public readonly retryPolicy?: string | CustomRetryPolicy,
+    public readonly errorMap?: VariableName,
+  ) {}
 }
 
 // Internal step that represents a potential jump target.
@@ -625,8 +515,8 @@ export function namedSteps(
     case 'parallel':
       return namedStepsParallel(step, generateName)
 
-    case 'steps':
-      return namedStepsSteps(step, generateName)
+    case 'parallel-for':
+      return namedStepsParallelIteration(step, generateName)
 
     case 'switch':
       return namedStepsSwitch(step, generateName)
@@ -677,30 +567,17 @@ function namedStepsForRange(
 function namedStepsParallel(
   step: ParallelStepAST,
   generateName: (prefix: string) => string,
-) {
-  let steps: Record<StepName, StepsStepASTNamed> | ForStepASTNamed
+): NamedWorkflowStep {
   const mainLabel = step.label ?? generateName('parallel')
-  if (!isRecord(step.steps)) {
-    const forStep = namedSteps(step.steps, generateName).step
-
-    if (forStep.tag !== 'for') {
-      throw new Error(
-        `Encountered a step of type ${forStep.tag} when a for step was expected`,
-      )
-    }
-
-    steps = forStep
-  } else {
-    steps = R.map((step) => {
-      const named = step.steps.map((x) => namedSteps(x, generateName))
-      return new StepsStepASTNamed(named)
-    }, step.steps)
-  }
+  const transformed = step.branches.map(({ name, steps: nestedSteps }) => ({
+    name,
+    steps: nestedSteps.map((x) => namedSteps(x, generateName)),
+  }))
 
   return {
     name: mainLabel,
     step: new ParallelStepASTNamed(
-      steps,
+      transformed,
       step.shared,
       step.concurrencyLimit,
       step.exceptionPolicy,
@@ -708,14 +585,27 @@ function namedStepsParallel(
   }
 }
 
-function namedStepsSteps(
-  step: StepsStepAST,
+function namedStepsParallelIteration(
+  step: ParallelIterationStepAST,
   generateName: (prefix: string) => string,
 ): NamedWorkflowStep {
+  const mainLabel = step.label ?? generateName('parallel')
+  const forStep = new ForStepASTNamed(
+    step.forStep.steps.map((nestedStep) =>
+      namedSteps(nestedStep, generateName),
+    ),
+    step.forStep.loopVariableName,
+    step.forStep.listExpression,
+    step.forStep.indexVariableName,
+  )
+
   return {
-    name: step.label ?? generateName('steps'),
-    step: new StepsStepASTNamed(
-      step.steps.map((nested) => namedSteps(nested, generateName)),
+    name: mainLabel,
+    step: new ParallelIterationStepASTNamed(
+      forStep,
+      step.shared,
+      step.concurrencyLimit,
+      step.exceptionPolicy,
     ),
   }
 }
@@ -740,7 +630,7 @@ function namedStepsSwitch(
 function namedStepsTry(
   step: TryStepAST,
   generateName: (prefix: string) => string,
-) {
+): NamedWorkflowStep {
   const mainLabel = step.label ?? generateName('try')
   const namedTrySteps = step.trySteps.map((nested) =>
     namedSteps(nested, generateName),
@@ -778,11 +668,17 @@ export function nestedSteps(
       return []
 
     case 'for':
-    case 'steps':
       return [step.steps]
 
     case 'parallel':
-      return nestedStepsParallel(step)
+      return [
+        step.branches.flatMap(({ steps }) => {
+          return steps
+        }),
+      ]
+
+    case 'parallel-for':
+      return [step.forStep.steps]
 
     case 'switch':
       return step.branches.map((x) => x.steps)
@@ -790,21 +686,6 @@ export function nestedSteps(
     case 'try':
       return nestedStepsTry(step)
   }
-}
-
-function nestedStepsParallel(
-  step: ParallelStepASTNamed,
-): NamedWorkflowStep[][] {
-  const nested = []
-  if (step.branches && step.branches.length > 0) {
-    // return each branch as a separate child
-    nested.push(...step.branches.map((x) => [x]))
-  }
-  if (step.forStep?.steps && step.forStep.steps.length > 0) {
-    nested.push(step.forStep.steps)
-  }
-
-  return nested
 }
 
 function nestedStepsTry(step: TryStepASTNamed): NamedWorkflowStep[][] {
@@ -834,7 +715,7 @@ export function renderStep(
               expressionToLiteralValueOrLiteralExpression(value),
           }
         }),
-        ...(step.next && { next: step.next }),
+        ...(step.next !== undefined && { next: step.next }),
       }
 
     case 'call':
@@ -846,19 +727,10 @@ export function renderStep(
       }
 
     case 'parallel':
-      return {
-        parallel: {
-          ...(step.shared && { shared: step.shared }),
-          ...(step.concurrenceLimit !== undefined && {
-            concurrency_limit: step.concurrenceLimit,
-          }),
-          ...(step.exceptionPolicy !== undefined && {
-            exception_policy: step.exceptionPolicy,
-          }),
-          ...(step.branches && { branches: renderSteps(step.branches) }),
-          ...(step.forStep && { for: renderForBody(step.forStep) }),
-        },
-      }
+      return renderParallelStep(step)
+
+    case 'parallel-for':
+      return renderParallelIterationStep(step)
 
     case 'next':
       return {
@@ -873,15 +745,10 @@ export function renderStep(
     case 'return':
       return renderReturnStep(step)
 
-    case 'steps':
-      return {
-        steps: renderSteps(step.steps),
-      }
-
     case 'switch':
       return {
         switch: step.branches.map(renderSwitchCondition),
-        ...(step.next && { next: step.next }),
+        ...(step.next !== undefined && { next: step.next }),
       }
 
     case 'try':
@@ -892,13 +759,56 @@ export function renderStep(
   }
 }
 
+function renderParallelStep(
+  step: ParallelStepASTNamed,
+): Record<string, unknown> {
+  const renderedBranches: Record<string, unknown> = {
+    branches: step.branches.map(({ name, steps }) => ({
+      [name]: {
+        steps: renderSteps(steps),
+      },
+    })),
+  }
+
+  return {
+    parallel: {
+      ...renderedBranches,
+      ...(step.shared && { shared: step.shared }),
+      ...(step.concurrenceLimit !== undefined && {
+        concurrency_limit: step.concurrenceLimit,
+      }),
+      ...(step.exceptionPolicy !== undefined && {
+        exception_policy: step.exceptionPolicy,
+      }),
+    },
+  }
+}
+
+function renderParallelIterationStep(
+  step: ParallelIterationStepASTNamed,
+): Record<string, unknown> {
+  return {
+    parallel: {
+      for: renderForBody(step.forStep),
+      ...(step.shared && { shared: step.shared }),
+      ...(step.concurrencyLimit !== undefined && {
+        concurrency_limit: step.concurrencyLimit,
+      }),
+      ...(step.exceptionPolicy !== undefined && {
+        exception_policy: step.exceptionPolicy,
+      }),
+    },
+  }
+}
+
 function renderSwitchCondition(
   cond: SwitchConditionAST<NamedWorkflowStep>,
 ): object {
+  const includeSteps = cond.steps.length > 0 || cond.next === undefined
   return {
     condition: expressionToLiteralValueOrLiteralExpression(cond.condition),
-    ...(cond.steps.length > 0 && { steps: renderSteps(cond.steps) }),
-    ...(cond.next && { next: cond.next }),
+    ...(includeSteps && { steps: renderSteps(cond.steps) }),
+    ...(cond.next !== undefined && { next: cond.next }),
   }
 }
 
@@ -945,8 +855,10 @@ function renderForBody(step: ForStepASTNamed): object {
 function renderForRangeLimit(
   value: number | Expression | undefined,
 ): LiteralValueOrLiteralExpression {
-  if (value === undefined || typeof value === 'number') {
-    return value ?? null
+  if (value === undefined) {
+    return null
+  } else if (typeof value === 'number') {
+    return value
   } else {
     return expressionToLiteralValueOrLiteralExpression(value)
   }

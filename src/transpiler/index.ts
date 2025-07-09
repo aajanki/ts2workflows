@@ -7,7 +7,7 @@ import {
 import * as YAML from 'yaml'
 import { SubworkflowAST } from '../ast/steps.js'
 import { WorkflowSyntaxError } from '../errors.js'
-import { WorkflowParameter } from '../ast/workflows.js'
+import { WorkflowApp, WorkflowParameter } from '../ast/workflows.js'
 import { generateStepNames } from '../ast/stepnames.js'
 import { parseStatement } from './statements.js'
 import { transformAST } from './transformations.js'
@@ -33,7 +33,7 @@ export function transpile(
   const { ast } = parseAndGenerateServices(code, parserOptions)
   const workflowAst = { subworkflows: ast.body.flatMap(parseTopLevelStatement) }
   const workflow = generateStepNames(workflowAst)
-  return YAML.stringify(workflow.render(), { lineWidth: 100 })
+  return toYAMLString(workflow)
 }
 
 function parseTopLevelStatement(
@@ -76,7 +76,8 @@ function parseTopLevelStatement(
     case AST_NODE_TYPES.TSInterfaceDeclaration:
     case AST_NODE_TYPES.TSTypeAliasDeclaration:
     case AST_NODE_TYPES.TSDeclareFunction:
-      // Ignore "type", "interface" and "declare function" at the top-level
+    case AST_NODE_TYPES.EmptyStatement:
+      // Ignore "type", "interface", "declare function" and empty statements at the top-level
       return []
 
     default:
@@ -167,4 +168,13 @@ function parseSubworkflowDefaultArgument(param: TSESTree.AssignmentPattern) {
     name,
     default: defaultValue,
   }
+}
+
+/**
+ * Print the workflow as a YAML string.
+ */
+export function toYAMLString(workflow: WorkflowApp): string {
+  return YAML.stringify(workflow.render(), {
+    lineWidth: 100,
+  })
 }

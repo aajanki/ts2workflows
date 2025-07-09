@@ -3,9 +3,9 @@ import {
   ForStepASTNamed,
   NamedWorkflowStep,
   NextStepAST,
+  ParallelIterationStepASTNamed,
   ParallelStepASTNamed,
   StepName,
-  StepsStepASTNamed,
   SwitchStepASTNamed,
   TryStepASTNamed,
   WorkflowAST,
@@ -185,8 +185,8 @@ function removeJumpTargetRecurse(
     case 'parallel':
       return removeJumpTargetsParallel(step)
 
-    case 'steps':
-      return new StepsStepASTNamed(removeJumpTargetSteps(step.steps))
+    case 'parallel-for':
+      return removeJumpTargetsParallelIteration(step)
 
     case 'switch':
       return removeJumpTargetsSwitch(step)
@@ -217,29 +217,26 @@ function removeJumpTargetsFor(step: ForStepASTNamed): ForStepASTNamed {
 function removeJumpTargetsParallel(
   step: ParallelStepASTNamed,
 ): ParallelStepASTNamed {
-  let transformedSteps: Record<StepName, StepsStepASTNamed> | ForStepASTNamed
-  if (step.branches) {
-    transformedSteps = Object.fromEntries(
-      step.branches.map((x) => {
-        return [
-          x.name,
-          new StepsStepASTNamed(
-            removeJumpTargetSteps(nestedSteps(x.step).flat()),
-          ),
-        ]
-      }),
-    )
-  } else if (step.forStep) {
-    transformedSteps = removeJumpTargetsFor(step.forStep)
-  } else {
-    // should not be reached
-    transformedSteps = {}
-  }
+  const branches = step.branches.map(({ name, steps: nestedSteps }) => ({
+    name,
+    steps: removeJumpTargetSteps(nestedSteps),
+  }))
 
   return new ParallelStepASTNamed(
-    transformedSteps,
+    branches,
     step.shared,
     step.concurrenceLimit,
+    step.exceptionPolicy,
+  )
+}
+
+function removeJumpTargetsParallelIteration(
+  step: ParallelIterationStepASTNamed,
+): ParallelIterationStepASTNamed {
+  return new ParallelIterationStepASTNamed(
+    removeJumpTargetsFor(step.forStep),
+    step.shared,
+    step.concurrencyLimit,
     step.exceptionPolicy,
   )
 }
@@ -291,8 +288,8 @@ function renameJumpTargets(
     case 'parallel':
       return renameJumpTargetsParallel(step, replaceLabels)
 
-    case 'steps':
-      return renameJumpTargetsSteps(step, replaceLabels)
+    case 'parallel-for':
+      return renameJumpTargetsParallelIteration(step, replaceLabels)
 
     case 'switch':
       return renameJumpTargetsSwitch(step, replaceLabels)
@@ -352,45 +349,32 @@ function renameJumpTargetsParallel(
   step: ParallelStepASTNamed,
   replaceLabels: Map<StepName, StepName>,
 ): ParallelStepASTNamed {
-  let transformedSteps: Record<StepName, StepsStepASTNamed> | ForStepASTNamed
-  if (step.branches) {
-    transformedSteps = Object.fromEntries(
-      step.branches.map(({ name, step: nested }) => {
-        const renamedNested = nestedSteps(nested)
-          .flat()
-          .map((x) => ({
-            name: x.name,
-            step: renameJumpTargets(x.step, replaceLabels),
-          }))
-
-        return [name, new StepsStepASTNamed(renamedNested)]
-      }),
-    )
-  } else if (step.forStep) {
-    transformedSteps = renameJumpTargetsFor(step.forStep, replaceLabels)
-  } else {
-    // should not be reached
-    transformedSteps = {}
-  }
+  const branches = step.branches.map(({ name, steps: nestedSteps }) => ({
+    name,
+    steps: nestedSteps.map(({ name, step: s }) => ({
+      name,
+      step: renameJumpTargets(s, replaceLabels),
+    })),
+  }))
 
   return new ParallelStepASTNamed(
-    transformedSteps,
+    branches,
     step.shared,
     step.concurrenceLimit,
     step.exceptionPolicy,
   )
 }
 
-function renameJumpTargetsSteps(
-  step: StepsStepASTNamed,
+function renameJumpTargetsParallelIteration(
+  step: ParallelIterationStepASTNamed,
   replaceLabels: Map<StepName, StepName>,
-): StepsStepASTNamed {
-  const transformedSteps = step.steps.map(({ name, step: nested }) => ({
-    name,
-    step: renameJumpTargets(nested, replaceLabels),
-  }))
-
-  return new StepsStepASTNamed(transformedSteps)
+): ParallelIterationStepASTNamed {
+  return new ParallelIterationStepASTNamed(
+    renameJumpTargetsFor(step.forStep, replaceLabels),
+    step.shared,
+    step.concurrencyLimit,
+    step.exceptionPolicy,
+  )
 }
 
 function renameJumpTargetsSwitch(

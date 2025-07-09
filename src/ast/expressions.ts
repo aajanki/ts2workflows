@@ -81,20 +81,7 @@ export class PrimitiveExpression {
   // Return the string representation of this expression.
   // Not enclosed in ${}.
   toString(): string {
-    const val = this.value
-    if (Array.isArray(val)) {
-      const elements = val.map((v) => {
-        return isExpression(v) ? v.toString() : primitiveToString(v)
-      })
-      return `[${elements.join(', ')}]`
-    } else if (isRecord(val)) {
-      const elements = Object.entries(val).map(([k, v]) => {
-        return `"${k}": ${isExpression(v) ? v.toString() : primitiveToString(v)}`
-      })
-      return `{${elements.join(', ')}}`
-    } else {
-      return `${JSON.stringify(val)}`
-    }
+    return primitiveToString(this.value)
   }
 }
 
@@ -232,8 +219,8 @@ function primitiveToString(val: Primitive): string {
   if (Array.isArray(val)) {
     return `[${valuesToString(val).join(', ')}]`
   } else if (val !== null && typeof val === 'object') {
-    const elements = Object.values(valuesToString(val)).map(
-      ([k, v]) => `"${k}":${v}`,
+    const elements = Object.entries(valuesToString(val)).map(
+      ([k, v]) => `"${k}": ${v}`,
     )
 
     return `{${elements.join(',')}}`
@@ -306,15 +293,8 @@ function primitiveExpressionToLiteralValueOrLiteralExpression(
         return primitiveExpressionToLiteralValueOrLiteralExpression(
           new PrimitiveExpression(x),
         )
-      } else if (
-        x === null ||
-        typeof x === 'string' ||
-        typeof x === 'number' ||
-        typeof x === 'boolean'
-      ) {
-        return x
       } else {
-        return `\${${primitiveToString(x)}}`
+        return x
       }
     })
   } else if (isRecord(ex.value)) {
@@ -325,15 +305,8 @@ function primitiveExpressionToLiteralValueOrLiteralExpression(
         return primitiveExpressionToLiteralValueOrLiteralExpression(
           new PrimitiveExpression(v),
         )
-      } else if (
-        v === null ||
-        typeof v === 'string' ||
-        typeof v === 'number' ||
-        typeof v === 'boolean'
-      ) {
-        return v
       } else {
-        return `\${${primitiveToString(v)}}`
+        return v
       }
     })
 
