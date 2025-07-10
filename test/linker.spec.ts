@@ -85,7 +85,18 @@ describe('function listing', () => {
     expect(functions).to.have.members(['main', 'sin'])
   })
 
-  it('lists functions imported from a .d.ts file', () => {
+  it('lists function declarations imported from a .d.ts file', () => {
+    const functions = listFunctions(
+      'test/linkertestsources/importdeclaration2.ts',
+      [],
+      'main',
+    )
+
+    expect(functions).to.have.lengthOf(1)
+    expect(functions).to.have.members(['main'])
+  })
+
+  it('lists namespaced functions declarations imported from a .d.ts file', () => {
     const functions = listFunctions(
       'test/linkertestsources/importdeclaration.ts',
       [],

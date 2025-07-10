@@ -86,7 +86,13 @@ function findNestedFunctions(
           const declNode = getFunctionDeclarationByName(sourceFile, name)
 
           if (declNode) {
-            functionDeclarations.push(declNode)
+            const isAmbient =
+              declNode.modifiers?.some(
+                (x) => x.kind === ts.SyntaxKind.DeclareKeyword,
+              ) ?? false
+            if (!isAmbient) {
+              functionDeclarations.push(declNode)
+            }
           } else {
             throw new Error(
               `Function declaration not found for ${name} in ${sourceFile.fileName}`,
