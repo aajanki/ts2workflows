@@ -1,3 +1,4 @@
+import * as path from 'node:path'
 import {
   AST_NODE_TYPES,
   parseAndGenerateServices,
@@ -11,11 +12,16 @@ import { WorkflowApp, WorkflowParameter } from '../ast/workflows.js'
 import { generateStepNames } from '../ast/stepnames.js'
 import { parseStatement } from './statements.js'
 import { transformAST } from './transformations.js'
+import {
+  findCalledFunctionDeclarations,
+  getFunctionDeclarationByName,
+} from './linker.js'
 
 export function transpile(
   code: string,
-  inputFile?: string,
-  tsconfigPath?: string,
+  inputFile: string,
+  linkSubworkflows: boolean,
+  tsconfigPath: string | undefined,
 ): string {
   const parserOptions: TSESTreeOptions = {
     jsDocParsingMode: 'none' as const,
@@ -30,7 +36,31 @@ export function transpile(
     }
   }
 
-  const { ast } = parseAndGenerateServices(code, parserOptions)
+  const { ast, services } = parseAndGenerateServices(code, parserOptions)
+
+  if (linkSubworkflows && services.program) {
+    const program = services.program
+    const canonicalInputName = path.normalize(
+      path.resolve(process.cwd(), inputFile),
+    )
+    const mainSourceFile = program
+      .getSourceFiles()
+      .find((f) => f.fileName === canonicalInputName)
+    const typeChecker = program.getTypeChecker()
+
+    if (mainSourceFile) {
+      const mainFunction = getFunctionDeclarationByName(mainSourceFile, 'main')
+      if (mainFunction) {
+        const functions = findCalledFunctionDeclarations(
+          typeChecker,
+          mainFunction,
+        )
+
+        console.log(functions.map((x) => x.name?.text))
+      }
+    }
+  }
+
   const workflowAst = { subworkflows: ast.body.flatMap(parseTopLevelStatement) }
   const workflow = generateStepNames(workflowAst)
   return toYAMLString(workflow)

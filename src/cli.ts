@@ -11,6 +11,7 @@ import { TSError } from '@typescript-eslint/typescript-estree'
 interface CLIOptions {
   project?: string
   outdir?: string
+  link: boolean
   generatedFileComment: boolean
 }
 
@@ -30,6 +31,11 @@ function parseArgs() {
       'Specify an output directory for where transpilation result are written.',
     )
     .option(
+      '--link',
+      'Emit YAML files that include all necessary subworkflows in one file. Requires --project',
+      false,
+    )
+    .option(
       '--generated-file-comment',
       'Include a comment stating that the result is a generated file',
       true,
@@ -44,8 +50,13 @@ function parseArgs() {
     )
     .parse()
 
+  const opts = program.opts<CLIOptions>()
+  if (opts.link && !opts.project) {
+    console.warn('--link must be used together with --project')
+  }
+
   return {
-    ...program.opts<CLIOptions>(),
+    ...opts,
     sourceFiles: program.args,
   }
 }
@@ -65,6 +76,7 @@ function cliMain() {
       const transpiled = generateTranspiledText(
         inputFile,
         args.generatedFileComment,
+        args.link,
         args.project,
       )
 
@@ -96,6 +108,7 @@ function cliMain() {
 function generateTranspiledText(
   inputFile: string,
   addGeneratedFileComment: boolean,
+  linkSubworkflows: boolean,
   project?: string,
 ): string | undefined {
   const inputIsStdIn = inputFile === '-'
@@ -105,7 +118,12 @@ function generateTranspiledText(
   try {
     const needsHeader = addGeneratedFileComment && !inputIsStdIn
     const header = needsHeader ? generatedFileComment(inputFile) : ''
-    const transpiled = transpile(sourceCode, inputFile, project)
+    const transpiled = transpile(
+      sourceCode,
+      inputFile,
+      linkSubworkflows,
+      project,
+    )
     return `${header}${transpiled}`
   } catch (err) {
     if (err instanceof WorkflowSyntaxError) {
