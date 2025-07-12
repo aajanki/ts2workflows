@@ -85,9 +85,9 @@ describe('function listing', () => {
     expect(functions).to.have.members(['main', 'sin'])
   })
 
-  it('lists function declarations imported from a .d.ts file', () => {
+  it('does not include namespace declarations imported from a .d.ts file', () => {
     const functions = listFunctions(
-      'test/linkertestsources/importdeclaration2.ts',
+      'test/linkertestsources/importdeclaration.ts',
       [],
       'main',
     )
@@ -96,15 +96,15 @@ describe('function listing', () => {
     expect(functions).to.have.members(['main'])
   })
 
-  it('lists namespaced functions declarations imported from a .d.ts file', () => {
+  it('does not include function declarations imported from a .d.ts file', () => {
     const functions = listFunctions(
-      'test/linkertestsources/importdeclaration.ts',
+      'test/linkertestsources/importdeclaration2.ts',
       [],
       'main',
     )
 
-    expect(functions).to.have.lengthOf(2)
-    expect(functions).to.have.members(['main', 'abs'])
+    expect(functions).to.have.lengthOf(1)
+    expect(functions).to.have.members(['main'])
   })
 
   it('does not include anonoymous functions', () => {

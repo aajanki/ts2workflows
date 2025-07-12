@@ -1,4 +1,4 @@
-import ts from 'typescript'
+import ts, { isModuleBlock, isModuleDeclaration } from 'typescript'
 
 // Find functions that are (recursively) called by rootNode
 export function findCalledFunctionDeclarations(
@@ -75,32 +75,28 @@ function findNestedFunctions(
   function visit(node: ts.Node) {
     if (ts.isCallExpression(node)) {
       const sig = typeChecker.getResolvedSignature(node)
-      const decl = sig?.getDeclaration()
-      const sourceFile = decl?.getSourceFile()
 
-      if (sourceFile) {
-        const name = decl?.name?.getText()
-
-        // declaration of an anonymous function does not have a name
-        if (name) {
-          const declNode = getFunctionDeclarationByName(sourceFile, name)
-
-          if (declNode) {
-            const isAmbient =
-              declNode.modifiers?.some(
-                (x) => x.kind === ts.SyntaxKind.DeclareKeyword,
-              ) ?? false
-            if (!isAmbient) {
-              functionDeclarations.push(declNode)
-            }
-          } else {
-            throw new Error(
-              `Function declaration not found for ${name} in ${sourceFile.fileName}`,
-            )
-          }
-        }
-      } else {
+      if (!sig) {
         throw new Error('Function signature not found')
+      }
+
+      const decl = sig.getDeclaration()
+      const sourceFile = decl.getSourceFile()
+      const name = decl.name?.getText()
+
+      // declaration of an anonymous function does not have a name
+      if (name) {
+        const declNode = getFunctionDeclarationByName(sourceFile, name)
+
+        if (!declNode) {
+          throw new Error(
+            `Function declaration not found for ${name} in ${sourceFile.fileName}`,
+          )
+        }
+
+        if (!isAmbientFunctionOrNamespace(declNode)) {
+          functionDeclarations.push(declNode)
+        }
       }
     }
 
@@ -110,4 +106,30 @@ function findNestedFunctions(
   visit(node)
 
   return functionDeclarations
+}
+
+/**
+ * Returns true if node is ambient function declaration.
+ *
+ * The two cases that return true:
+ *   - "declare function"
+ *   - "declare namespace { function ... }"
+ */
+function isAmbientFunctionOrNamespace(node: ts.FunctionDeclaration): boolean {
+  return (
+    isAmbient(node) ||
+    (isModuleBlock(node.parent) &&
+      isModuleDeclaration(node.parent.parent) &&
+      isAmbient(node.parent.parent))
+  )
+}
+
+function isAmbient(
+  node: ts.FunctionDeclaration | ts.ModuleDeclaration,
+): boolean {
+  if (!node.modifiers) {
+    return false
+  }
+
+  return node.modifiers.some((x) => x.kind === ts.SyntaxKind.DeclareKeyword)
 }
