@@ -107,7 +107,18 @@ describe('function listing', () => {
     expect(functions).to.have.members(['main'])
   })
 
-  it('does not include anonoymous functions', () => {
+  it('does not include function declaration from deeply nested namespaces', () => {
+    const functions = listFunctions(
+      'test/linkertestsources/importdeclaration3.ts',
+      [],
+      'main',
+    )
+
+    expect(functions).to.have.lengthOf(1)
+    expect(functions).to.have.members(['main'])
+  })
+
+  it('does not include anonymous functions', () => {
     const functions = listFunctions(
       'test/linkertestsources/anonymous.ts',
       [],

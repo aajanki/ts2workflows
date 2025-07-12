@@ -107,20 +107,24 @@ function findNestedFunctions(
  *   - "declare namespace { function ... }"
  */
 function isAmbientFunctionOrNamespace(node: ts.FunctionDeclaration): boolean {
-  return (
-    isAmbient(node) ||
-    (isModuleBlock(node.parent) &&
-      isModuleDeclaration(node.parent.parent) &&
-      isAmbient(node.parent.parent))
-  )
+  if (isAmbient(node)) {
+    return true
+  }
+
+  let mod: ts.FunctionDeclaration | ts.ModuleDeclaration = node
+  while (isModuleBlock(mod.parent) && isModuleDeclaration(mod.parent.parent)) {
+    mod = mod.parent.parent
+
+    if (isAmbient(mod)) {
+      return true
+    }
+  }
+
+  return false
 }
 
 function isAmbient(
   node: ts.FunctionDeclaration | ts.ModuleDeclaration,
 ): boolean {
-  if (!node.modifiers) {
-    return false
-  }
-
-  return node.modifiers.some((x) => x.kind === ts.SyntaxKind.DeclareKeyword)
+  return (ts.getCombinedModifierFlags(node) & ts.ModifierFlags.Ambient) !== 0
 }
