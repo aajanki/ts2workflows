@@ -1,4 +1,8 @@
-import ts, { isModuleBlock, isModuleDeclaration } from 'typescript'
+import ts, {
+  isFunctionDeclaration,
+  isModuleBlock,
+  isModuleDeclaration,
+} from 'typescript'
 
 // Find functions that are (recursively) called by rootNode
 export function findCalledFunctionDeclarations(
@@ -77,26 +81,13 @@ function findNestedFunctions(
       const sig = typeChecker.getResolvedSignature(node)
 
       if (!sig) {
-        throw new Error('Function signature not found')
+        throw new Error('Call expression node is not valid')
       }
 
       const decl = sig.getDeclaration()
-      const sourceFile = decl.getSourceFile()
-      const name = decl.name?.getText()
 
-      // declaration of an anonymous function does not have a name
-      if (name) {
-        const declNode = getFunctionDeclarationByName(sourceFile, name)
-
-        if (!declNode) {
-          throw new Error(
-            `Function declaration not found for ${name} in ${sourceFile.fileName}`,
-          )
-        }
-
-        if (!isAmbientFunctionOrNamespace(declNode)) {
-          functionDeclarations.push(declNode)
-        }
+      if (isFunctionDeclaration(decl) && !isAmbientFunctionOrNamespace(decl)) {
+        functionDeclarations.push(decl)
       }
     }
 
