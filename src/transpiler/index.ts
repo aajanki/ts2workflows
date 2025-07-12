@@ -15,6 +15,7 @@ import { transformAST } from './transformations.js'
 import {
   findCalledFunctionDeclarations,
   getFunctionDeclarationByName,
+  isAmbientFunctionDeclaration,
 } from './linker.js'
 
 export function transpile(
@@ -56,7 +57,11 @@ export function transpile(
           mainFunction,
         )
 
-        console.log(functions.map((x) => x.name?.text))
+        console.log(
+          functions
+            .filter((f) => !isAmbientFunctionDeclaration(f))
+            .map((x) => x.name?.text),
+        )
       }
     }
   }

@@ -1,8 +1,4 @@
-import ts, {
-  isFunctionDeclaration,
-  isModuleBlock,
-  isModuleDeclaration,
-} from 'typescript'
+import ts from 'typescript'
 
 // Find functions that are (recursively) called by rootNode
 export function findCalledFunctionDeclarations(
@@ -86,7 +82,7 @@ function findNestedFunctions(
 
       const decl = sig.getDeclaration()
 
-      if (isFunctionDeclaration(decl) && !isAmbientFunctionOrNamespace(decl)) {
+      if (ts.isFunctionDeclaration(decl)) {
         functionDeclarations.push(decl)
       }
     }
@@ -106,13 +102,18 @@ function findNestedFunctions(
  *   - "declare function"
  *   - "declare namespace { function ... }"
  */
-function isAmbientFunctionOrNamespace(node: ts.FunctionDeclaration): boolean {
+export function isAmbientFunctionDeclaration(
+  node: ts.FunctionDeclaration,
+): boolean {
   if (isAmbient(node)) {
     return true
   }
 
   let mod: ts.FunctionDeclaration | ts.ModuleDeclaration = node
-  while (isModuleBlock(mod.parent) && isModuleDeclaration(mod.parent.parent)) {
+  while (
+    ts.isModuleBlock(mod.parent) &&
+    ts.isModuleDeclaration(mod.parent.parent)
+  ) {
     mod = mod.parent.parent
 
     if (isAmbient(mod)) {

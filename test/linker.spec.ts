@@ -82,40 +82,40 @@ describe('function listing', () => {
     )
 
     expect(functions).to.have.lengthOf(2)
-    expect(functions).to.have.members(['main', 'sin'])
+    expect(functions).to.have.members(['main', 'MyMath.sin'])
   })
 
-  it('does not include namespace declarations imported from a .d.ts file', () => {
+  it('lists namespace declarations imported from a .d.ts file', () => {
     const functions = listFunctions(
       'test/linkertestsources/importdeclaration.ts',
       [],
       'main',
     )
 
-    expect(functions).to.have.lengthOf(1)
-    expect(functions).to.have.members(['main'])
+    expect(functions).to.have.lengthOf(2)
+    expect(functions).to.have.members(['main', 'math.abs'])
   })
 
-  it('does not include function declarations imported from a .d.ts file', () => {
+  it('lists function declarations imported from a .d.ts file', () => {
     const functions = listFunctions(
       'test/linkertestsources/importdeclaration2.ts',
       [],
       'main',
     )
 
-    expect(functions).to.have.lengthOf(1)
-    expect(functions).to.have.members(['main'])
+    expect(functions).to.have.lengthOf(2)
+    expect(functions).to.have.members(['main', 'sum'])
   })
 
-  it('does not include function declaration from deeply nested namespaces', () => {
+  it('lists function declaration from deeply nested namespaces', () => {
     const functions = listFunctions(
       'test/linkertestsources/importdeclaration3.ts',
       [],
       'main',
     )
 
-    expect(functions).to.have.lengthOf(1)
-    expect(functions).to.have.members(['main'])
+    expect(functions).to.have.lengthOf(2)
+    expect(functions).to.have.members(['main', 'communication.net.http.get'])
   })
 
   it('does not include anonymous functions', () => {
@@ -162,9 +162,27 @@ function listFunctions(
     typeChecker,
     mainFunctionDecl!,
   )
-  const functionNames = functions
-    .map((f) => f.name?.text)
-    .filter((n) => n !== undefined)
+  const functionNames = functions.map(qualifiedName)
 
   return functionNames
+}
+
+function qualifiedName(decl: ts.FunctionDeclaration): string {
+  let name = decl.name?.getText()
+
+  if (!name) {
+    return ''
+  }
+
+  let node: ts.FunctionDeclaration | ts.ModuleDeclaration = decl
+  while (
+    ts.isModuleBlock(node.parent) &&
+    ts.isModuleDeclaration(node.parent.parent)
+  ) {
+    node = node.parent.parent as ts.ModuleDeclaration
+
+    name = node.name.getText() + '.' + name
+  }
+
+  return name
 }
