@@ -1,5 +1,5 @@
 import { expect } from 'chai'
-import { transpile } from '../src/transpiler/index.js'
+import { transpileText } from '../src/transpiler/index.js'
 import { assertTranspiled } from './testutils.js'
 
 describe('Assignment statement', () => {
@@ -34,19 +34,19 @@ describe('Assignment statement', () => {
   it('var declaration is not supported', () => {
     const code = `function main() { var a = 1; }`
 
-    expect(() => transpile(code)).to.throw()
+    expect(() => transpileText(code)).to.throw()
   })
 
   it('using declaration is not supported', () => {
     const code = `function main() { using r = getResource(); }`
 
-    expect(() => transpile(code)).to.throw()
+    expect(() => transpileText(code)).to.throw()
   })
 
   it('await using declaration is not supported', () => {
     const code = `function main() { await using db = getConnection(); }`
 
-    expect(() => transpile(code)).to.throw()
+    expect(() => transpileText(code)).to.throw()
   })
 
   it('allows variables to be re-declared', () => {
@@ -847,7 +847,7 @@ describe('Assignment statement', () => {
       x >>= 4;
     }`
 
-    expect(() => transpile(code)).to.throw()
+    expect(() => transpileText(code)).to.throw()
   })
 
   it('throws if the left-hand side of an assignment is a complex expression', () => {
@@ -857,7 +857,7 @@ describe('Assignment statement', () => {
     }
     `
 
-    expect(() => transpile(code)).to.throw()
+    expect(() => transpileText(code)).to.throw()
   })
 
   it('throws if the left-hand side of an compound assignment is a complex expression', () => {
@@ -867,7 +867,7 @@ describe('Assignment statement', () => {
     }
     `
 
-    expect(() => transpile(code)).to.throw()
+    expect(() => transpileText(code)).to.throw()
   })
 
   it('merges consequtive assignments into a single step', () => {

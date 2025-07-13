@@ -1,5 +1,5 @@
 import { expect } from 'chai'
-import { transpile } from '../src/transpiler/index.js'
+import { transpileText } from '../src/transpiler/index.js'
 import { assertTranspiled } from './testutils.js'
 
 describe('workflow transpiler', () => {
@@ -170,7 +170,7 @@ describe('workflow transpiler', () => {
       return ""
     }`
 
-    expect(() => transpile(code)).to.throw()
+    expect(() => transpileText(code)).to.throw()
   })
 
   it('rejects optional function argument with default value', () => {
@@ -179,7 +179,7 @@ describe('workflow transpiler', () => {
       return name ?? ""
     }`
 
-    expect(() => transpile(code)).to.throw()
+    expect(() => transpileText(code)).to.throw()
   })
 
   it('throws if the default value is a list', () => {
@@ -188,7 +188,7 @@ describe('workflow transpiler', () => {
       return "Hello " + names[0]
     }`
 
-    expect(() => transpile(code)).to.throw()
+    expect(() => transpileText(code)).to.throw()
   })
 
   it('throws if the default value is an expression', () => {
@@ -196,7 +196,7 @@ describe('workflow transpiler', () => {
       return null;
     }`
 
-    expect(() => transpile(code)).to.throw()
+    expect(() => transpileText(code)).to.throw()
   })
 
   it('handles function with positional and optional parameters', () => {
@@ -220,6 +220,6 @@ describe('workflow transpiler', () => {
   it('throws if the subworkflow body is empty', () => {
     const code = `function empty_workflow() {}`
 
-    expect(() => transpile(code)).to.throw()
+    expect(() => transpileText(code)).to.throw()
   })
 })

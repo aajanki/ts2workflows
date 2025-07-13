@@ -118,12 +118,7 @@ function generateTranspiledText(
   try {
     const needsHeader = addGeneratedFileComment && !inputIsStdIn
     const header = needsHeader ? generatedFileComment(inputFile) : ''
-    const transpiled = transpile(
-      sourceCode,
-      inputFile,
-      linkSubworkflows,
-      project,
-    )
+    const transpiled = transpile(inputFile, project, linkSubworkflows)
     return `${header}${transpiled}`
   } catch (err) {
     if (err instanceof WorkflowSyntaxError) {

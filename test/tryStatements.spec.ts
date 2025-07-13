@@ -1,5 +1,5 @@
 import { expect } from 'chai'
-import { transpile } from '../src/transpiler/index.js'
+import { transpileText } from '../src/transpiler/index.js'
 import { assertTranspiled } from './testutils.js'
 
 describe('Try-catch-finally statement', () => {
@@ -950,7 +950,7 @@ describe('Try-catch-finally statement', () => {
       }
     }`
 
-    expect(() => transpile(code)).to.throw()
+    expect(() => transpileText(code)).to.throw()
   })
 
   it('throws if retry policy backoff is not an object literal', () => {
@@ -970,7 +970,7 @@ describe('Try-catch-finally statement', () => {
       }
     }`
 
-    expect(() => transpile(code)).to.throw()
+    expect(() => transpileText(code)).to.throw()
   })
 
   it('retries with a custom predicate', () => {
@@ -1332,7 +1332,7 @@ describe('Try-catch-finally statement', () => {
       }
     }`
 
-    expect(() => transpile(code)).to.throw()
+    expect(() => transpileText(code)).to.throw()
   })
 
   it('throws if retry policy is an unexpected data type', () => {
@@ -1348,7 +1348,7 @@ describe('Try-catch-finally statement', () => {
       }
     }`
 
-    expect(() => transpile(code)).to.throw()
+    expect(() => transpileText(code)).to.throw()
   })
 
   it('ignores retry_policy() outside of try block', () => {
@@ -1425,7 +1425,7 @@ describe('Try-catch-finally statement', () => {
       }
     }`
 
-    expect(() => transpile(code)).to.throw()
+    expect(() => transpileText(code)).to.throw()
   })
 
   it('throws on catch without a try', () => {
@@ -1438,7 +1438,7 @@ describe('Try-catch-finally statement', () => {
       }
     }`
 
-    expect(() => transpile(code)).to.throw()
+    expect(() => transpileText(code)).to.throw()
   })
 
   it('throws is there are multiple catch blocks', () => {
@@ -1457,7 +1457,7 @@ describe('Try-catch-finally statement', () => {
       }
     }`
 
-    expect(() => transpile(code)).to.throw()
+    expect(() => transpileText(code)).to.throw()
   })
 
   it("retry_policy() can't be used in expression", () => {
@@ -1473,7 +1473,7 @@ describe('Try-catch-finally statement', () => {
       }
     }`
 
-    expect(() => transpile(code)).to.throw()
+    expect(() => transpileText(code)).to.throw()
   })
 })
 

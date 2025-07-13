@@ -1,13 +1,17 @@
+import fs from 'node:fs'
 import * as path from 'node:path'
 import {
   AST_NODE_TYPES,
   parseAndGenerateServices,
+  ParseAndGenerateServicesResult,
+  ParserServices,
   TSESTree,
   TSESTreeOptions,
 } from '@typescript-eslint/typescript-estree'
+import ts from 'typescript'
 import * as YAML from 'yaml'
 import { SubworkflowAST } from '../ast/steps.js'
-import { WorkflowSyntaxError } from '../errors.js'
+import { InternalTranspilingError, WorkflowSyntaxError } from '../errors.js'
 import { WorkflowApp, WorkflowParameter } from '../ast/workflows.js'
 import { generateStepNames } from '../ast/stepnames.js'
 import { parseStatement } from './statements.js'
@@ -19,56 +23,130 @@ import {
 } from './linker.js'
 
 export function transpile(
-  code: string,
   inputFile: string,
-  linkSubworkflows: boolean,
   tsconfigPath: string | undefined,
+  linkSubworkflows: boolean,
 ): string {
-  const parserOptions: TSESTreeOptions = {
+  const { ast, services } = parseMainFile(inputFile, tsconfigPath)
+
+  if (linkSubworkflows && tsconfigPath && services.program) {
+    return generateLinkedOutput(inputFile, tsconfigPath, services)
+  } else {
+    const workflowAst = {
+      subworkflows: ast.body.flatMap(parseTopLevelStatement),
+    }
+    const workflow = generateStepNames(workflowAst)
+    return toYAMLString(workflow)
+  }
+}
+
+export function transpileText(sourceCode: string) {
+  const parserOptions = eslintParserOptions()
+  const { ast } = parseAndGenerateServices(sourceCode, parserOptions)
+  const workflowAst = {
+    subworkflows: ast.body.flatMap(parseTopLevelStatement),
+  }
+  const workflow = generateStepNames(workflowAst)
+  return toYAMLString(workflow)
+}
+
+function parseMainFile(
+  inputFile: string,
+  tsconfigPath: string | undefined,
+): ParseAndGenerateServicesResult<TSESTreeOptions> {
+  const parserOptions = eslintParserOptions(inputFile, tsconfigPath)
+
+  if (tsconfigPath && inputFile && inputFile != '-') {
+    const cwd = process.cwd()
+    const configJSON: unknown = JSON.parse(
+      fs.readFileSync(path.join(cwd, tsconfigPath), 'utf-8'),
+    )
+    const { options } = ts.parseJsonConfigFileContent(configJSON, ts.sys, cwd)
+    const program = ts.createProgram([inputFile], options)
+    const mainSourceFile = program.getSourceFile(inputFile)
+
+    if (mainSourceFile === undefined) {
+      throw new InternalTranspilingError('getSourceFile returned undefined!')
+    }
+
+    return parseAndGenerateServices(mainSourceFile, parserOptions)
+  } else {
+    const inputIsStdIn = inputFile === '-'
+    const inp = inputIsStdIn ? process.stdin.fd : inputFile
+    const code = fs.readFileSync(inp, 'utf8')
+
+    return parseAndGenerateServices(code, parserOptions)
+  }
+}
+
+function eslintParserOptions(
+  inputFile?: string,
+  tsconfigPath?: string,
+): TSESTreeOptions {
+  const opts: TSESTreeOptions = {
     jsDocParsingMode: 'none' as const,
     loc: true,
     range: false,
+    filePath: inputFile,
   }
 
-  if (tsconfigPath && inputFile && inputFile != '-') {
-    parserOptions.filePath = inputFile
-    parserOptions.projectService = {
+  if (tsconfigPath) {
+    opts.projectService = {
       defaultProject: tsconfigPath,
     }
   }
 
-  const { ast, services } = parseAndGenerateServices(code, parserOptions)
+  return opts
+}
 
-  if (linkSubworkflows && services.program) {
-    const program = services.program
-    const canonicalInputName = path.normalize(
-      path.resolve(process.cwd(), inputFile),
-    )
-    const mainSourceFile = program
-      .getSourceFiles()
-      .find((f) => f.fileName === canonicalInputName)
-    const typeChecker = program.getTypeChecker()
-
-    if (mainSourceFile) {
-      const mainFunction = getFunctionDeclarationByName(mainSourceFile, 'main')
-      if (mainFunction) {
-        const functions = findCalledFunctionDeclarations(
-          typeChecker,
-          mainFunction,
-        )
-
-        console.log(
-          functions
-            .filter((f) => !isAmbientFunctionDeclaration(f))
-            .map((x) => x.name?.text),
-        )
-      }
-    }
+function generateLinkedOutput(
+  inputFile: string,
+  tsconfigPath: string,
+  services: ParserServices,
+) {
+  const program = services.program
+  if (program === null) {
+    throw new InternalTranspilingError('program is null')
   }
 
-  const workflowAst = { subworkflows: ast.body.flatMap(parseTopLevelStatement) }
-  const workflow = generateStepNames(workflowAst)
-  return toYAMLString(workflow)
+  const canonicalInputName = path.join(process.cwd(), inputFile)
+  const mainSourceFile = program
+    .getSourceFiles()
+    .find((x) => x.fileName === canonicalInputName)
+
+  if (mainSourceFile === undefined) {
+    throw new InternalTranspilingError(
+      `Typescript SourceFile object not found for ${canonicalInputName}`,
+    )
+  }
+
+  const typeChecker = program.getTypeChecker()
+  const mainFunction = getFunctionDeclarationByName(mainSourceFile, 'main')
+
+  if (!mainFunction) {
+    throw new Error('"main" function not found')
+  }
+
+  const functions = findCalledFunctionDeclarations(typeChecker, mainFunction)
+  const transpiled = functions
+    .filter((f) => !isAmbientFunctionDeclaration(f))
+    .map((decl) => {
+      const parserOptions: TSESTreeOptions = eslintParserOptions(
+        decl.getSourceFile().fileName,
+        tsconfigPath,
+      )
+      const { ast } = parseAndGenerateServices(
+        decl.getSourceFile(),
+        parserOptions,
+      )
+      const workflowAst = {
+        subworkflows: ast.body.flatMap(parseTopLevelStatement),
+      }
+      const workflow = generateStepNames(workflowAst)
+      return toYAMLString(workflow)
+    })
+
+  return transpiled.join('\n')
 }
 
 function parseTopLevelStatement(

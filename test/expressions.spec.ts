@@ -4,7 +4,7 @@ import {
   expressionToLiteralValueOrLiteralExpression,
 } from '../src/ast/expressions.js'
 import { assertTranspiled, parseExpression } from './testutils.js'
-import { transpile } from '../src/transpiler/index.js'
+import { transpileText } from '../src/transpiler/index.js'
 
 describe('Literals', () => {
   it('parses null', () => {
@@ -160,13 +160,13 @@ describe('Literals', () => {
   it('rejects BigInt literals', () => {
     const code = `function test() { x = 18446744073709552000n }`
 
-    expect(() => transpile(code)).to.throw()
+    expect(() => transpileText(code)).to.throw()
   })
 
   it('rejects RegExp literals', () => {
     const code = `function test() { x = /a.c/ }`
 
-    expect(() => transpile(code)).to.throw()
+    expect(() => transpileText(code)).to.throw()
   })
 })
 
@@ -183,7 +183,7 @@ describe('Expressions and operators', () => {
       return x >>> 2;
     }`
 
-    expect(() => transpile(code)).to.throw()
+    expect(() => transpileText(code)).to.throw()
   })
 
   it('parses unary operators', () => {
@@ -203,7 +203,7 @@ describe('Expressions and operators', () => {
       return ~x;
     }`
 
-    expect(() => transpile(code)).to.throw()
+    expect(() => transpileText(code)).to.throw()
   })
 
   it('parses logical expressions', () => {
@@ -517,7 +517,7 @@ describe('Expressions and operators', () => {
       return sys.now?.();
     }`
 
-    expect(() => transpile(code)).to.throw()
+    expect(() => transpileText(code)).to.throw()
   })
 
   it('transpiles typeof', () => {

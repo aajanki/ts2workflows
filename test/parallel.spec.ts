@@ -1,5 +1,5 @@
 import { expect } from 'chai'
-import { transpile } from '../src/transpiler/index.js'
+import { transpileText } from '../src/transpiler/index.js'
 import { assertTranspiled } from './testutils.js'
 
 describe('Parallel statement', () => {
@@ -185,7 +185,7 @@ describe('Parallel statement', () => {
       });
     }`
 
-    expect(() => transpile(code)).to.throw()
+    expect(() => transpileText(code)).to.throw()
   })
 
   it('outputs parallel iteration if called with a for..of loop in an arrow function', () => {
@@ -246,7 +246,7 @@ describe('Parallel statement', () => {
       );
     }`
 
-    expect(() => transpile(code)).to.throw()
+    expect(() => transpileText(code)).to.throw()
   })
 
   it('throws if a plain arrow function contains something else besides a for loop', () => {
@@ -260,7 +260,7 @@ describe('Parallel statement', () => {
       );
     }`
 
-    expect(() => transpile(code)).to.throw()
+    expect(() => transpileText(code)).to.throw()
   })
 
   it("the return value of parallel() can't be assigned to a variable", () => {
@@ -276,7 +276,7 @@ describe('Parallel statement', () => {
         ]);
       }`
 
-    expect(() => transpile(code)).to.throw()
+    expect(() => transpileText(code)).to.throw()
   })
 
   it("parallel() can't be used in expression", () => {
@@ -293,7 +293,7 @@ describe('Parallel statement', () => {
       }
     `
 
-    expect(() => transpile(code)).to.throw()
+    expect(() => transpileText(code)).to.throw()
   })
 
   it("parallel() can't be used in expression 2", () => {
@@ -311,7 +311,7 @@ describe('Parallel statement', () => {
         };
       }`
 
-    expect(() => transpile(code)).to.throw()
+    expect(() => transpileText(code)).to.throw()
   })
 
   it("parallel() can't be used in an compound assignment expression", () => {
@@ -328,7 +328,7 @@ describe('Parallel statement', () => {
       }
     `
 
-    expect(() => transpile(code)).to.throw()
+    expect(() => transpileText(code)).to.throw()
   })
 
   it('throws if parallel is called with an expression as arrow function body', () => {
@@ -337,7 +337,7 @@ describe('Parallel statement', () => {
       parallel(() => 1);
     }`
 
-    expect(() => transpile(code)).to.throw()
+    expect(() => transpileText(code)).to.throw()
   })
 
   it('throws if parallel is called with an expression as arrow function body 2', () => {
@@ -346,7 +346,7 @@ describe('Parallel statement', () => {
       parallel([() => 1, () => 2]);
     }`
 
-    expect(() => transpile(code)).to.throw()
+    expect(() => transpileText(code)).to.throw()
   })
 
   it('throws if arrow function in parallel has arguments', () => {
@@ -355,7 +355,7 @@ describe('Parallel statement', () => {
       parallel((x) => { return x + 1 });
     }`
 
-    expect(() => transpile(code)).to.throw()
+    expect(() => transpileText(code)).to.throw()
   })
 
   it('throws if arrow function in parallel has arguments 2', () => {
@@ -369,7 +369,7 @@ describe('Parallel statement', () => {
       );
     }`
 
-    expect(() => transpile(code)).to.throw()
+    expect(() => transpileText(code)).to.throw()
   })
 
   it('throws if parallel is called without arguments', () => {
@@ -378,6 +378,6 @@ describe('Parallel statement', () => {
       parallel();
     }`
 
-    expect(() => transpile(code)).to.throw()
+    expect(() => transpileText(code)).to.throw()
   })
 })

@@ -1,7 +1,7 @@
 import { expect } from 'chai'
 import * as YAML from 'yaml'
 import * as fs from 'node:fs'
-import { transpile } from '../src/transpiler/index.js'
+import { transpile, transpileText } from '../src/transpiler/index.js'
 import { assertTranspiled } from './testutils.js'
 
 describe('Type annotations', () => {
@@ -45,7 +45,7 @@ describe('Type annotations', () => {
     interface Person {
       name: string
     }`
-    const observed = YAML.parse(transpile(code)) as unknown
+    const observed = YAML.parse(transpileText(code)) as unknown
 
     expect(observed).to.deep.equal({})
   })
@@ -55,7 +55,7 @@ describe('Type annotations', () => {
     type Person = {
       name: string
     }`
-    const observed = YAML.parse(transpile(code)) as unknown
+    const observed = YAML.parse(transpileText(code)) as unknown
 
     expect(observed).to.deep.equal({})
   })
@@ -279,7 +279,7 @@ describe('Function definition', () => {
     export declare function exportedComputation()
     `
 
-    const observed = YAML.parse(transpile(code)) as unknown
+    const observed = YAML.parse(transpileText(code)) as unknown
 
     expect(observed).to.deep.equal({})
   })
@@ -290,7 +290,7 @@ describe('Function definition', () => {
       function not_allowed() {}
     }`
 
-    expect(() => transpile(code)).to.throw()
+    expect(() => transpileText(code)).to.throw()
   })
 
   it('throws if top level contains other than functions or import', () => {
@@ -300,7 +300,7 @@ describe('Function definition', () => {
     const a = 1;
     `
 
-    expect(() => transpile(code)).to.throw()
+    expect(() => transpileText(code)).to.throw()
   })
 
   it('accepts nested block statements', () => {
@@ -388,7 +388,7 @@ describe('Sample source files', () => {
         const fullPath = `${samplesdir}/${file}`
         const code = fs.readFileSync(fullPath, { encoding: 'utf-8' })
 
-        expect(() => transpile(code)).not.to.throw()
+        expect(() => transpileText(code)).not.to.throw()
       }
     })
   })
@@ -397,12 +397,21 @@ describe('Sample source files', () => {
     fs.readdirSync(samplesdir).forEach((file) => {
       if (file.endsWith('.ts')) {
         const fullPath = `${samplesdir}/${file}`
-        const code = fs.readFileSync(fullPath, { encoding: 'utf-8' })
 
         expect(() =>
-          transpile(code, fullPath, 'samples/tsconfig.json'),
+          transpile(fullPath, 'samples/tsconfig.json', false),
         ).not.to.throw()
       }
     })
+  })
+
+  it('generates linked output', () => {
+    const fullPath = `${samplesdir}/sample2.ts`
+    const yaml = transpile(fullPath, 'samples/tsconfig.json', true)
+    const observed = YAML.parse(yaml) as Record<string, unknown>
+
+    // main comes from sample2.ts
+    // get_url comes from imported file http_helpers.ts
+    expect(Object.keys(observed)).to.have.members(['main', 'get_url'])
   })
 })

@@ -1,5 +1,5 @@
 import { expect } from 'chai'
-import { transpile } from '../src/transpiler/index.js'
+import { transpileText } from '../src/transpiler/index.js'
 import { assertTranspiled } from './testutils.js'
 
 describe('Import statement', () => {
@@ -8,25 +8,25 @@ describe('Import statement', () => {
     import { http } from 'workflowlib'
     import { http, sys } from 'workflowlib'`
 
-    expect(() => transpile(code)).not.to.throw()
+    expect(() => transpileText(code)).not.to.throw()
   })
 
   it('accepts side-effecting imports on the top-level', () => {
     const code = `import 'module'`
 
-    expect(() => transpile(code)).not.to.throw()
+    expect(() => transpileText(code)).not.to.throw()
   })
 
   it('throws on default import', () => {
     const code = `import myDefault from 'module'`
 
-    expect(() => transpile(code)).to.throw()
+    expect(() => transpileText(code)).to.throw()
   })
 
   it('throws on namespace import', () => {
     const code = `import * as sys from 'sys'`
 
-    expect(() => transpile(code)).to.throw()
+    expect(() => transpileText(code)).to.throw()
   })
 })
 
@@ -551,7 +551,7 @@ describe('Call statement', () => {
     main();
     `
 
-    expect(() => transpile(code)).to.throw()
+    expect(() => transpileText(code)).to.throw()
   })
 })
 

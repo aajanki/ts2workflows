@@ -10,7 +10,7 @@ import {
   NamedWorkflowStep,
   WorkflowStepASTWithNamedNested,
 } from '../src/ast/steps.js'
-import { transpile } from '../src/transpiler/index.js'
+import { transpileText } from '../src/transpiler/index.js'
 import { convertExpression } from '../src/transpiler/expressions.js'
 
 export function namedStep(
@@ -73,5 +73,5 @@ function isJSONObject(val: string): boolean {
  * Transpiles Typescript source in `code` and compares it to the YAML string `expected`.
  */
 export function assertTranspiled(code: string, expected: string): void {
-  expect(YAML.parse(transpile(code))).to.deep.equal(YAML.parse(expected))
+  expect(YAML.parse(transpileText(code))).to.deep.equal(YAML.parse(expected))
 }

@@ -1,5 +1,5 @@
 import { expect } from 'chai'
-import { transpile } from '../src/transpiler/index.js'
+import { transpileText } from '../src/transpiler/index.js'
 import { assertTranspiled } from './testutils.js'
 
 describe('Destructing', () => {
@@ -802,7 +802,7 @@ describe('Destructing', () => {
       const [a, b, ...rest, c] = arr;
     }`
 
-    expect(() => transpile(code)).to.throw()
+    expect(() => transpileText(code)).to.throw()
   })
 
   it('throws if the rest element is not the last element in object destructuring pattern', () => {
@@ -811,7 +811,7 @@ describe('Destructing', () => {
       const {a, ...other, b} = data;
     }`
 
-    expect(() => transpile(code)).to.throw()
+    expect(() => transpileText(code)).to.throw()
   })
 
   it('throws if there are multiple rest elements in array destructuring', () => {
@@ -820,7 +820,7 @@ describe('Destructing', () => {
       const [a, b, ...rest, ...anotherRest] = arr;
     }`
 
-    expect(() => transpile(code)).to.throw()
+    expect(() => transpileText(code)).to.throw()
   })
 
   it('throws if there are multiple rest elements in object destructuring', () => {
@@ -829,7 +829,7 @@ describe('Destructing', () => {
       const {a, ...rest, ...anotherRest} = data;
     }`
 
-    expect(() => transpile(code)).to.throw()
+    expect(() => transpileText(code)).to.throw()
   })
 
   it('throws if the rest element is an object', () => {
@@ -838,7 +838,7 @@ describe('Destructing', () => {
       const [a, b, ...{ push, pop }] = arr;
     }`
 
-    expect(() => transpile(code)).to.throw()
+    expect(() => transpileText(code)).to.throw()
   })
 
   it('destructures objects', () => {
