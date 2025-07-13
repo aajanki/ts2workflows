@@ -9,11 +9,7 @@ import {
 
 describe('function listing', () => {
   it('finds nested function calls', () => {
-    const functions = listFunctions(
-      'test/linkertestsources/simple.ts',
-      [],
-      'main',
-    )
+    const functions = listFunctions('test/fixtures/simple.ts', [], 'main')
 
     expect(functions).to.have.lengthOf(4)
     expect(functions).to.have.members([
@@ -26,8 +22,8 @@ describe('function listing', () => {
 
   it('finds imported functions', () => {
     const functions = listFunctions(
-      'test/linkertestsources/import.ts',
-      ['test/linkertestsources/computation.ts'],
+      'test/fixtures/import.ts',
+      ['test/fixtures/computation.ts'],
       'main',
     )
 
@@ -43,8 +39,8 @@ describe('function listing', () => {
 
   it('finds imported function with alias', () => {
     const functions = listFunctions(
-      'test/linkertestsources/importalias.ts',
-      ['test/linkertestsources/computation.ts'],
+      'test/fixtures/importalias.ts',
+      ['test/fixtures/computation.ts'],
       'main',
     )
 
@@ -59,11 +55,7 @@ describe('function listing', () => {
   })
 
   it('lists recursive function calls', () => {
-    const functions = listFunctions(
-      'test/linkertestsources/recursion.ts',
-      [],
-      'main',
-    )
+    const functions = listFunctions('test/fixtures/recursion.ts', [], 'main')
 
     expect(functions).to.have.lengthOf(4)
     expect(functions).to.have.members([
@@ -76,7 +68,7 @@ describe('function listing', () => {
 
   it('lists functions with qualified names', () => {
     const functions = listFunctions(
-      'test/linkertestsources/qualifiedname.ts',
+      'test/fixtures/qualifiedname.ts',
       [],
       'main',
     )
@@ -87,7 +79,7 @@ describe('function listing', () => {
 
   it('lists namespace declarations imported from a .d.ts file', () => {
     const functions = listFunctions(
-      'test/linkertestsources/importdeclaration.ts',
+      'test/fixtures/importdeclaration.ts',
       [],
       'main',
     )
@@ -98,7 +90,7 @@ describe('function listing', () => {
 
   it('lists function declarations imported from a .d.ts file', () => {
     const functions = listFunctions(
-      'test/linkertestsources/importdeclaration2.ts',
+      'test/fixtures/importdeclaration2.ts',
       [],
       'main',
     )
@@ -109,7 +101,7 @@ describe('function listing', () => {
 
   it('lists function declaration from deeply nested namespaces', () => {
     const functions = listFunctions(
-      'test/linkertestsources/importdeclaration3.ts',
+      'test/fixtures/importdeclaration3.ts',
       [],
       'main',
     )
@@ -119,11 +111,7 @@ describe('function listing', () => {
   })
 
   it('does not include anonymous functions', () => {
-    const functions = listFunctions(
-      'test/linkertestsources/anonymous.ts',
-      [],
-      'main',
-    )
+    const functions = listFunctions('test/fixtures/anonymous.ts', [], 'main')
 
     expect(functions).to.deep.equal(['main'])
   })
@@ -140,7 +128,7 @@ function listFunctions(
     moduleResolution: ts.ModuleResolutionKind.Bundler,
     skipLibCheck: true,
     types: [],
-    rootDir: 'test/linkertestsources',
+    rootDir: 'test/fixtures',
   }
 
   const compilerHost = ts.createCompilerHost(compilerOptions)

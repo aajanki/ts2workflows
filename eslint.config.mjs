@@ -18,7 +18,7 @@ export default tseslint.config(
     ignores: [
       'dist/',
       'samples/',
-      'test/linkertestsources',
+      'test/fixtures',
       'eslint.config.mjs',
     ],
   },
