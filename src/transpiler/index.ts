@@ -23,19 +23,18 @@ import {
 } from './linker.js'
 
 export function transpile(
-  inputFile: string,
+  input: { filename?: string; read: () => string },
   tsconfigPath: string | undefined,
   linkSubworkflows: boolean,
 ): string {
-  const { ast, services } = parseMainFile(inputFile, tsconfigPath)
+  const { ast, services } = parseMainFile(input, tsconfigPath)
 
-  if (linkSubworkflows && tsconfigPath && services.program) {
-    return generateLinkedOutput(inputFile, tsconfigPath, services)
+  if (linkSubworkflows && tsconfigPath && services.program && input.filename) {
+    return generateLinkedOutput(input.filename, tsconfigPath, services)
   } else {
-    const workflowAst = {
+    const workflow = generateStepNames({
       subworkflows: ast.body.flatMap(parseTopLevelStatement),
-    }
-    const workflow = generateStepNames(workflowAst)
+    })
     return toYAMLString(workflow)
   }
 }
@@ -43,27 +42,26 @@ export function transpile(
 export function transpileText(sourceCode: string) {
   const parserOptions = eslintParserOptions()
   const { ast } = parseAndGenerateServices(sourceCode, parserOptions)
-  const workflowAst = {
+  const workflow = generateStepNames({
     subworkflows: ast.body.flatMap(parseTopLevelStatement),
-  }
-  const workflow = generateStepNames(workflowAst)
+  })
   return toYAMLString(workflow)
 }
 
 function parseMainFile(
-  inputFile: string,
+  input: { filename?: string; read: () => string },
   tsconfigPath: string | undefined,
 ): ParseAndGenerateServicesResult<TSESTreeOptions> {
-  const parserOptions = eslintParserOptions(inputFile, tsconfigPath)
+  const parserOptions = eslintParserOptions(input.filename, tsconfigPath)
 
-  if (tsconfigPath && inputFile && inputFile != '-') {
+  if (tsconfigPath && input.filename) {
     const cwd = process.cwd()
     const configJSON: unknown = JSON.parse(
       fs.readFileSync(path.join(cwd, tsconfigPath), 'utf-8'),
     )
     const { options } = ts.parseJsonConfigFileContent(configJSON, ts.sys, cwd)
-    const program = ts.createProgram([inputFile], options)
-    const mainSourceFile = program.getSourceFile(inputFile)
+    const program = ts.createProgram([input.filename], options)
+    const mainSourceFile = program.getSourceFile(input.filename)
 
     if (mainSourceFile === undefined) {
       throw new InternalTranspilingError('getSourceFile returned undefined!')
@@ -71,11 +69,7 @@ function parseMainFile(
 
     return parseAndGenerateServices(mainSourceFile, parserOptions)
   } else {
-    const inputIsStdIn = inputFile === '-'
-    const inp = inputIsStdIn ? process.stdin.fd : inputFile
-    const code = fs.readFileSync(inp, 'utf8')
-
-    return parseAndGenerateServices(code, parserOptions)
+    return parseAndGenerateServices(input.read(), parserOptions)
   }
 }
 

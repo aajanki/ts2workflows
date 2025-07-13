@@ -15,6 +15,11 @@ interface CLIOptions {
   generatedFileComment: boolean
 }
 
+interface Input {
+  filename?: string
+  read: () => string
+}
+
 function parseArgs() {
   program
     .name('ts2workflow')
@@ -111,24 +116,38 @@ function generateTranspiledText(
   linkSubworkflows: boolean,
   project?: string,
 ): string | undefined {
-  const inputIsStdIn = inputFile === '-'
-  const inp = inputIsStdIn ? process.stdin.fd : inputFile
-  const sourceCode = fs.readFileSync(inp, 'utf8')
+  const input = readSourceCode(inputFile)
 
   try {
-    const needsHeader = addGeneratedFileComment && !inputIsStdIn
+    const needsHeader = addGeneratedFileComment && inputFile !== '-'
     const header = needsHeader ? generatedFileComment(inputFile) : ''
-    const transpiled = transpile(inputFile, project, linkSubworkflows)
+    const transpiled = transpile(input, project, linkSubworkflows)
     return `${header}${transpiled}`
   } catch (err) {
     if (err instanceof WorkflowSyntaxError) {
-      prettyPrintSyntaxError(err, inputFile, sourceCode)
+      prettyPrintSyntaxError(err, input)
       return undefined
     } else if (err instanceof TSError) {
-      prettyPrintSyntaxError(err, inputFile, sourceCode)
+      prettyPrintSyntaxError(err, input)
       return undefined
     } else {
       throw err
+    }
+  }
+}
+
+function readSourceCode(filename: string): Input {
+  if (filename === '-') {
+    // read and cache stdin
+    const code = fs.readFileSync(process.stdin.fd, 'utf8')
+
+    return {
+      read: () => code,
+    }
+  } else {
+    return {
+      filename: filename,
+      read: () => fs.readFileSync(filename, 'utf8'),
     }
   }
 }
@@ -173,20 +192,18 @@ function isIoError(err: unknown): err is Error {
 
 function prettyPrintSyntaxError(
   exception: WorkflowSyntaxError,
-  inputFile: string,
-  sourceCode: string,
+  inp: Input,
 ): void {
-  console.error(errorDisplay(inputFile, sourceCode, exception.location))
+  console.error(errorDisplay(inp, exception.location))
   console.error(`${exception.message}`)
 }
 
 function errorDisplay(
-  filename: string,
-  sourceCode: string,
+  inp: Input,
   location: SourceCodeLocation | undefined,
 ): string {
   const lines: string[] = []
-  const prettyFilename = filename === '-' ? '<stdin>' : filename
+  const prettyFilename = inp.filename ?? '<stdin>'
   if (
     typeof location?.start === 'undefined' ||
     typeof location?.end === 'undefined' ||
@@ -201,7 +218,7 @@ function errorDisplay(
   }
 
   const highlightedLine = highlightedSourceCodeLine(
-    sourceCode,
+    inp.read(),
     location?.start?.line,
     location?.start?.column,
     location?.start?.line === location?.end?.line

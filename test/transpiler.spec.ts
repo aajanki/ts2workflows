@@ -397,9 +397,15 @@ describe('Sample source files', () => {
     fs.readdirSync(samplesdir).forEach((file) => {
       if (file.endsWith('.ts')) {
         const fullPath = `${samplesdir}/${file}`
+        const input = {
+          filename: fullPath,
+          read: () => {
+            return fs.readFileSync(fullPath, 'utf-8')
+          },
+        }
 
         expect(() =>
-          transpile(fullPath, 'samples/tsconfig.json', false),
+          transpile(input, 'samples/tsconfig.json', false),
         ).not.to.throw()
       }
     })
@@ -407,7 +413,13 @@ describe('Sample source files', () => {
 
   it('generates linked output', () => {
     const fullPath = `${samplesdir}/sample2.ts`
-    const yaml = transpile(fullPath, 'samples/tsconfig.json', true)
+    const input = {
+      filename: fullPath,
+      read: () => {
+        return fs.readFileSync(fullPath, 'utf-8')
+      },
+    }
+    const yaml = transpile(input, 'samples/tsconfig.json', true)
     const observed = YAML.parse(yaml) as Record<string, unknown>
 
     // main comes from sample2.ts
