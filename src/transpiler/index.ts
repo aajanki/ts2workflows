@@ -4,7 +4,6 @@ import {
   AST_NODE_TYPES,
   parseAndGenerateServices,
   ParseAndGenerateServicesResult,
-  ParserServices,
   TSESTree,
   TSESTreeOptions,
 } from '@typescript-eslint/typescript-estree'
@@ -12,7 +11,11 @@ import ts from 'typescript'
 import * as YAML from 'yaml'
 import { SubworkflowAST } from '../ast/steps.js'
 import { InternalTranspilingError, WorkflowSyntaxError } from '../errors.js'
-import { WorkflowApp, WorkflowParameter } from '../ast/workflows.js'
+import {
+  Subworkflow,
+  WorkflowApp,
+  WorkflowParameter,
+} from '../ast/workflows.js'
 import { generateStepNames } from '../ast/stepnames.js'
 import { parseStatement } from './statements.js'
 import { transformAST } from './transformations.js'
@@ -22,20 +25,31 @@ import {
   isAmbientFunctionDeclaration,
 } from './linker.js'
 
+const workflowCache = new Map<string, WorkflowApp>()
+
 export function transpile(
   input: { filename?: string; read: () => string },
   tsconfigPath: string | undefined,
   linkSubworkflows: boolean,
 ): string {
   const { ast, services } = parseMainFile(input, tsconfigPath)
+  const inputWorkflow = generateStepNames({
+    subworkflows: ast.body.flatMap(parseTopLevelStatement),
+  })
 
   if (linkSubworkflows && tsconfigPath && services.program && input.filename) {
-    return generateLinkedOutput(input.filename, tsconfigPath, services)
+    const canonicalInput = path.join(process.cwd(), input.filename)
+    workflowCache.set(canonicalInput, inputWorkflow)
+
+    const subworkflows = generateLinkedOutput(
+      canonicalInput,
+      tsconfigPath,
+      services.program,
+    )
+    const combinedWorkflow = new WorkflowApp(subworkflows)
+    return toYAMLString(combinedWorkflow)
   } else {
-    const workflow = generateStepNames({
-      subworkflows: ast.body.flatMap(parseTopLevelStatement),
-    })
-    return toYAMLString(workflow)
+    return toYAMLString(inputWorkflow)
   }
 }
 
@@ -94,16 +108,10 @@ function eslintParserOptions(
 }
 
 function generateLinkedOutput(
-  inputFile: string,
+  canonicalInputName: string,
   tsconfigPath: string,
-  services: ParserServices,
-) {
-  const program = services.program
-  if (program === null) {
-    throw new InternalTranspilingError('program is null')
-  }
-
-  const canonicalInputName = path.join(process.cwd(), inputFile)
+  program: ts.Program,
+): Subworkflow[] {
   const mainSourceFile = program
     .getSourceFiles()
     .find((x) => x.fileName === canonicalInputName)
@@ -118,29 +126,59 @@ function generateLinkedOutput(
   const mainFunction = getFunctionDeclarationByName(mainSourceFile, 'main')
 
   if (!mainFunction) {
-    throw new Error('"main" function not found')
+    throw new Error('The input file must contain a function called "main"')
   }
 
   const functions = findCalledFunctionDeclarations(typeChecker, mainFunction)
-  const transpiled = functions
+  const subworkflows = functions
     .filter((f) => !isAmbientFunctionDeclaration(f))
-    .map((decl) => {
-      const parserOptions: TSESTreeOptions = eslintParserOptions(
-        decl.getSourceFile().fileName,
-        tsconfigPath,
-      )
-      const { ast } = parseAndGenerateServices(
-        decl.getSourceFile(),
-        parserOptions,
-      )
-      const workflowAst = {
-        subworkflows: ast.body.flatMap(parseTopLevelStatement),
-      }
-      const workflow = generateStepNames(workflowAst)
-      return toYAMLString(workflow)
+    .map((decl) => tsFunctionToSubworkflow(tsconfigPath, decl))
+
+  return subworkflows
+}
+
+function getCachedWorkflow(
+  filename: string,
+  tsconfigPath: string,
+): WorkflowApp {
+  const cached = workflowCache.get(filename)
+
+  if (cached) {
+    return cached
+  } else {
+    const parserOptions = eslintParserOptions(filename, tsconfigPath)
+    const code = fs.readFileSync(filename, 'utf8')
+    const { ast } = parseAndGenerateServices(code, parserOptions)
+    const workflow = generateStepNames({
+      subworkflows: ast.body.flatMap(parseTopLevelStatement),
     })
 
-  return transpiled.join('\n')
+    workflowCache.set(filename, workflow)
+
+    return workflow
+  }
+}
+
+function tsFunctionToSubworkflow(
+  tsconfigPath: string,
+  decl: ts.FunctionDeclaration,
+): Subworkflow {
+  if (!decl.name) {
+    throw new InternalTranspilingError("Anonymous function can't be transpiled")
+  }
+
+  const filename = decl.getSourceFile().fileName
+  const wfname = decl.name.getText()
+  const workflow = getCachedWorkflow(filename, tsconfigPath)
+  const subworkflow = workflow.getSubworkflowByName(wfname)
+
+  if (!subworkflow) {
+    throw new InternalTranspilingError(
+      `Failed to find subworkflow ${wfname} in file ${filename}`,
+    )
+  }
+
+  return subworkflow
 }
 
 function parseTopLevelStatement(

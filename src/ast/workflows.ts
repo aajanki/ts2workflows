@@ -16,6 +16,10 @@ export class WorkflowApp {
     this.subworkflows = subworkflows
   }
 
+  getSubworkflowByName(name: string): Subworkflow | undefined {
+    return this.subworkflows.find((w) => w.name === name)
+  }
+
   render(): Record<string, unknown> {
     return Object.fromEntries(
       new Map(this.subworkflows.map((wf) => [wf.name, wf.renderBody()])),

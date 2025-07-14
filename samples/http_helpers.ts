@@ -1,6 +1,6 @@
 // Change the path to 'ts2workflows/types/workflowslib'
 // in projects that use ts2workflows module as a dependency.
-import { http, sys, retry_policy } from '../types/workflowslib'
+import { http, sys, retry_policy, WorkflowsValue } from '../types/workflowslib'
 
 export function get_url(url: string) {
   try {
@@ -24,4 +24,8 @@ export function get_url(url: string) {
 
     return { body: '' }
   }
+}
+
+export function post_url(url: string, payload: WorkflowsValue): WorkflowsValue {
+  return http.post(url, 1000, payload)
 }
