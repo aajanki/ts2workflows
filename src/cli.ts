@@ -4,7 +4,7 @@ import * as fs from 'node:fs'
 import * as path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { program } from 'commander'
-import { transpile } from './transpiler/index.js'
+import { transpile, transpileText } from './transpiler/index.js'
 import { SourceCodeLocation, WorkflowSyntaxError } from './errors.js'
 import { TSError } from '@typescript-eslint/typescript-estree'
 
@@ -119,10 +119,15 @@ function generateTranspiledText(
   const input = readSourceCode(inputFile)
 
   try {
-    const needsHeader = addGeneratedFileComment && inputFile !== '-'
-    const header = needsHeader ? generatedFileComment(inputFile) : ''
-    const transpiled = transpile(input, project, linkSubworkflows)
-    return `${header}${transpiled}`
+    if (inputFile === '-') {
+      return transpileText(input.read())
+    } else {
+      const header = addGeneratedFileComment
+        ? generatedFileComment(inputFile)
+        : ''
+      const transpiled = transpile(input, project, linkSubworkflows)
+      return `${header}${transpiled}`
+    }
   } catch (err) {
     if (err instanceof WorkflowSyntaxError) {
       prettyPrintSyntaxError(err, input)
