@@ -16,38 +16,15 @@ export function findCalledFunctionDeclarations(
   return declarations
 }
 
-// Get a named function declaration from SourceFile.
-// Returns undefined if a function is not found.
-export function getFunctionDeclarationByName(
-  sourceFile: ts.SourceFile,
-  functionName: string,
-): ts.FunctionDeclaration | undefined {
-  let foundDecl: ts.FunctionDeclaration | undefined
-
-  function visit(node: ts.Node) {
-    if (ts.isFunctionDeclaration(node) && node.name?.text === functionName) {
-      foundDecl = node
-    }
-
-    ts.forEachChild(node, visit)
-  }
-
-  visit(sourceFile)
-
-  return foundDecl
-}
-
 // Find functions declarations below node and declarations called by those functions
 function findFunctionsRecursively(
   seen: ts.FunctionDeclaration[],
   typeChecker: ts.TypeChecker,
   node: ts.Node,
 ): void {
-  const nestedFunctionCalls = findNestedFunctions(typeChecker, node)
-
   // remove previously seen functions and break cycles
   const deduplicated: ts.FunctionDeclaration[] = []
-  nestedFunctionCalls.forEach((x) => {
+  findNestedFunctions(typeChecker, node).forEach((x) => {
     const exists = !!seen.find(
       (x2) =>
         x2.name?.text === x.name?.text &&
@@ -72,6 +49,16 @@ function findNestedFunctions(
 ): ts.FunctionDeclaration[] {
   const functionDeclarations: ts.FunctionDeclaration[] = []
 
+  // First add top level function declarations
+  if (ts.isFunctionDeclaration(node)) {
+    functionDeclarations.push(node)
+  } else if (ts.isSourceFile(node)) {
+    functionDeclarations.push(
+      ...node.statements.filter(ts.isFunctionDeclaration),
+    )
+  }
+
+  // Next, find nested function calls recursively
   function visit(node: ts.Node) {
     if (ts.isCallExpression(node)) {
       const sig = typeChecker.getResolvedSignature(node)

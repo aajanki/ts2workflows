@@ -37,7 +37,7 @@ function parseArgs() {
     )
     .option(
       '--link',
-      'Emit YAML files that include all necessary subworkflows in one file. Requires --project',
+      'Emit YAML that includes all necessary subworkflows in one file. Requires --project',
       false,
     )
     .option(

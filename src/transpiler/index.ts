@@ -21,7 +21,6 @@ import { parseStatement } from './statements.js'
 import { transformAST } from './transformations.js'
 import {
   findCalledFunctionDeclarations,
-  getFunctionDeclarationByName,
   isAmbientFunctionDeclaration,
 } from './linker.js'
 
@@ -123,13 +122,7 @@ function generateLinkedOutput(
   }
 
   const typeChecker = program.getTypeChecker()
-  const mainFunction = getFunctionDeclarationByName(mainSourceFile, 'main')
-
-  if (!mainFunction) {
-    throw new Error('The input file must contain a function called "main"')
-  }
-
-  const functions = findCalledFunctionDeclarations(typeChecker, mainFunction)
+  const functions = findCalledFunctionDeclarations(typeChecker, mainSourceFile)
   const subworkflows = functions
     .filter((f) => !isAmbientFunctionDeclaration(f))
     .map((decl) => tsFunctionToSubworkflow(tsconfigPath, decl))
