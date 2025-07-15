@@ -10,7 +10,11 @@ import {
 import ts from 'typescript'
 import * as YAML from 'yaml'
 import { SubworkflowAST } from '../ast/steps.js'
-import { InternalTranspilingError, WorkflowSyntaxError } from '../errors.js'
+import {
+  InternalTranspilingError,
+  IOError,
+  WorkflowSyntaxError,
+} from '../errors.js'
 import {
   Subworkflow,
   WorkflowApp,
@@ -19,10 +23,7 @@ import {
 import { generateStepNames } from '../ast/stepnames.js'
 import { parseStatement } from './statements.js'
 import { transformAST } from './transformations.js'
-import {
-  findCalledFunctionDeclarations,
-  isAmbientFunctionDeclaration,
-} from './linker.js'
+import { findCalledFunctionDeclarations } from './linker.js'
 
 const workflowCache = new Map<string, WorkflowApp>()
 
@@ -77,7 +78,7 @@ function parseMainFile(
     const mainSourceFile = program.getSourceFile(input.filename)
 
     if (mainSourceFile === undefined) {
-      throw new InternalTranspilingError('getSourceFile returned undefined!')
+      throw new IOError(`Source file ${input.filename} not found`, 'ENOENT')
     }
 
     return parseAndGenerateServices(mainSourceFile, parserOptions)
@@ -172,6 +173,41 @@ function tsFunctionToSubworkflow(
   }
 
   return subworkflow
+}
+
+/**
+ * Returns true if node is an ambient function declaration.
+ *
+ * The two cases that return true:
+ *   - "declare function"
+ *   - "declare namespace { function ... }"
+ */
+export function isAmbientFunctionDeclaration(
+  node: ts.FunctionDeclaration,
+): boolean {
+  if (isAmbient(node)) {
+    return true
+  }
+
+  let decl: ts.FunctionDeclaration | ts.ModuleDeclaration = node
+  while (
+    ts.isModuleBlock(decl.parent) &&
+    ts.isModuleDeclaration(decl.parent.parent)
+  ) {
+    decl = decl.parent.parent
+
+    if (isAmbient(decl)) {
+      return true
+    }
+  }
+
+  return false
+}
+
+function isAmbient(
+  node: ts.FunctionDeclaration | ts.ModuleDeclaration,
+): boolean {
+  return (ts.getCombinedModifierFlags(node) & ts.ModifierFlags.Ambient) !== 0
 }
 
 function parseTopLevelStatement(

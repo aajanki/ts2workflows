@@ -7,10 +7,14 @@ export function findCalledFunctionDeclarations(
 ): ts.FunctionDeclaration[] {
   const declarations: ts.FunctionDeclaration[] = []
 
+  // First add top level function declarations
   if (ts.isFunctionDeclaration(rootNode)) {
     declarations.push(rootNode)
+  } else if (ts.isSourceFile(rootNode)) {
+    declarations.push(...rootNode.statements.filter(ts.isFunctionDeclaration))
   }
 
+  // Next, find nested function calls recursively
   findFunctionsRecursively(declarations, typeChecker, rootNode)
 
   return declarations
@@ -22,22 +26,25 @@ function findFunctionsRecursively(
   typeChecker: ts.TypeChecker,
   node: ts.Node,
 ): void {
-  // remove previously seen functions and break cycles
   const deduplicated: ts.FunctionDeclaration[] = []
+
+  // Collect call expressions in the current function
   findNestedFunctions(typeChecker, node).forEach((x) => {
-    const exists = !!seen.find(
+    const exists = seen.some(
       (x2) =>
         x2.name?.text === x.name?.text &&
         x2.getSourceFile().fileName === x.getSourceFile().fileName,
     )
 
+    // ignore previously seen functions and break cycles
     if (!exists) {
       seen.push(x)
       deduplicated.push(x)
     }
   })
 
-  deduplicated.flatMap((decl) =>
+  // Recurse into the called functions found above
+  deduplicated.forEach((decl) =>
     findFunctionsRecursively(seen, typeChecker, decl),
   )
 }
@@ -49,27 +56,12 @@ function findNestedFunctions(
 ): ts.FunctionDeclaration[] {
   const functionDeclarations: ts.FunctionDeclaration[] = []
 
-  // First add top level function declarations
-  if (ts.isFunctionDeclaration(node)) {
-    functionDeclarations.push(node)
-  } else if (ts.isSourceFile(node)) {
-    functionDeclarations.push(
-      ...node.statements.filter(ts.isFunctionDeclaration),
-    )
-  }
-
-  // Next, find nested function calls recursively
   function visit(node: ts.Node) {
     if (ts.isCallExpression(node)) {
       const sig = typeChecker.getResolvedSignature(node)
+      const decl = sig?.getDeclaration()
 
-      if (!sig) {
-        throw new Error('Call expression node is not valid')
-      }
-
-      const decl = sig.getDeclaration()
-
-      if (ts.isFunctionDeclaration(decl)) {
+      if (decl && ts.isFunctionDeclaration(decl)) {
         functionDeclarations.push(decl)
       }
     }
@@ -80,39 +72,4 @@ function findNestedFunctions(
   visit(node)
 
   return functionDeclarations
-}
-
-/**
- * Returns true if node is ambient function declaration.
- *
- * The two cases that return true:
- *   - "declare function"
- *   - "declare namespace { function ... }"
- */
-export function isAmbientFunctionDeclaration(
-  node: ts.FunctionDeclaration,
-): boolean {
-  if (isAmbient(node)) {
-    return true
-  }
-
-  let mod: ts.FunctionDeclaration | ts.ModuleDeclaration = node
-  while (
-    ts.isModuleBlock(mod.parent) &&
-    ts.isModuleDeclaration(mod.parent.parent)
-  ) {
-    mod = mod.parent.parent
-
-    if (isAmbient(mod)) {
-      return true
-    }
-  }
-
-  return false
-}
-
-function isAmbient(
-  node: ts.FunctionDeclaration | ts.ModuleDeclaration,
-): boolean {
-  return (ts.getCombinedModifierFlags(node) & ts.ModifierFlags.Ambient) !== 0
 }

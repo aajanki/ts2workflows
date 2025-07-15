@@ -3,6 +3,7 @@ import * as YAML from 'yaml'
 import * as fs from 'node:fs'
 import { transpile, transpileText } from '../src/transpiler/index.js'
 import { assertTranspiled } from './testutils.js'
+import { IOError } from '../src/errors.js'
 
 describe('Type annotations', () => {
   it('accepts type annotations on variable declaration', () => {
@@ -399,9 +400,7 @@ describe('Sample source files', () => {
         const fullPath = `${samplesdir}/${file}`
         const input = {
           filename: fullPath,
-          read: () => {
-            return fs.readFileSync(fullPath, 'utf-8')
-          },
+          read: () => fs.readFileSync(fullPath, 'utf-8'),
         }
 
         expect(() =>
@@ -415,9 +414,7 @@ describe('Sample source files', () => {
     const fullPath = `${samplesdir}/sample2.ts`
     const input = {
       filename: fullPath,
-      read: () => {
-        return fs.readFileSync(fullPath, 'utf-8')
-      },
+      read: () => fs.readFileSync(fullPath, 'utf-8'),
     }
     const yaml = transpile(input, 'samples/tsconfig.json', true)
     const observed = YAML.parse(yaml) as Record<string, unknown>
@@ -425,5 +422,16 @@ describe('Sample source files', () => {
     // main comes from sample2.ts
     // get_url comes from imported file http_helpers.ts
     expect(Object.keys(observed)).to.have.members(['main', 'get_url'])
+  })
+
+  it('throws if the input file does not exist', () => {
+    const input = {
+      filename: `${samplesdir}/this-file-does-not-exist.ts`,
+      read: () => '',
+    }
+    const transpileAttemp = () =>
+      transpile(input, 'samples/tsconfig.json', false)
+
+    expect(transpileAttemp).to.throw(IOError, 'not found')
   })
 })

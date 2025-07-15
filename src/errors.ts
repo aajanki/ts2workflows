@@ -21,3 +21,12 @@ export class InternalTranspilingError extends Error {
     super(`Internal error: ${message}`)
   }
 }
+
+export class IOError extends Error {
+  constructor(
+    message: string,
+    public readonly code: string,
+  ) {
+    super(message)
+  }
+}
