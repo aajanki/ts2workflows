@@ -926,7 +926,7 @@ describe('Assignment statement', () => {
     assertTranspiled(code, expected)
   })
 
-  it('variable definition without initial value is treated as null assignment', () => {
+  it('variable definition without initial value is treated as a null assignment', () => {
     const code = `function main() {
       let a;
     }`
@@ -937,6 +937,24 @@ describe('Assignment statement', () => {
         - assign1:
             assign:
               - a: null
+    `
+
+    assertTranspiled(code, expected)
+  })
+
+  it('definite assignment is treated as a null assignment', () => {
+    const code = `function main() {
+      let a!: number
+      a = 5
+    }`
+
+    const expected = `
+    main:
+      steps:
+        - assign1:
+            assign:
+              - a: null
+              - a: 5
     `
 
     assertTranspiled(code, expected)
