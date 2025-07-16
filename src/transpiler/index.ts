@@ -24,6 +24,14 @@ import { generateStepNames } from '../ast/stepnames.js'
 import { parseStatement } from './statements.js'
 import { transformAST } from './transformations.js'
 import { findCalledFunctionDeclarations } from './linker.js'
+import {
+  BooleanExpression,
+  nullEx,
+  NullExpression,
+  NumberExpression,
+  StringExpression,
+} from '../ast/expressions.js'
+import { convertExpression } from './expressions.js'
 
 const workflowCache = new Map<string, WorkflowApp>()
 
@@ -285,7 +293,7 @@ function parseWorkflowParams(
     switch (param.type) {
       case AST_NODE_TYPES.Identifier:
         if (param.optional) {
-          return { name: param.name, default: null }
+          return { name: param.name, default: nullEx }
         } else {
           return { name: param.name }
         }
@@ -315,22 +323,22 @@ function parseSubworkflowDefaultArgument(param: TSESTree.AssignmentPattern) {
       param.left.loc,
     )
   }
-  const name = param.left.name
 
-  let defaultValue: string | number | boolean | null
+  const name = param.left.name
+  const val = convertExpression(param.right)
+  let defaultValue:
+    | StringExpression
+    | NumberExpression
+    | BooleanExpression
+    | NullExpression
+
   if (
-    param.right.type === AST_NODE_TYPES.Identifier &&
-    param.right.name === 'undefined'
+    val.expressionType === 'string' ||
+    val.expressionType === 'number' ||
+    val.expressionType === 'boolean' ||
+    val.expressionType === 'null'
   ) {
-    defaultValue = null
-  } else if (
-    param.right.type === AST_NODE_TYPES.Literal &&
-    (typeof param.right.value === 'string' ||
-      typeof param.right.value === 'number' ||
-      typeof param.right.value === 'boolean' ||
-      param.right.value === null)
-  ) {
-    defaultValue = param.right.value
+    defaultValue = val
   } else {
     throw new WorkflowSyntaxError(
       'The default value must be a literal number, string, boolean, null, or undefined',

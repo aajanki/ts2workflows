@@ -1,9 +1,20 @@
-import { VariableName, LiteralValueOrLiteralExpression } from './expressions.js'
+import {
+  BooleanExpression,
+  NullExpression,
+  NumberExpression,
+  StringExpression,
+  VariableName,
+  expressionToLiteralValueOrLiteralExpression,
+} from './expressions.js'
 import { NamedWorkflowStep, renderStep } from './steps.js'
 
 export interface WorkflowParameter {
   name: VariableName
-  default?: LiteralValueOrLiteralExpression
+  default?:
+    | StringExpression
+    | NumberExpression
+    | BooleanExpression
+    | NullExpression
 }
 
 /**
@@ -49,7 +60,9 @@ export class Subworkflow {
       Object.assign(body, {
         params: this.params.map((x) => {
           if (x.default !== undefined) {
-            return { [x.name]: x.default }
+            return {
+              [x.name]: expressionToLiteralValueOrLiteralExpression(x.default),
+            }
           } else {
             return x.name
           }
