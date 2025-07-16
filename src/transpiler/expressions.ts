@@ -1,16 +1,17 @@
-import * as R from 'ramda'
 import { TSESTree, AST_NODE_TYPES } from '@typescript-eslint/typescript-estree'
 import {
   BinaryExpression,
   BinaryOperator,
+  BooleanExpression,
   Expression,
   FunctionInvocationExpression,
+  ListExpression,
+  MapExpression,
   MemberExpression,
-  Primitive,
-  PrimitiveExpression,
+  NumberExpression,
+  StringExpression,
   UnaryExpression,
   VariableReferenceExpression,
-  asExpression,
   isFullyQualifiedName,
   nullEx,
 } from '../ast/expressions.js'
@@ -19,20 +20,25 @@ import { InternalTranspilingError, WorkflowSyntaxError } from '../errors.js'
 export function convertExpression(instance: TSESTree.Expression): Expression {
   switch (instance.type) {
     case AST_NODE_TYPES.ArrayExpression:
-      return asExpression(convertArrayExpression(instance))
+      return convertArrayExpression(instance)
 
     case AST_NODE_TYPES.ObjectExpression:
-      return asExpression(convertObjectExpression(instance))
+      return convertObjectExpression(instance)
 
     case AST_NODE_TYPES.Literal:
       if (instance.value instanceof RegExp) {
         throw new WorkflowSyntaxError('RegExp is not supported', instance.loc)
-      }
-      if (typeof instance.value === 'bigint') {
+      } else if (typeof instance.value === 'bigint') {
         throw new WorkflowSyntaxError('BigInt is not supported', instance.loc)
+      } else if (typeof instance.value === 'string') {
+        return new StringExpression(instance.value)
+      } else if (typeof instance.value === 'number') {
+        return new NumberExpression(instance.value)
+      } else if (typeof instance.value === 'boolean') {
+        return new BooleanExpression(instance.value)
+      } else {
+        return nullEx
       }
-
-      return new PrimitiveExpression(instance.value)
 
     case AST_NODE_TYPES.TemplateLiteral:
       return convertTemplateLiteralToExpression(instance)
@@ -83,64 +89,51 @@ export function convertExpression(instance: TSESTree.Expression): Expression {
   }
 }
 
-function convertExpressionOrPrimitive(
-  instance: TSESTree.Expression,
-): Primitive | Expression {
-  const ex = convertExpression(instance)
-
-  if (ex.expressionType === 'primitive') {
-    return ex.value
-  } else {
-    return ex
-  }
-}
-
 export function convertObjectExpression(
   node: TSESTree.ObjectExpression,
-): Record<string, Primitive | Expression> {
-  return Object.fromEntries(
-    throwIfSpread(node.properties).map(({ key, value }) => {
-      let keyPrimitive: string
-      if (key.type === AST_NODE_TYPES.Identifier) {
-        keyPrimitive = key.name
-      } else if (key.type === AST_NODE_TYPES.Literal) {
-        if (typeof key.value === 'string') {
-          keyPrimitive = key.value
+): MapExpression {
+  return new MapExpression(
+    Object.fromEntries(
+      throwIfSpread(node.properties).map(({ key, value }) => {
+        let keyPrimitive: string
+        if (key.type === AST_NODE_TYPES.Identifier) {
+          keyPrimitive = key.name
+        } else if (key.type === AST_NODE_TYPES.Literal) {
+          if (typeof key.value === 'string') {
+            keyPrimitive = key.value
+          } else {
+            throw new WorkflowSyntaxError(
+              `Map keys must be identifiers or strings, encountered: ${typeof key.value}`,
+              key.loc,
+            )
+          }
         } else {
           throw new WorkflowSyntaxError(
-            `Map keys must be identifiers or strings, encountered: ${typeof key.value}`,
+            `Not implemented object key type: ${key.type}`,
             key.loc,
           )
         }
-      } else {
-        throw new WorkflowSyntaxError(
-          `Not implemented object key type: ${key.type}`,
-          key.loc,
-        )
-      }
 
-      if (
-        value.type === AST_NODE_TYPES.AssignmentPattern ||
-        value.type === AST_NODE_TYPES.TSEmptyBodyFunctionExpression
-      ) {
-        throw new WorkflowSyntaxError('Value not supported', value.loc)
-      }
+        if (
+          value.type === AST_NODE_TYPES.AssignmentPattern ||
+          value.type === AST_NODE_TYPES.TSEmptyBodyFunctionExpression
+        ) {
+          throw new WorkflowSyntaxError('Value not supported', value.loc)
+        }
 
-      return [keyPrimitive, convertExpressionOrPrimitive(value)]
-    }),
+        return [keyPrimitive, convertExpression(value)]
+      }),
+    ),
   )
 }
 
-export function convertObjectAsExpressionValues(
-  node: TSESTree.ObjectExpression,
-): Record<string, Expression> {
-  // Convert Primitive values to PrimitiveExpressions
-  return R.map(asExpression, convertObjectExpression(node))
-}
-
-function convertArrayExpression(instance: TSESTree.ArrayExpression) {
-  return throwIfSpread(instance.elements).map((e) =>
-    e === null ? nullEx : convertExpressionOrPrimitive(e),
+function convertArrayExpression(
+  instance: TSESTree.ArrayExpression,
+): ListExpression {
+  return new ListExpression(
+    throwIfSpread(instance.elements).map((e) =>
+      e === null ? nullEx : convertExpression(e),
+    ),
   )
 }
 
@@ -273,11 +266,11 @@ function convertTypeOfExpression(value: Expression): Expression {
   return new FunctionInvocationExpression('text.replace_all_regex', [
     new FunctionInvocationExpression('text.replace_all_regex', [
       new FunctionInvocationExpression('get_type', [value]),
-      new PrimitiveExpression('^(bytes|list|map|null)$'),
-      new PrimitiveExpression('object'),
+      new StringExpression('^(bytes|list|map|null)$'),
+      new StringExpression('object'),
     ]),
-    new PrimitiveExpression('^(double|integer)$'),
-    new PrimitiveExpression('number'),
+    new StringExpression('^(double|integer)$'),
+    new StringExpression('number'),
   ])
 }
 
@@ -357,7 +350,7 @@ function optionalChainToMapGetArguments(
     if (opt.computed) {
       return propertyExp
     } else if (isFullyQualifiedName(propertyExp)) {
-      return new PrimitiveExpression(propertyExp.toString())
+      return new StringExpression(propertyExp.toString())
     } else {
       throw new WorkflowSyntaxError(
         'Unexpected property in an optional chain',
@@ -368,7 +361,7 @@ function optionalChainToMapGetArguments(
 
   const args = [base]
   if (optionals.length > 1) {
-    args.push(new PrimitiveExpression(optionals))
+    args.push(new ListExpression(optionals))
   } else if (optionals.length === 1) {
     args.push(optionals[0])
   }
@@ -442,7 +435,7 @@ export function isIntrinsic(calleeName: string): boolean {
   return intrinsics.includes(calleeName)
 }
 
-export function isIntrinsicStatment(calleeName: string): boolean {
+export function isIntrinsicStatement(calleeName: string): boolean {
   const statementNames = ['parallel', 'retry_policy']
   return statementNames.includes(calleeName)
 }
@@ -462,14 +455,14 @@ function convertTemplateLiteralToExpression(
 ): Expression {
   const stringTerms = node.quasis
     .map((x) => x.value.cooked)
-    .map((x) => new PrimitiveExpression(x))
+    .map((x) => new StringExpression(x))
   const templateTerms = node.expressions
     .map(convertExpression)
     .map(
       (ex) =>
         new FunctionInvocationExpression('default', [
           ex,
-          new PrimitiveExpression('null'),
+          new StringExpression('null'),
         ]),
     )
 
@@ -489,7 +482,7 @@ function convertTemplateLiteralToExpression(
   }
 
   if (interleavedTerms.length === 0) {
-    return new PrimitiveExpression('')
+    return new StringExpression('')
   } else {
     return interleavedTerms.reduce(
       (previous, current) => new BinaryExpression(previous, '+', current),

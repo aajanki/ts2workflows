@@ -16,7 +16,10 @@ import {
   renderStep,
 } from '../src/ast/steps.js'
 import {
-  PrimitiveExpression,
+  ListExpression,
+  NumberExpression,
+  StringExpression,
+  trueEx,
   VariableReferenceExpression,
 } from '../src/ast/expressions.js'
 
@@ -25,7 +28,7 @@ describe('workflow step AST', () => {
     const step = new AssignStepAST([
       {
         name: new VariableReferenceExpression('city'),
-        value: new PrimitiveExpression('New New York'),
+        value: new StringExpression('New New York'),
       },
       {
         name: new VariableReferenceExpression('value'),
@@ -46,23 +49,29 @@ describe('workflow step AST', () => {
     const step = new AssignStepAST([
       {
         name: new VariableReferenceExpression('my_list'),
-        value: new PrimitiveExpression([0, 1, 2, 3, 4]),
+        value: new ListExpression([
+          new NumberExpression(0),
+          new NumberExpression(1),
+          new NumberExpression(2),
+          new NumberExpression(3),
+          new NumberExpression(4),
+        ]),
       },
       {
         name: new VariableReferenceExpression('idx'),
-        value: new PrimitiveExpression(0),
+        value: new NumberExpression(0),
       },
       {
         name: new VariableReferenceExpression('my_list[0]'),
-        value: new PrimitiveExpression('Value0'),
+        value: new StringExpression('Value0'),
       },
       {
         name: new VariableReferenceExpression('my_list[idx + 1]'),
-        value: new PrimitiveExpression('Value1'),
+        value: new StringExpression('Value1'),
       },
       {
         name: new VariableReferenceExpression('my_list[len(my_list) - 1]'),
-        value: new PrimitiveExpression('LastValue'),
+        value: new StringExpression('LastValue'),
       },
     ])
 
@@ -90,8 +99,8 @@ describe('workflow step AST', () => {
     const step = new CallStepAST(
       'deliver_package',
       {
-        destination: new PrimitiveExpression('Atlanta'),
-        deliveryCompany: new PrimitiveExpression('Planet Express'),
+        destination: new StringExpression('Atlanta'),
+        deliveryCompany: new StringExpression('Planet Express'),
       },
       'deliveryResult',
     )
@@ -176,7 +185,7 @@ describe('workflow step AST', () => {
       new CallStepAST(
         'http.get',
         {
-          url: new PrimitiveExpression('https://maybe.failing.test/'),
+          url: new StringExpression('https://maybe.failing.test/'),
         },
         'response',
       ),
@@ -189,7 +198,7 @@ describe('workflow step AST', () => {
           steps: [
             namedStep(
               'return_error',
-              new ReturnStepAST(new PrimitiveExpression('Not found')),
+              new ReturnStepAST(new StringExpression('Not found')),
             ),
           ],
         },
@@ -236,7 +245,7 @@ describe('workflow step AST', () => {
       new CallStepAST(
         'http.get',
         {
-          url: new PrimitiveExpression('https://maybe.failing.test/'),
+          url: new StringExpression('https://maybe.failing.test/'),
         },
         'response',
       ),
@@ -249,7 +258,7 @@ describe('workflow step AST', () => {
           steps: [
             namedStep(
               'return_error',
-              new ReturnStepAST(new PrimitiveExpression('Not found')),
+              new ReturnStepAST(new StringExpression('Not found')),
             ),
           ],
         },
@@ -297,7 +306,7 @@ describe('workflow step AST', () => {
       new CallStepAST(
         'http.get',
         {
-          url: new PrimitiveExpression('https://maybe.failing.test/'),
+          url: new StringExpression('https://maybe.failing.test/'),
         },
         'response',
       ),
@@ -310,7 +319,7 @@ describe('workflow step AST', () => {
           steps: [
             namedStep(
               'return_error',
-              new ReturnStepAST(new PrimitiveExpression('Not found')),
+              new ReturnStepAST(new StringExpression('Not found')),
             ),
           ],
         },
@@ -325,10 +334,10 @@ describe('workflow step AST', () => {
       [knownErrors, unknownErrors],
       {
         predicate: 'http.default_retry',
-        maxRetries: new PrimitiveExpression(10),
+        maxRetries: new NumberExpression(10),
         backoff: {
-          initialDelay: new PrimitiveExpression(0.5),
-          maxDelay: new PrimitiveExpression(60),
+          initialDelay: new NumberExpression(0.5),
+          maxDelay: new NumberExpression(60),
           multiplier: new VariableReferenceExpression('multiplier'),
         },
       },
@@ -369,12 +378,7 @@ describe('workflow step AST', () => {
   it('renders a try step with a subworkflow as a retry predicate', () => {
     const predicateSubworkflow = new Subworkflow(
       'my_retry_predicate',
-      [
-        namedStep(
-          'always_retry',
-          new ReturnStepAST(new PrimitiveExpression(true)),
-        ),
-      ],
+      [namedStep('always_retry', new ReturnStepAST(trueEx))],
       [{ name: 'e' }],
     )
 
@@ -383,7 +387,7 @@ describe('workflow step AST', () => {
       new CallStepAST(
         'http.get',
         {
-          url: new PrimitiveExpression('https://maybe.failing.test/'),
+          url: new StringExpression('https://maybe.failing.test/'),
         },
         'response',
       ),
@@ -396,7 +400,7 @@ describe('workflow step AST', () => {
           steps: [
             namedStep(
               'return_error',
-              new ReturnStepAST(new PrimitiveExpression('Not found')),
+              new ReturnStepAST(new StringExpression('Not found')),
             ),
           ],
         },
@@ -411,11 +415,11 @@ describe('workflow step AST', () => {
       [knownErrors, unknownErrors],
       {
         predicate: predicateSubworkflow.name,
-        maxRetries: new PrimitiveExpression(3),
+        maxRetries: new NumberExpression(3),
         backoff: {
-          initialDelay: new PrimitiveExpression(2),
-          maxDelay: new PrimitiveExpression(60),
-          multiplier: new PrimitiveExpression(4),
+          initialDelay: new NumberExpression(2),
+          maxDelay: new NumberExpression(60),
+          multiplier: new NumberExpression(4),
         },
       },
       'e',
@@ -466,7 +470,11 @@ describe('workflow step AST', () => {
         ),
       ],
       'v',
-      new PrimitiveExpression([1, 2, 3]),
+      new ListExpression([
+        new NumberExpression(1),
+        new NumberExpression(2),
+        new NumberExpression(3),
+      ]),
     )
 
     const expected = `
@@ -496,7 +504,11 @@ describe('workflow step AST', () => {
         ),
       ],
       'v',
-      new PrimitiveExpression([10, 20, 30]),
+      new ListExpression([
+        new NumberExpression(10),
+        new NumberExpression(20),
+        new NumberExpression(30),
+      ]),
       'i',
     )
 
@@ -588,7 +600,7 @@ describe('workflow step AST', () => {
           namedStep(
             'say_hello_1',
             new CallStepAST('sys.log', {
-              text: new PrimitiveExpression('Hello from branch 1'),
+              text: new StringExpression('Hello from branch 1'),
             }),
           ),
         ],
@@ -599,7 +611,7 @@ describe('workflow step AST', () => {
           namedStep(
             'say_hello_2',
             new CallStepAST('sys.log', {
-              text: new PrimitiveExpression('Hello from branch 2'),
+              text: new StringExpression('Hello from branch 2'),
             }),
           ),
         ],
@@ -637,7 +649,7 @@ describe('workflow step AST', () => {
               new AssignStepAST([
                 {
                   name: new VariableReferenceExpression('myVariable[0]'),
-                  value: new PrimitiveExpression('Set in branch 1'),
+                  value: new StringExpression('Set in branch 1'),
                 },
               ]),
             ),
@@ -651,7 +663,7 @@ describe('workflow step AST', () => {
               new AssignStepAST([
                 {
                   name: new VariableReferenceExpression('myVariable[1]'),
-                  value: new PrimitiveExpression('Set in branch 2'),
+                  value: new StringExpression('Set in branch 2'),
                 },
               ]),
             ),
@@ -707,7 +719,12 @@ describe('workflow step AST', () => {
           ),
         ],
         'userId',
-        new PrimitiveExpression(['11', '12', '13', '14']),
+        new ListExpression([
+          new StringExpression('11'),
+          new StringExpression('12'),
+          new StringExpression('13'),
+          new StringExpression('14'),
+        ]),
       ),
       ['total'],
     )
@@ -757,7 +774,12 @@ describe('workflow step AST', () => {
           ),
         ],
         'userId',
-        new PrimitiveExpression(['11', '12', '13', '14']),
+        new ListExpression([
+          new StringExpression('11'),
+          new StringExpression('12'),
+          new StringExpression('13'),
+          new StringExpression('14'),
+        ]),
       ),
       ['total'],
       2,

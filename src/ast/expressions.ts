@@ -1,5 +1,4 @@
 import * as R from 'ramda'
-import { isRecord } from '../utils.js'
 
 export type VariableName = string
 export type BinaryOperator =
@@ -45,14 +44,6 @@ const operatorPrecedenceValue: Map<string, number> = new Map<string, number>([
   ['or', 1],
 ])
 
-export type Primitive =
-  | null
-  | string
-  | number
-  | boolean
-  | (Primitive | Expression)[]
-  | { [key: string]: Primitive | Expression }
-
 export type LiteralValueOrLiteralExpression =
   | null
   | string
@@ -62,7 +53,12 @@ export type LiteralValueOrLiteralExpression =
   | { [key: string]: LiteralValueOrLiteralExpression }
 
 export type Expression =
-  | PrimitiveExpression
+  | NullExpression
+  | StringExpression
+  | NumberExpression
+  | BooleanExpression
+  | ListExpression
+  | MapExpression
   | BinaryExpression
   | VariableReferenceExpression
   | FunctionInvocationExpression
@@ -70,24 +66,74 @@ export type Expression =
   | UnaryExpression
 
 // A primitive (string, number, list, etc) value
-export class PrimitiveExpression {
-  readonly expressionType = 'primitive'
-  readonly value: Primitive
+export class NullExpression {
+  readonly expressionType = 'null'
+  readonly value = null
 
-  constructor(value: Primitive) {
-    this.value = value
-  }
-
-  // Return the string representation of this expression.
-  // Not enclosed in ${}.
   toString(): string {
-    return primitiveToString(this.value)
+    return 'null'
   }
 }
 
-export const nullEx = new PrimitiveExpression(null)
-export const trueEx = new PrimitiveExpression(true)
-export const falseEx = new PrimitiveExpression(false)
+export class StringExpression {
+  readonly expressionType = 'string'
+
+  constructor(readonly value: string) {}
+
+  toString(): string {
+    return JSON.stringify(this.value)
+  }
+}
+
+export class NumberExpression {
+  readonly expressionType = 'number'
+
+  constructor(readonly value: number) {}
+
+  toString(): string {
+    return this.value.toString()
+  }
+}
+
+export class BooleanExpression {
+  readonly expressionType = 'boolean'
+
+  constructor(readonly value: boolean) {}
+
+  toString(): string {
+    return this.value ? 'true' : 'false'
+  }
+}
+
+export class ListExpression {
+  readonly expressionType = 'list'
+
+  constructor(readonly value: Expression[]) {}
+
+  toString(): string {
+    return '[' + this.value.map((x) => x.toString()).join(', ') + ']'
+  }
+}
+
+export class MapExpression {
+  readonly expressionType = 'map'
+
+  constructor(readonly value: Record<string, Expression>) {}
+
+  toString(): string {
+    return (
+      '{' +
+      Object.entries(this.value)
+        .map(([key, val]) => JSON.stringify(key) + ': ' + val.toString())
+        .join(', ') +
+      '}'
+    )
+  }
+}
+
+export const nullEx = new NullExpression()
+export const trueEx = new BooleanExpression(true)
+export const falseEx = new BooleanExpression(false)
 
 // expr OPERATOR expr
 export class BinaryExpression {
@@ -206,50 +252,22 @@ export class UnaryExpression {
   }
 }
 
-// Convert an Expression or Primitive to a string representation.
-// Does not add ${}.
-const expressionOrPrimitiveToString: (x: Expression | Primitive) => string =
-  R.ifElse(isExpression, (x) => x.toString(), primitiveToString)
-
-// Convert a Primitive to a string representation.
-// Does not add ${}.
-function primitiveToString(val: Primitive): string {
-  const valuesToString = R.map(expressionOrPrimitiveToString)
-
-  if (Array.isArray(val)) {
-    return `[${valuesToString(val).join(', ')}]`
-  } else if (val !== null && typeof val === 'object') {
-    const elements = Object.entries(valuesToString(val)).map(
-      ([k, v]) => `"${k}": ${v}`,
-    )
-
-    return `{${elements.join(',')}}`
-  } else {
-    return JSON.stringify(val)
-  }
-}
-
-export function isExpression(val: Primitive | Expression): val is Expression {
-  return val instanceof Object && 'expressionType' in val && !isRecord(val)
-}
-
-export function asExpression(x: Primitive | Expression): Expression {
-  return isExpression(x) ? x : new PrimitiveExpression(x)
-}
-
-export function safeAsExpression(
-  x: Primitive | Expression | undefined,
-): Expression | undefined {
-  return x === undefined ? undefined : asExpression(x)
-}
-
 // Returns a literal for simple terms and a literal expression enclosed in ${} for complex terms.
 export function expressionToLiteralValueOrLiteralExpression(
   ex: Expression,
 ): LiteralValueOrLiteralExpression {
   switch (ex.expressionType) {
-    case 'primitive':
-      return primitiveExpressionToLiteralValueOrLiteralExpression(ex)
+    case 'string':
+    case 'number':
+    case 'boolean':
+    case 'null':
+      return ex.value
+
+    case 'list':
+      return R.map(expressionToLiteralValueOrLiteralExpression, ex.value)
+
+    case 'map':
+      return R.map(expressionToLiteralValueOrLiteralExpression, ex.value)
 
     case 'binary':
     case 'variableReference':
@@ -258,10 +276,7 @@ export function expressionToLiteralValueOrLiteralExpression(
       return `\${${ex.toString()}}`
 
     case 'unary':
-      if (
-        ex.value.expressionType === 'primitive' &&
-        typeof ex.value.value === 'number'
-      ) {
+      if (ex.value.expressionType === 'number') {
         if (ex.operator === '+') {
           return ex.value.value
         } else if (ex.operator === '-') {
@@ -275,54 +290,22 @@ export function expressionToLiteralValueOrLiteralExpression(
   }
 }
 
-function primitiveExpressionToLiteralValueOrLiteralExpression(
-  ex: PrimitiveExpression,
-): LiteralValueOrLiteralExpression {
-  if (
-    typeof ex.value === 'number' ||
-    typeof ex.value === 'string' ||
-    typeof ex.value === 'boolean' ||
-    ex.value === null
-  ) {
-    return ex.value
-  } else if (Array.isArray(ex.value)) {
-    return ex.value.map((x) => {
-      if (isExpression(x)) {
-        return expressionToLiteralValueOrLiteralExpression(x)
-      } else if (Array.isArray(x) || isRecord(x)) {
-        return primitiveExpressionToLiteralValueOrLiteralExpression(
-          new PrimitiveExpression(x),
-        )
-      } else {
-        return x
-      }
-    })
-  } else if (isRecord(ex.value)) {
-    const mapRecord = R.map((v: Primitive | Expression) => {
-      if (isExpression(v)) {
-        return expressionToLiteralValueOrLiteralExpression(v)
-      } else if (Array.isArray(v) || isRecord(v)) {
-        return primitiveExpressionToLiteralValueOrLiteralExpression(
-          new PrimitiveExpression(v),
-        )
-      } else {
-        return v
-      }
-    })
-
-    return mapRecord(ex.value)
-  } else {
-    return `\${${ex.toString()}}`
-  }
-}
-
 // Returns true if expression is a literal value.
 // Examples of literals: number, string, array of numbers or strings, etc.
 // Examples of non-literals: array that contains complex expressions.
 export function isLiteral(ex: Expression): boolean {
   switch (ex.expressionType) {
-    case 'primitive':
-      return primitiveIsLiteral(ex.value)
+    case 'string':
+    case 'number':
+    case 'boolean':
+    case 'null':
+      return true
+
+    case 'list':
+      return ex.value.every(isLiteral)
+
+    case 'map':
+      return Object.values(ex.value).every(isLiteral)
 
     case 'unary':
       return isLiteral(ex.value)
@@ -335,27 +318,14 @@ export function isLiteral(ex: Expression): boolean {
   }
 }
 
-const expressionOrPrimitiveIsLiteral: (x: Primitive | Expression) => boolean =
-  R.ifElse(isExpression, isLiteral, primitiveIsLiteral)
-
-function primitiveIsLiteral(value: Primitive): boolean {
-  if (Array.isArray(value)) {
-    return value.every(expressionOrPrimitiveIsLiteral)
-  } else if (isRecord(value)) {
-    return Object.values(value).every(expressionOrPrimitiveIsLiteral)
-  } else {
-    return (
-      typeof value === 'string' ||
-      typeof value === 'number' ||
-      typeof value === 'boolean' ||
-      value === null
-    )
-  }
-}
-
 export function isFullyQualifiedName(ex: Expression): boolean {
   switch (ex.expressionType) {
-    case 'primitive':
+    case 'string':
+    case 'number':
+    case 'boolean':
+    case 'null':
+    case 'list':
+    case 'map':
     case 'binary':
     case 'functionInvocation':
     case 'unary':
@@ -368,7 +338,10 @@ export function isFullyQualifiedName(ex: Expression): boolean {
       return (
         isFullyQualifiedName(ex.object) &&
         (isFullyQualifiedName(ex.property) ||
-          (ex.computed && ex.property.expressionType === 'primitive'))
+          (ex.computed &&
+            ['null', 'string', 'number', 'boolean'].includes(
+              ex.property.expressionType,
+            )))
       )
   }
 }
@@ -378,8 +351,17 @@ export function isFullyQualifiedName(ex: Expression): boolean {
  */
 export function isPure(ex: Expression): boolean {
   switch (ex.expressionType) {
-    case 'primitive':
+    case 'string':
+    case 'number':
+    case 'boolean':
+    case 'null':
       return true
+
+    case 'list':
+      return ex.value.every(isPure)
+
+    case 'map':
+      return Object.values(ex.value).every(isPure)
 
     case 'binary':
       return isPure(ex.left) && isPure(ex.right)

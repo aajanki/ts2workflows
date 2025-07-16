@@ -1,5 +1,5 @@
 import { expect } from 'chai'
-import { transpile } from '../src/transpiler/index.js'
+import { transpileText } from '../src/transpiler/index.js'
 import { assertTranspiled } from './testutils.js'
 
 describe('Loops', () => {
@@ -1018,7 +1018,7 @@ describe('Loops', () => {
       }
     }`
 
-    expect(() => transpile(code)).to.throw()
+    expect(() => transpileText(code)).to.throw()
   })
 
   it('fails to parse for...of a string', () => {
@@ -1028,7 +1028,7 @@ describe('Loops', () => {
       }
     }`
 
-    expect(() => transpile(code)).to.throw()
+    expect(() => transpileText(code)).to.throw()
   })
 
   it('fails to parse for...of a map', () => {
@@ -1038,7 +1038,7 @@ describe('Loops', () => {
       }
     }`
 
-    expect(() => transpile(code)).to.throw()
+    expect(() => transpileText(code)).to.throw()
   })
 
   it('does not support for...in', () => {
@@ -1048,6 +1048,6 @@ describe('Loops', () => {
       }
     }`
 
-    expect(() => transpile(code)).to.throw()
+    expect(() => transpileText(code)).to.throw()
   })
 })

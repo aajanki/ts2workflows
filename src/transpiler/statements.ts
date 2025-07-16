@@ -26,30 +26,26 @@ import {
   BinaryOperator,
   Expression,
   FunctionInvocationExpression,
+  ListExpression,
   MemberExpression,
-  Primitive,
-  PrimitiveExpression,
+  NumberExpression,
+  StringExpression,
   VariableName,
   VariableReferenceExpression,
-  asExpression,
-  isExpression,
   isFullyQualifiedName,
   isLiteral,
   isPure,
   nullEx,
-  safeAsExpression,
   trueEx,
 } from '../ast/expressions.js'
 import { InternalTranspilingError, WorkflowSyntaxError } from '../errors.js'
-import { isRecord } from '../utils.js'
 import {
   convertExpression,
   convertMemberExpression,
   convertObjectExpression,
-  convertObjectAsExpressionValues,
   isIntrinsic,
   throwIfSpread,
-  isIntrinsicStatment as isIntrinsicStatement,
+  isIntrinsicStatement,
   convertVariableNameExpression,
 } from './expressions.js'
 import { blockingFunctions } from './generated/functionMetadata.js'
@@ -144,9 +140,8 @@ export function parseStatement(
       return []
 
     default:
-      throw new WorkflowSyntaxError(
-        `TODO: encountered unsupported type: ${node.type}`,
-        node.loc,
+      throw new InternalTranspilingError(
+        `TODO: encountered unsupported type: ${node.type} on line ${node.loc.start.line}, column ${node.loc.start.column}`,
       )
   }
 }
@@ -260,7 +255,7 @@ function arrayDestructuringSteps(
           condition: new BinaryExpression(
             __temp_len,
             '>=',
-            new PrimitiveExpression(patterns.length - i),
+            new NumberExpression(patterns.length - i),
           ),
           steps: arrayElementsDestructuringSteps(
             patterns,
@@ -303,7 +298,7 @@ function arrayElementsDestructuringSteps(
 
     const iElement = new MemberExpression(
       initializerExpression,
-      new PrimitiveExpression(i),
+      new NumberExpression(i),
       true,
     )
 
@@ -412,7 +407,7 @@ function extractDefaultAssignmentsFromDestructuringPattern(
       return [
         {
           name: new VariableReferenceExpression(pat.argument.name),
-          value: new PrimitiveExpression([]),
+          value: new ListExpression([]),
         },
       ]
 
@@ -450,8 +445,8 @@ function arrayRestDestructuringSteps(
   const restName = new VariableReferenceExpression(rest.argument.name)
   const __temp_len = new VariableReferenceExpression(`${tempName(ctx)}_len`)
   const __temp_index = `${tempName(ctx)}_index`
-  const one = new PrimitiveExpression(1)
-  const emptyArray = new PrimitiveExpression([])
+  const one = new NumberExpression(1)
+  const emptyArray = new ListExpression([])
   const copyLoop = new ForRangeStepAST(
     [
       new AssignStepAST([
@@ -535,7 +530,7 @@ function objectDestructuringSteps(
     } else if (prop.value.type === AST_NODE_TYPES.Identifier) {
       const safeKeyExpression = new FunctionInvocationExpression('map.get', [
         initializerExpression,
-        new PrimitiveExpression(prop.key.name),
+        new StringExpression(prop.key.name),
       ])
 
       return [
@@ -580,7 +575,7 @@ function objectAssignmentPatternSteps(
     new SwitchStepAST([
       {
         condition: new BinaryExpression(
-          new PrimitiveExpression(pat.left.name),
+          new StringExpression(pat.left.name),
           'in',
           initializerExpression,
         ),
@@ -627,7 +622,7 @@ function objectDestructuringRestSteps(
       // map.delete returns a copy of the object and removes the specified property
       new FunctionInvocationExpression('map.delete', [
         acc,
-        new PrimitiveExpression(propertyName),
+        new StringExpression(propertyName),
       ]),
     initializerExpression,
   )
@@ -981,7 +976,7 @@ function createCallStep(
       )
     }
 
-    args = convertObjectAsExpressionValues(argumentsNode[1])
+    args = convertObjectExpression(argumentsNode[1]).value
   }
 
   return new CallStepAST(functionName, args, resultVariable)
@@ -1134,16 +1129,17 @@ function parseParallelOptions(node: TSESTree.CallExpressionArgument) {
   }
 
   const parallelOptions = convertObjectExpression(node)
-  const sharedExpression = parallelOptions.shared
-  if (!Array.isArray(sharedExpression)) {
+  const opts = parallelOptions.value as Record<string, Expression | undefined>
+  const sharedExpression = opts.shared
+  if (sharedExpression && sharedExpression.expressionType !== 'list') {
     throw new WorkflowSyntaxError(
-      '"shared" must be an array or strings',
+      '"shared" must be an array of strings',
       node.loc,
     )
   }
 
-  const shared = sharedExpression.map((x) => {
-    if (isExpression(x) || typeof x !== 'string') {
+  const shared = sharedExpression?.value.map((x) => {
+    if (x.expressionType !== 'string') {
       throw new WorkflowSyntaxError(
         '"shared" must be an array of strings',
         node.loc,
@@ -1153,10 +1149,10 @@ function parseParallelOptions(node: TSESTree.CallExpressionArgument) {
     return x
   })
 
-  const concurrencyLimitExpression = parallelOptions.concurrency_limit
+  const concurrencyLimitExpression = opts.concurrency_limit
   if (
-    typeof concurrencyLimitExpression !== 'number' &&
-    typeof concurrencyLimitExpression !== 'undefined'
+    concurrencyLimitExpression &&
+    concurrencyLimitExpression.expressionType !== 'number'
   ) {
     throw new WorkflowSyntaxError(
       '"concurrency_limit" must be a number',
@@ -1164,12 +1160,10 @@ function parseParallelOptions(node: TSESTree.CallExpressionArgument) {
     )
   }
 
-  const concurrencyLimit = concurrencyLimitExpression
-
-  const exceptionPolicyExpression = parallelOptions.exception_policy
+  const exceptionPolicyExpression = opts.exception_policy
   if (
-    typeof exceptionPolicyExpression !== 'string' &&
-    typeof exceptionPolicyExpression !== 'undefined'
+    exceptionPolicyExpression &&
+    exceptionPolicyExpression.expressionType !== 'string'
   ) {
     throw new WorkflowSyntaxError(
       '"exception_policy" must be a string',
@@ -1177,12 +1171,10 @@ function parseParallelOptions(node: TSESTree.CallExpressionArgument) {
     )
   }
 
-  const exceptionPolicy = exceptionPolicyExpression
-
   return {
-    shared,
-    concurrencyLimit,
-    exceptionPolicy,
+    shared: shared?.map((x) => x.value),
+    concurrencyLimit: concurrencyLimitExpression?.value,
+    exceptionPolicy: exceptionPolicyExpression?.value,
   }
 }
 
@@ -1337,15 +1329,7 @@ function forOfStatementToForStep(
 
   const listExpression = convertExpression(node.right)
 
-  if (
-    isLiteral(listExpression) &&
-    listExpression.expressionType === 'primitive' &&
-    (isRecord(listExpression.value) ||
-      typeof listExpression.value === 'number' ||
-      typeof listExpression.value === 'string' ||
-      typeof listExpression.value === 'boolean' ||
-      listExpression.value === null)
-  ) {
+  if (isLiteral(listExpression) && listExpression.expressionType !== 'list') {
     throw new WorkflowSyntaxError('Must be a list expression', node.right.loc)
   }
 
@@ -1594,8 +1578,8 @@ function finalizerInitializer(
 function finalizerFooter(conditionVariable: string, valueVariable: string) {
   const variable = new VariableReferenceExpression(conditionVariable)
   const val = new VariableReferenceExpression(valueVariable)
-  const returnString = new PrimitiveExpression('return')
-  const raiseString = new PrimitiveExpression('raise')
+  const returnString = new StringExpression('return')
+  const raiseString = new StringExpression('raise')
 
   return new SwitchStepAST([
     {
@@ -1618,7 +1602,7 @@ function finalizerDelayedException(
     new AssignStepAST([
       {
         name: new VariableReferenceExpression(conditionVariableName),
-        value: new PrimitiveExpression('raise'),
+        value: new StringExpression('raise'),
       },
       {
         name: new VariableReferenceExpression(valueVariableName),
@@ -1642,7 +1626,7 @@ function delayedReturnAndJumpToFinalizer(
     [
       {
         name: new VariableReferenceExpression(conditionVariable),
-        value: new PrimitiveExpression('return'),
+        value: new StringExpression('return'),
       },
       {
         name: new VariableReferenceExpression(valueVariable),
@@ -1690,7 +1674,7 @@ function extractRetryPolicy(
 
       if (isFullyQualifiedName(arg0)) {
         return arg0.toString()
-      } else if (arg0.expressionType === 'primitive' && isRecord(arg0.value)) {
+      } else if (arg0.expressionType === 'map') {
         return retryPolicyFromParams(arg0.value, argsLoc)
       } else {
         throw new WorkflowSyntaxError('Unexpected type', argsLoc)
@@ -1702,20 +1686,15 @@ function extractRetryPolicy(
 }
 
 function retryPolicyFromParams(
-  paramsObject: Record<string, Primitive | Expression>,
+  params: Record<string, Expression>,
   argsLoc: TSESTree.SourceLocation,
 ): CustomRetryPolicy {
-  const params = R.map(asExpression, paramsObject)
-
   if (!('backoff' in params)) {
     throw new WorkflowSyntaxError(
       'Required parameter "backoff" missing',
       argsLoc,
     )
-  } else if (
-    params.backoff.expressionType !== 'primitive' ||
-    !isRecord(params.backoff.value)
-  ) {
+  } else if (params.backoff.expressionType !== 'map') {
     throw new WorkflowSyntaxError(
       'Expected "backoff" to be an object literal',
       argsLoc,
@@ -1728,9 +1707,9 @@ function retryPolicyFromParams(
     predicate: predicateFromRetryParams(params, argsLoc),
     maxRetries: params.max_retries,
     backoff: {
-      initialDelay: safeAsExpression(backoff.initial_delay),
-      maxDelay: safeAsExpression(backoff.max_delay),
-      multiplier: safeAsExpression(backoff.multiplier),
+      initialDelay: backoff.initial_delay,
+      maxDelay: backoff.max_delay,
+      multiplier: backoff.multiplier,
     },
   }
 }
