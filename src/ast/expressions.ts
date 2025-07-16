@@ -66,228 +66,207 @@ export type Expression =
   | UnaryExpression
 
 // A primitive (string, number, list, etc) value
-export class NullExpression {
-  readonly expressionType = 'null'
-  readonly value = null
-
-  toString(): string {
-    return 'null'
-  }
+interface ExpressionLiteral<V, Tag> {
+  readonly expressionType: Tag
+  readonly value: V
 }
 
-export class StringExpression {
-  readonly expressionType = 'string'
+export type NullExpression = ExpressionLiteral<null, 'null'>
+export type StringExpression = ExpressionLiteral<string, 'string'>
+export type NumberExpression = ExpressionLiteral<number, 'number'>
+export type BooleanExpression = ExpressionLiteral<boolean, 'boolean'>
+export type ListExpression = ExpressionLiteral<Expression[], 'list'>
+export type MapExpression = ExpressionLiteral<Record<string, Expression>, 'map'>
 
-  constructor(readonly value: string) {}
+export const nullEx: NullExpression = { expressionType: 'null', value: null }
 
-  toString(): string {
-    return JSON.stringify(this.value)
-  }
+export function stringEx(value: string): StringExpression {
+  return { expressionType: 'string', value }
 }
 
-export class NumberExpression {
-  readonly expressionType = 'number'
-
-  constructor(readonly value: number) {}
-
-  toString(): string {
-    return this.value.toString()
-  }
+export function numberEx(value: number): NumberExpression {
+  return { expressionType: 'number', value }
 }
 
-export class BooleanExpression {
-  readonly expressionType = 'boolean'
-
-  constructor(readonly value: boolean) {}
-
-  toString(): string {
-    return this.value ? 'true' : 'false'
-  }
+export function booleanEx(value: boolean): BooleanExpression {
+  return { expressionType: 'boolean', value }
 }
 
-export class ListExpression {
-  readonly expressionType = 'list'
+export const trueEx = booleanEx(true)
+export const falseEx = booleanEx(false)
 
-  constructor(readonly value: Expression[]) {}
-
-  toString(): string {
-    return '[' + this.value.map((x) => x.toString()).join(', ') + ']'
-  }
+export function listEx(value: Expression[]): ListExpression {
+  return { expressionType: 'list', value }
 }
 
-export class MapExpression {
-  readonly expressionType = 'map'
-
-  constructor(readonly value: Record<string, Expression>) {}
-
-  toString(): string {
-    return (
-      '{' +
-      Object.entries(this.value)
-        .map(([key, val]) => JSON.stringify(key) + ': ' + val.toString())
-        .join(', ') +
-      '}'
-    )
-  }
+export function mapEx(value: Record<string, Expression>): MapExpression {
+  return { expressionType: 'map', value }
 }
-
-export const nullEx = new NullExpression()
-export const trueEx = new BooleanExpression(true)
-export const falseEx = new BooleanExpression(false)
 
 // expr OPERATOR expr
-export class BinaryExpression {
-  readonly expressionType = 'binary'
+export interface BinaryExpression {
+  readonly expressionType: 'binary'
   readonly binaryOperator: BinaryOperator
   readonly left: Expression
   readonly right: Expression
+}
 
-  constructor(
-    left: Expression,
-    binaryOperator: BinaryOperator,
-    right: Expression,
-  ) {
-    this.binaryOperator = binaryOperator
-    this.left = left
-    this.right = right
-  }
-
-  toString(): string {
-    let leftString: string = this.left.toString()
-    let rightString: string = this.right.toString()
-
-    if (this.left.expressionType === 'binary') {
-      const leftOpValue =
-        operatorPrecedenceValue.get(this.left.binaryOperator) ?? 0
-      const thisOpValue = operatorPrecedenceValue.get(this.binaryOperator) ?? 0
-      if (leftOpValue < thisOpValue) {
-        leftString = `(${leftString})`
-      }
-    }
-
-    if (this.right.expressionType === 'binary') {
-      const rightOpValue =
-        operatorPrecedenceValue.get(this.right.binaryOperator) ?? 0
-      const thisOpValue = operatorPrecedenceValue.get(this.binaryOperator) ?? 0
-      if (rightOpValue < thisOpValue) {
-        rightString = `(${rightString})`
-      }
-    }
-
-    return `${leftString} ${this.binaryOperator} ${rightString}`
+export function binaryEx(
+  left: Expression,
+  binaryOperator: BinaryOperator,
+  right: Expression,
+): BinaryExpression {
+  return {
+    expressionType: 'binary',
+    binaryOperator,
+    left,
+    right,
   }
 }
 
 // Variable name: a plain identifier (y, year) or a list
 // element accessor (names[3])
-export class VariableReferenceExpression {
-  readonly expressionType = 'variableReference'
+export interface VariableReferenceExpression {
+  readonly expressionType: 'variableReference'
   readonly variableName: VariableName
+}
 
-  constructor(variableName: VariableName) {
-    this.variableName = variableName
-  }
-
-  toString(): string {
-    return this.variableName
-  }
+export function variableReferenceEx(
+  variableName: VariableName,
+): VariableReferenceExpression {
+  return { expressionType: 'variableReference', variableName }
 }
 
 // Function invocation with anonymous parameters: sys.get_env("GOOGLE_CLOUD_PROJECT_ID")
-export class FunctionInvocationExpression {
-  readonly expressionType = 'functionInvocation'
+export interface FunctionInvocationExpression {
+  readonly expressionType: 'functionInvocation'
   readonly functionName: string
   readonly arguments: Expression[]
+}
 
-  constructor(functionName: string, argumentExpressions: Expression[]) {
-    this.functionName = functionName
-    this.arguments = argumentExpressions
-  }
-
-  toString(): string {
-    const argumentStrings = this.arguments.map((x) => x.toString())
-    return `${this.functionName}(${argumentStrings.join(', ')})`
+export function functionInvocationEx(
+  functionName: string,
+  argumentExpressions: Expression[],
+): FunctionInvocationExpression {
+  return {
+    expressionType: 'functionInvocation',
+    functionName,
+    arguments: argumentExpressions,
   }
 }
 
 // object.property or object[property]
-export class MemberExpression {
-  readonly expressionType = 'member'
+export interface MemberExpression {
+  readonly expressionType: 'member'
   readonly object: Expression
   readonly property: Expression
   readonly computed: boolean
-
-  constructor(object: Expression, property: Expression, computed: boolean) {
-    this.object = object
-    this.property = property
-    this.computed = computed
-  }
-
-  toString(): string {
-    if (this.computed) {
-      return `${this.object.toString()}[${this.property.toString()}]`
-    } else {
-      return `${this.object.toString()}.${this.property.toString()}`
-    }
-  }
 }
 
-export class UnaryExpression {
-  readonly expressionType = 'unary'
+export function memberEx(
+  object: Expression,
+  property: Expression,
+  computed: boolean,
+): MemberExpression {
+  return { expressionType: 'member', object, property, computed }
+}
+
+// unary, e.g. -1, +42, not ok
+export interface UnaryExpression {
+  readonly expressionType: 'unary'
   readonly operator: UnaryOperator
   readonly value: Expression
+}
 
-  constructor(operator: UnaryOperator, value: Expression) {
-    this.operator = operator
-    this.value = value
-  }
+export function unaryEx(
+  operator: UnaryOperator,
+  value: Expression,
+): UnaryExpression {
+  return { expressionType: 'unary', operator, value }
+}
 
-  toString(): string {
-    const separator = this.operator === 'not' ? ' ' : ''
-    let valueString = this.value.toString()
-    if (this.value.expressionType === 'binary') {
-      valueString = `(${valueString})`
-    }
-    return `${this.operator}${separator}${valueString}`
+// Returns a string representation of ex, not enclosed in ${}
+export function expressionToString(ex: Expression): string {
+  switch (ex.expressionType) {
+    case 'string':
+      return JSON.stringify(ex.value)
+
+    case 'number':
+      return ex.value.toString()
+
+    case 'boolean':
+      return ex.value ? 'true' : 'false'
+
+    case 'null':
+      return 'null'
+
+    case 'list':
+      return '[' + ex.value.map(expressionToString).join(', ') + ']'
+
+    case 'map':
+      return (
+        '{' +
+        Object.entries(ex.value)
+          .map(
+            ([key, val]) =>
+              JSON.stringify(key) + ': ' + expressionToString(val),
+          )
+          .join(', ') +
+        '}'
+      )
+
+    case 'binary':
+      return binaryExpressionToString(ex)
+
+    case 'variableReference':
+      return ex.variableName
+
+    case 'functionInvocation':
+      return `${ex.functionName}(${ex.arguments.map(expressionToString).join(', ')})`
+
+    case 'member':
+      if (ex.computed) {
+        return `${expressionToString(ex.object)}[${expressionToString(ex.property)}]`
+      } else {
+        return `${expressionToString(ex.object)}.${expressionToString(ex.property)}`
+      }
+
+    case 'unary':
+      return unaryExpressionToString(ex)
   }
 }
 
-// Returns a literal for simple terms and a literal expression enclosed in ${} for complex terms.
-export function expressionToLiteralValueOrLiteralExpression(
-  ex: Expression,
-): LiteralValueOrLiteralExpression {
-  switch (ex.expressionType) {
-    case 'string':
-    case 'number':
-    case 'boolean':
-    case 'null':
-      return ex.value
+function binaryExpressionToString(ex: BinaryExpression): string {
+  let leftString = expressionToString(ex.left)
+  let rightString = expressionToString(ex.right)
 
-    case 'list':
-      return R.map(expressionToLiteralValueOrLiteralExpression, ex.value)
-
-    case 'map':
-      return R.map(expressionToLiteralValueOrLiteralExpression, ex.value)
-
-    case 'binary':
-    case 'variableReference':
-    case 'functionInvocation':
-    case 'member':
-      return `\${${ex.toString()}}`
-
-    case 'unary':
-      if (ex.value.expressionType === 'number') {
-        if (ex.operator === '+') {
-          return ex.value.value
-        } else if (ex.operator === '-') {
-          return -ex.value.value
-        } else {
-          return `\${${ex.toString()}}`
-        }
-      } else {
-        return `\${${ex.toString()}}`
-      }
+  if (ex.left.expressionType === 'binary') {
+    const leftOpValue = operatorPrecedenceValue.get(ex.left.binaryOperator) ?? 0
+    const thisOpValue = operatorPrecedenceValue.get(ex.binaryOperator) ?? 0
+    if (leftOpValue < thisOpValue) {
+      leftString = `(${leftString})`
+    }
   }
+
+  if (ex.right.expressionType === 'binary') {
+    const rightOpValue =
+      operatorPrecedenceValue.get(ex.right.binaryOperator) ?? 0
+    const thisOpValue = operatorPrecedenceValue.get(ex.binaryOperator) ?? 0
+    if (rightOpValue < thisOpValue) {
+      rightString = `(${rightString})`
+    }
+  }
+
+  return `${leftString} ${ex.binaryOperator} ${rightString}`
+}
+
+function unaryExpressionToString(ex: UnaryExpression): string {
+  const separator = ex.operator === 'not' ? ' ' : ''
+  let valueString = expressionToString(ex.value)
+  if (ex.value.expressionType === 'binary') {
+    valueString = `(${valueString})`
+  }
+  return `${ex.operator}${separator}${valueString}`
 }
 
 // Returns true if expression is a literal value.
@@ -315,6 +294,44 @@ export function isLiteral(ex: Expression): boolean {
     case 'functionInvocation':
     case 'member':
       return false
+  }
+}
+
+// Returns a literal for simple terms and a literal expression enclosed in ${} for complex terms.
+export function expressionToLiteralValueOrLiteralExpression(
+  ex: Expression,
+): LiteralValueOrLiteralExpression {
+  switch (ex.expressionType) {
+    case 'string':
+    case 'number':
+    case 'boolean':
+    case 'null':
+      return ex.value
+
+    case 'list':
+      return R.map(expressionToLiteralValueOrLiteralExpression, ex.value)
+
+    case 'map':
+      return R.map(expressionToLiteralValueOrLiteralExpression, ex.value)
+
+    case 'binary':
+    case 'variableReference':
+    case 'functionInvocation':
+    case 'member':
+      return `\${${expressionToString(ex)}}`
+
+    case 'unary':
+      if (ex.value.expressionType === 'number') {
+        if (ex.operator === '+') {
+          return ex.value.value
+        } else if (ex.operator === '-') {
+          return -ex.value.value
+        } else {
+          return `\${${expressionToString(ex)}}`
+        }
+      } else {
+        return `\${${expressionToString(ex)}}`
+      }
   }
 }
 

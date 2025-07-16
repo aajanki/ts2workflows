@@ -1,19 +1,24 @@
 import { TSESTree, AST_NODE_TYPES } from '@typescript-eslint/typescript-estree'
 import {
-  BinaryExpression,
   BinaryOperator,
-  BooleanExpression,
   Expression,
-  FunctionInvocationExpression,
   ListExpression,
   MapExpression,
   MemberExpression,
-  NumberExpression,
-  StringExpression,
-  UnaryExpression,
   VariableReferenceExpression,
+  binaryEx,
+  booleanEx,
+  expressionToString,
+  functionInvocationEx,
   isFullyQualifiedName,
+  listEx,
+  mapEx,
+  memberEx,
   nullEx,
+  numberEx,
+  stringEx,
+  unaryEx,
+  variableReferenceEx,
 } from '../ast/expressions.js'
 import { InternalTranspilingError, WorkflowSyntaxError } from '../errors.js'
 
@@ -31,11 +36,11 @@ export function convertExpression(instance: TSESTree.Expression): Expression {
       } else if (typeof instance.value === 'bigint') {
         throw new WorkflowSyntaxError('BigInt is not supported', instance.loc)
       } else if (typeof instance.value === 'string') {
-        return new StringExpression(instance.value)
+        return stringEx(instance.value)
       } else if (typeof instance.value === 'number') {
-        return new NumberExpression(instance.value)
+        return numberEx(instance.value)
       } else if (typeof instance.value === 'boolean') {
-        return new BooleanExpression(instance.value)
+        return booleanEx(instance.value)
       } else {
         return nullEx
       }
@@ -47,7 +52,7 @@ export function convertExpression(instance: TSESTree.Expression): Expression {
       if (instance.name === 'null' || instance.name === 'undefined') {
         return nullEx
       } else {
-        return new VariableReferenceExpression(instance.name)
+        return variableReferenceEx(instance.name)
       }
 
     case AST_NODE_TYPES.UnaryExpression:
@@ -92,7 +97,7 @@ export function convertExpression(instance: TSESTree.Expression): Expression {
 export function convertObjectExpression(
   node: TSESTree.ObjectExpression,
 ): MapExpression {
-  return new MapExpression(
+  return mapEx(
     Object.fromEntries(
       throwIfSpread(node.properties).map(({ key, value }) => {
         let keyPrimitive: string
@@ -130,7 +135,7 @@ export function convertObjectExpression(
 function convertArrayExpression(
   instance: TSESTree.ArrayExpression,
 ): ListExpression {
-  return new ListExpression(
+  return listEx(
     throwIfSpread(instance.elements).map((e) =>
       e === null ? nullEx : convertExpression(e),
     ),
@@ -186,7 +191,7 @@ function convertBinaryExpression(
       )
   }
 
-  return new BinaryExpression(
+  return binaryEx(
     convertExpression(throwIfPrivateIdentifier(instance.left)),
     op,
     convertExpression(instance.right),
@@ -197,7 +202,7 @@ function nullishCoalescingExpression(
   left: TSESTree.Expression,
   right: TSESTree.Expression,
 ): Expression {
-  return new FunctionInvocationExpression('default', [
+  return functionInvocationEx('default', [
     convertExpression(left),
     convertExpression(right),
   ])
@@ -255,7 +260,7 @@ function convertUnaryExpression(
   if (istypeof) {
     return convertTypeOfExpression(ex)
   } else if (op) {
-    return new UnaryExpression(op, ex)
+    return unaryEx(op, ex)
   } else {
     return ex
   }
@@ -263,14 +268,14 @@ function convertUnaryExpression(
 
 function convertTypeOfExpression(value: Expression): Expression {
   // Note for future refactoring: evalute value only once (in case it has side effects)
-  return new FunctionInvocationExpression('text.replace_all_regex', [
-    new FunctionInvocationExpression('text.replace_all_regex', [
-      new FunctionInvocationExpression('get_type', [value]),
-      new StringExpression('^(bytes|list|map|null)$'),
-      new StringExpression('object'),
+  return functionInvocationEx('text.replace_all_regex', [
+    functionInvocationEx('text.replace_all_regex', [
+      functionInvocationEx('get_type', [value]),
+      stringEx('^(bytes|list|map|null)$'),
+      stringEx('object'),
     ]),
-    new StringExpression('^(double|integer)$'),
-    new StringExpression('number'),
+    stringEx('^(double|integer)$'),
+    stringEx('number'),
   ])
 }
 
@@ -278,7 +283,7 @@ export function convertMemberExpression(
   node: TSESTree.MemberExpression,
 ): Expression {
   const object = convertExpression(node.object)
-  return new MemberExpression(
+  return memberEx(
     object,
     convertExpression(throwIfPrivateIdentifier(node.property)),
     node.computed,
@@ -289,7 +294,7 @@ function convertChainExpression(node: TSESTree.ChainExpression): Expression {
   const properties = chainExpressionToFlatArray(node.expression)
   const args = optionalChainToMapGetArguments(properties)
 
-  return new FunctionInvocationExpression('map.get', args)
+  return functionInvocationEx('map.get', args)
 }
 
 interface ChainedProperty {
@@ -350,7 +355,7 @@ function optionalChainToMapGetArguments(
     if (opt.computed) {
       return propertyExp
     } else if (isFullyQualifiedName(propertyExp)) {
-      return new StringExpression(propertyExp.toString())
+      return stringEx(expressionToString(propertyExp))
     } else {
       throw new WorkflowSyntaxError(
         'Unexpected property in an optional chain',
@@ -361,7 +366,7 @@ function optionalChainToMapGetArguments(
 
   const args = [base]
   if (optionals.length > 1) {
-    args.push(new ListExpression(optionals))
+    args.push(listEx(optionals))
   } else if (optionals.length === 1) {
     args.push(optionals[0])
   }
@@ -371,7 +376,7 @@ function optionalChainToMapGetArguments(
 
 function memberExpressionFromList(properties: ChainedProperty[]): Expression {
   if (properties.length >= 2) {
-    const base = new MemberExpression(
+    const base = memberEx(
       convertExpression(properties[0].property),
       convertExpression(properties[1].property),
       properties[1].computed,
@@ -381,11 +386,7 @@ function memberExpressionFromList(properties: ChainedProperty[]): Expression {
       .slice(2)
       .reduce(
         (exp, current) =>
-          new MemberExpression(
-            exp,
-            convertExpression(current.property),
-            current.computed,
-          ),
+          memberEx(exp, convertExpression(current.property), current.computed),
         base,
       )
   } else if (properties.length === 1) {
@@ -407,7 +408,7 @@ function convertCallExpression(node: TSESTree.CallExpression): Expression {
 
   const calleeExpression = convertExpression(node.callee)
   if (isFullyQualifiedName(calleeExpression)) {
-    const calleeName = calleeExpression.toString()
+    const calleeName = expressionToString(calleeExpression)
     if (isIntrinsic(calleeName)) {
       let msg: string
       if (calleeName === 'call_step') {
@@ -424,7 +425,7 @@ function convertCallExpression(node: TSESTree.CallExpression): Expression {
       convertExpression,
     )
 
-    return new FunctionInvocationExpression(calleeName, argumentExpressions)
+    return functionInvocationEx(calleeName, argumentExpressions)
   } else {
     throw new WorkflowSyntaxError('Callee should be a qualified name', node.loc)
   }
@@ -447,7 +448,7 @@ function convertConditionalExpression(
   const consequent = convertExpression(node.consequent)
   const alternate = convertExpression(node.alternate)
 
-  return new FunctionInvocationExpression('if', [test, consequent, alternate])
+  return functionInvocationEx('if', [test, consequent, alternate])
 }
 
 function convertTemplateLiteralToExpression(
@@ -455,16 +456,10 @@ function convertTemplateLiteralToExpression(
 ): Expression {
   const stringTerms = node.quasis
     .map((x) => x.value.cooked)
-    .map((x) => new StringExpression(x))
+    .map((x) => stringEx(x))
   const templateTerms = node.expressions
     .map(convertExpression)
-    .map(
-      (ex) =>
-        new FunctionInvocationExpression('default', [
-          ex,
-          new StringExpression('null'),
-        ]),
-    )
+    .map((ex) => functionInvocationEx('default', [ex, stringEx('null')]))
 
   // interleave string parts and the expression parts starting with strings
   const interleavedTerms: Expression[] = stringTerms
@@ -482,10 +477,10 @@ function convertTemplateLiteralToExpression(
   }
 
   if (interleavedTerms.length === 0) {
-    return new StringExpression('')
+    return stringEx('')
   } else {
-    return interleavedTerms.reduce(
-      (previous, current) => new BinaryExpression(previous, '+', current),
+    return interleavedTerms.reduce((previous, current) =>
+      binaryEx(previous, '+', current),
     )
   }
 }

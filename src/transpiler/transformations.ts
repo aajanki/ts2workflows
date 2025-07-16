@@ -11,15 +11,21 @@ import {
 } from '../ast/steps.js'
 import { InternalTranspilingError } from '../errors.js'
 import {
+  binaryEx,
   BinaryExpression,
   Expression,
+  functionInvocationEx,
   FunctionInvocationExpression,
+  listEx,
   ListExpression,
+  mapEx,
   MapExpression,
+  memberEx,
   MemberExpression,
-  StringExpression,
+  stringEx,
+  unaryEx,
   UnaryExpression,
-  VariableReferenceExpression,
+  variableReferenceEx,
 } from '../ast/expressions.js'
 import { blockingFunctions } from './generated/functionMetadata.js'
 
@@ -178,7 +184,7 @@ function replaceBlockingCalls(
       )
 
       // replace function invocation with a reference to the temporary variable
-      return new VariableReferenceExpression(tempCallResultVariable)
+      return variableReferenceEx(tempCallResultVariable)
     } else {
       return ex
     }
@@ -362,25 +368,22 @@ function transformNestedExpressions(
       return ex
 
     case 'list':
-      return new ListExpression(R.map(tr, ex.value))
+      return listEx(R.map(tr, ex.value))
 
     case 'map':
-      return new MapExpression(R.map(tr, ex.value))
+      return mapEx(R.map(tr, ex.value))
 
     case 'binary':
-      return new BinaryExpression(tr(ex.left), ex.binaryOperator, tr(ex.right))
+      return binaryEx(tr(ex.left), ex.binaryOperator, tr(ex.right))
 
     case 'functionInvocation':
-      return new FunctionInvocationExpression(
-        ex.functionName,
-        ex.arguments.map(tr),
-      )
+      return functionInvocationEx(ex.functionName, ex.arguments.map(tr))
 
     case 'member':
-      return new MemberExpression(tr(ex.object), tr(ex.property), ex.computed)
+      return memberEx(tr(ex.object), tr(ex.property), ex.computed)
 
     case 'unary':
-      return new UnaryExpression(ex.operator, tr(ex.value))
+      return unaryEx(ex.operator, tr(ex.value))
   }
 }
 
@@ -477,7 +480,7 @@ function extractMapsInList(
 
   return {
     tempVariables,
-    transformedExpression: new ListExpression(elements),
+    transformedExpression: listEx(elements),
   }
 }
 
@@ -506,12 +509,12 @@ function extractMapsInMap(
 
   let newValue: Expression
   if (nestingLevel === 0) {
-    newValue = new MapExpression(properties)
+    newValue = mapEx(properties)
   } else {
-    newValue = new VariableReferenceExpression(generateName())
+    newValue = variableReferenceEx(generateName())
     tempVariables.push({
       name: newValue,
-      value: new MapExpression(properties),
+      value: mapEx(properties),
     })
   }
 
@@ -541,10 +544,7 @@ function extractNestedMapFunctionInvocation(
   )
 
   return {
-    transformedExpression: new FunctionInvocationExpression(
-      ex.functionName,
-      expressions,
-    ),
+    transformedExpression: functionInvocationEx(ex.functionName, expressions),
     tempVariables: temps,
   }
 }
@@ -558,7 +558,7 @@ function extractNestedMapBinary(
   const right = extractNestedMaps(ex.right, generateName, nestingLevel + 1)
 
   return {
-    transformedExpression: new BinaryExpression(
+    transformedExpression: binaryEx(
       left.transformedExpression,
       ex.binaryOperator,
       right.transformedExpression,
@@ -576,7 +576,7 @@ function extractNestedMapMember(
   const pr = extractNestedMaps(ex.property, generateName, nestingLevel + 1)
 
   return {
-    transformedExpression: new MemberExpression(
+    transformedExpression: memberEx(
       obj.transformedExpression,
       pr.transformedExpression,
       ex.computed,
@@ -597,10 +597,7 @@ function extractNestedMapUnary(
   )
 
   return {
-    transformedExpression: new UnaryExpression(
-      ex.operator,
-      transformedExpression,
-    ),
+    transformedExpression: unaryEx(ex.operator, transformedExpression),
     tempVariables,
   }
 }
@@ -623,10 +620,10 @@ function replaceIsArray(ex: Expression): Expression {
     ex.expressionType === 'functionInvocation' &&
     ex.functionName === 'Array.isArray'
   ) {
-    return new BinaryExpression(
-      new FunctionInvocationExpression('get_type', ex.arguments),
+    return binaryEx(
+      functionInvocationEx('get_type', ex.arguments),
       '==',
-      new StringExpression('list'),
+      stringEx('list'),
     )
   } else {
     return ex

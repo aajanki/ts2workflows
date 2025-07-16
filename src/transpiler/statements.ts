@@ -22,21 +22,24 @@ import {
   WorkflowStepAST,
 } from '../ast/steps.js'
 import {
-  BinaryExpression,
   BinaryOperator,
   Expression,
-  FunctionInvocationExpression,
-  ListExpression,
   MemberExpression,
-  NumberExpression,
-  StringExpression,
   VariableName,
   VariableReferenceExpression,
+  binaryEx,
+  expressionToString,
+  functionInvocationEx,
   isFullyQualifiedName,
   isLiteral,
   isPure,
+  listEx,
+  memberEx,
   nullEx,
+  numberEx,
+  stringEx,
   trueEx,
+  variableReferenceEx,
 } from '../ast/expressions.js'
 import { InternalTranspilingError, WorkflowSyntaxError } from '../errors.js'
 import {
@@ -189,7 +192,7 @@ function convertInitializer(
 
     return callExpressionToStep(initializer, targetVariableName, ctx)
   } else {
-    const name = new VariableReferenceExpression(targetVariableName)
+    const name = variableReferenceEx(targetVariableName)
     const value = initializer === null ? nullEx : convertExpression(initializer)
 
     return [new AssignStepAST([{ name, value }])]
@@ -217,7 +220,7 @@ function convertArrayDestructuring(
     // Otherwise, assign the expression to a temporary variable first.
     const initName = tempName(ctx)
     steps.push(...convertInitializer(initName, initializer, ctx))
-    initExpression = new VariableReferenceExpression(initName)
+    initExpression = variableReferenceEx(initName)
   }
 
   steps.push(
@@ -236,11 +239,11 @@ function arrayDestructuringSteps(
     return []
   }
 
-  const __temp_len = new VariableReferenceExpression(`${tempName(ctx)}_len`)
+  const __temp_len = variableReferenceEx(`${tempName(ctx)}_len`)
   const initializeVariables: VariableAssignment[] = [
     {
       name: __temp_len,
-      value: new FunctionInvocationExpression('len', [initializerExpression]),
+      value: functionInvocationEx('len', [initializerExpression]),
     },
   ]
 
@@ -252,11 +255,7 @@ function arrayDestructuringSteps(
     } else {
       return [
         {
-          condition: new BinaryExpression(
-            __temp_len,
-            '>=',
-            new NumberExpression(patterns.length - i),
-          ),
+          condition: binaryEx(__temp_len, '>=', numberEx(patterns.length - i)),
           steps: arrayElementsDestructuringSteps(
             patterns,
             initializerExpression,
@@ -296,11 +295,7 @@ function arrayElementsDestructuringSteps(
       ]
     }
 
-    const iElement = new MemberExpression(
-      initializerExpression,
-      new NumberExpression(i),
-      true,
-    )
+    const iElement = memberEx(initializerExpression, numberEx(i), true)
 
     switch (pat?.type) {
       case AST_NODE_TYPES.MemberExpression:
@@ -318,7 +313,7 @@ function arrayElementsDestructuringSteps(
           )
         }
 
-        const name = new VariableReferenceExpression(pat.left.name)
+        const name = variableReferenceEx(pat.left.name)
         return [new AssignStepAST([{ name, value: iElement }])]
       }
 
@@ -366,15 +361,13 @@ function extractDefaultAssignmentsFromDestructuringPattern(
 
       return [
         {
-          name: new VariableReferenceExpression(pat.left.name),
+          name: variableReferenceEx(pat.left.name),
           value: convertExpression(pat.right),
         },
       ]
 
     case AST_NODE_TYPES.Identifier:
-      return [
-        { name: new VariableReferenceExpression(pat.name), value: nullEx },
-      ]
+      return [{ name: variableReferenceEx(pat.name), value: nullEx }]
 
     case AST_NODE_TYPES.MemberExpression:
       return [{ name: convertVariableNameExpression(pat), value: nullEx }]
@@ -406,8 +399,8 @@ function extractDefaultAssignmentsFromDestructuringPattern(
 
       return [
         {
-          name: new VariableReferenceExpression(pat.argument.name),
-          value: new ListExpression([]),
+          name: variableReferenceEx(pat.argument.name),
+          value: listEx([]),
         },
       ]
 
@@ -442,21 +435,21 @@ function arrayRestDestructuringSteps(
     throw new WorkflowSyntaxError('Identifier expected', rest.argument.loc)
   }
 
-  const restName = new VariableReferenceExpression(rest.argument.name)
-  const __temp_len = new VariableReferenceExpression(`${tempName(ctx)}_len`)
+  const restName = variableReferenceEx(rest.argument.name)
+  const __temp_len = variableReferenceEx(`${tempName(ctx)}_len`)
   const __temp_index = `${tempName(ctx)}_index`
-  const one = new NumberExpression(1)
-  const emptyArray = new ListExpression([])
+  const one = numberEx(1)
+  const emptyArray = listEx([])
   const copyLoop = new ForRangeStepAST(
     [
       new AssignStepAST([
         {
           name: restName,
-          value: new FunctionInvocationExpression('list.concat', [
+          value: functionInvocationEx('list.concat', [
             restName,
-            new MemberExpression(
+            memberEx(
               initializerExpression,
-              new VariableReferenceExpression(__temp_index),
+              variableReferenceEx(__temp_index),
               true,
             ),
           ]),
@@ -465,7 +458,7 @@ function arrayRestDestructuringSteps(
     ],
     __temp_index,
     startIndex,
-    new BinaryExpression(__temp_len, '-', one),
+    binaryEx(__temp_len, '-', one),
   )
 
   return [new AssignStepAST([{ name: restName, value: emptyArray }]), copyLoop]
@@ -489,7 +482,7 @@ function convertObjectDestructuring(
     // Otherwise, assign the expression to a temporary variable first.
     const initName = tempName(ctx)
     steps.push(...convertInitializer(initName, initializer, ctx))
-    initExpression = new VariableReferenceExpression(initName)
+    initExpression = variableReferenceEx(initName)
   }
 
   steps.push(
@@ -517,9 +510,9 @@ function objectDestructuringSteps(
       throw new WorkflowSyntaxError('Identifier expected', prop.key.loc)
     }
 
-    const keyExpression = new MemberExpression(
+    const keyExpression = memberEx(
       initializerExpression,
-      new VariableReferenceExpression(prop.key.name),
+      variableReferenceEx(prop.key.name),
       false,
     )
 
@@ -528,15 +521,15 @@ function objectDestructuringSteps(
     } else if (prop.value.type === AST_NODE_TYPES.ArrayPattern) {
       return arrayDestructuringSteps(prop.value.elements, keyExpression, ctx)
     } else if (prop.value.type === AST_NODE_TYPES.Identifier) {
-      const safeKeyExpression = new FunctionInvocationExpression('map.get', [
+      const safeKeyExpression = functionInvocationEx('map.get', [
         initializerExpression,
-        new StringExpression(prop.key.name),
+        stringEx(prop.key.name),
       ])
 
       return [
         new AssignStepAST([
           {
-            name: new VariableReferenceExpression(prop.value.name),
+            name: variableReferenceEx(prop.value.name),
             value: safeKeyExpression,
           },
         ]),
@@ -570,12 +563,12 @@ function objectAssignmentPatternSteps(
 
   // Using Switch step instead of default() because pat.right must be evaluated only
   // in the default value branch (in case it has side effects)
-  const name = new VariableReferenceExpression(pat.left.name)
+  const name = variableReferenceEx(pat.left.name)
   return [
     new SwitchStepAST([
       {
-        condition: new BinaryExpression(
-          new StringExpression(pat.left.name),
+        condition: binaryEx(
+          stringEx(pat.left.name),
           'in',
           initializerExpression,
         ),
@@ -616,14 +609,11 @@ function objectDestructuringRestSteps(
     })
     .map((p) => p.name)
 
-  const name = new VariableReferenceExpression(rest.argument.name)
+  const name = variableReferenceEx(rest.argument.name)
   const value = nonRestKeys.reduce(
     (acc, propertyName) =>
       // map.delete returns a copy of the object and removes the specified property
-      new FunctionInvocationExpression('map.delete', [
-        acc,
-        new StringExpression(propertyName),
-      ]),
+      functionInvocationEx('map.delete', [acc, stringEx(propertyName)]),
     initializerExpression,
   )
 
@@ -738,11 +728,7 @@ function compoundAssignmentSteps(
     valueExpression = convertExpression(right)
   }
 
-  valueExpression = new BinaryExpression(
-    targetExpression,
-    operator,
-    valueExpression,
-  )
+  valueExpression = binaryEx(targetExpression, operator, valueExpression)
 
   steps.push(
     new AssignStepAST([{ name: targetExpression, value: valueExpression }]),
@@ -815,8 +801,8 @@ function extractSideEffectsFromMemberExpression(
       objectAssignments = []
     }
 
-    const tmp = new VariableReferenceExpression(`${tempPrefix}${tempIndex}`)
-    const transformed = new MemberExpression(transformedObject, tmp, true)
+    const tmp = variableReferenceEx(`${tempPrefix}${tempIndex}`)
+    const transformed = memberEx(transformedObject, tmp, true)
     const assignments = objectAssignments
     assignments.push({
       name: tmp,
@@ -827,7 +813,7 @@ function extractSideEffectsFromMemberExpression(
   } else if (ex.object.expressionType === 'member') {
     const { transformed: object2, assignments: assignments } =
       extractSideEffectsFromMemberExpression(ex.object, tempPrefix, tempIndex)
-    const transformed = new MemberExpression(object2, ex.property, ex.computed)
+    const transformed = memberEx(object2, ex.property, ex.computed)
 
     return {
       transformed,
@@ -864,7 +850,7 @@ function convertAssignmentExpressionIntrinsicRHS(
 
   const resultVariable = tempName(ctx)
   const steps = callExpressionToStep(callEx, resultVariable, ctx)
-  const tempVariable = new VariableReferenceExpression(resultVariable)
+  const tempVariable = variableReferenceEx(resultVariable)
 
   return { steps, tempVariable }
 }
@@ -876,7 +862,7 @@ function callExpressionToStep(
 ): WorkflowStepAST[] {
   const calleeExpression = convertExpression(node.callee)
   if (isFullyQualifiedName(calleeExpression)) {
-    const calleeName = calleeExpression.toString()
+    const calleeName = expressionToString(calleeExpression)
 
     if (calleeName === 'parallel') {
       // A handle the "parallel" intrinsic
@@ -921,11 +907,8 @@ function callExpressionAssignStep(
 
   return new AssignStepAST([
     {
-      name: new VariableReferenceExpression(resultVariable),
-      value: new FunctionInvocationExpression(
-        functionName,
-        argumentExpressions,
-      ),
+      name: variableReferenceEx(resultVariable),
+      value: functionInvocationEx(functionName, argumentExpressions),
     },
   ])
 }
@@ -959,7 +942,7 @@ function createCallStep(
       )
     }
 
-    functionName = memberExp.toString()
+    functionName = expressionToString(memberExp)
   } else {
     throw new WorkflowSyntaxError(
       'Expected an identifier or a member expression',
@@ -1184,7 +1167,7 @@ function generalExpressionToAssignStep(
 ): AssignStepAST {
   return new AssignStepAST([
     {
-      name: new VariableReferenceExpression(tempName(ctx)),
+      name: variableReferenceEx(tempName(ctx)),
       value: convertExpression(node),
     },
   ])
@@ -1258,7 +1241,7 @@ function switchStatementToSteps(
     let condition: Expression
     if (caseNode.test) {
       const test = convertExpression(caseNode.test)
-      condition = new BinaryExpression(discriminant, '==', test)
+      condition = binaryEx(discriminant, '==', test)
     } else {
       condition = trueEx
     }
@@ -1553,11 +1536,11 @@ function finalizerInitializer(
 ): AssignStepAST {
   return new AssignStepAST([
     {
-      name: new VariableReferenceExpression(conditionVariable),
+      name: variableReferenceEx(conditionVariable),
       value: nullEx,
     },
     {
-      name: new VariableReferenceExpression(valueVariable),
+      name: variableReferenceEx(valueVariable),
       value: nullEx,
     },
   ])
@@ -1576,18 +1559,18 @@ function finalizerInitializer(
  * }
  */
 function finalizerFooter(conditionVariable: string, valueVariable: string) {
-  const variable = new VariableReferenceExpression(conditionVariable)
-  const val = new VariableReferenceExpression(valueVariable)
-  const returnString = new StringExpression('return')
-  const raiseString = new StringExpression('raise')
+  const variable = variableReferenceEx(conditionVariable)
+  const val = variableReferenceEx(valueVariable)
+  const returnString = stringEx('return')
+  const raiseString = stringEx('raise')
 
   return new SwitchStepAST([
     {
-      condition: new BinaryExpression(variable, '==', returnString),
+      condition: binaryEx(variable, '==', returnString),
       steps: [new ReturnStepAST(val)],
     },
     {
-      condition: new BinaryExpression(variable, '==', raiseString),
+      condition: binaryEx(variable, '==', raiseString),
       steps: [new RaiseStepAST(val)],
     },
   ])
@@ -1601,12 +1584,12 @@ function finalizerDelayedException(
   return [
     new AssignStepAST([
       {
-        name: new VariableReferenceExpression(conditionVariableName),
-        value: new StringExpression('raise'),
+        name: variableReferenceEx(conditionVariableName),
+        value: stringEx('raise'),
       },
       {
-        name: new VariableReferenceExpression(valueVariableName),
-        value: new VariableReferenceExpression(exceptionVariableName),
+        name: variableReferenceEx(valueVariableName),
+        value: variableReferenceEx(exceptionVariableName),
       },
     ]),
   ]
@@ -1625,11 +1608,11 @@ function delayedReturnAndJumpToFinalizer(
   return new AssignStepAST(
     [
       {
-        name: new VariableReferenceExpression(conditionVariable),
-        value: new StringExpression('return'),
+        name: variableReferenceEx(conditionVariable),
+        value: stringEx('return'),
       },
       {
-        name: new VariableReferenceExpression(valueVariable),
+        name: variableReferenceEx(valueVariable),
         value: value ?? nullEx,
       },
     ],
@@ -1673,7 +1656,7 @@ function extractRetryPolicy(
       const argsLoc = statement.expression.arguments[0].loc
 
       if (isFullyQualifiedName(arg0)) {
-        return arg0.toString()
+        return expressionToString(arg0)
       } else if (arg0.expressionType === 'map') {
         return retryPolicyFromParams(arg0.value, argsLoc)
       } else {
@@ -1721,7 +1704,7 @@ function predicateFromRetryParams(
   if (!('predicate' in params)) {
     return undefined
   } else if (isFullyQualifiedName(params.predicate)) {
-    return params.predicate.toString()
+    return expressionToString(params.predicate)
   } else {
     throw new WorkflowSyntaxError(
       '"predicate" must be a function name',

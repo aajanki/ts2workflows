@@ -6,6 +6,7 @@ import {
   VariableName,
   VariableReferenceExpression,
   expressionToLiteralValueOrLiteralExpression,
+  expressionToString,
 } from './expressions.js'
 import { Subworkflow, WorkflowParameter } from './workflows.js'
 
@@ -711,7 +712,7 @@ export function renderStep(
       return {
         assign: step.assignments.map(({ name, value }) => {
           return {
-            [name.toString()]:
+            [expressionToString(name)]:
               expressionToLiteralValueOrLiteralExpression(value),
           }
         }),

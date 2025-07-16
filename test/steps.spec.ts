@@ -16,22 +16,22 @@ import {
   renderStep,
 } from '../src/ast/steps.js'
 import {
-  ListExpression,
-  NumberExpression,
-  StringExpression,
+  listEx,
+  numberEx,
+  stringEx,
   trueEx,
-  VariableReferenceExpression,
+  variableReferenceEx,
 } from '../src/ast/expressions.js'
 
 describe('workflow step AST', () => {
   it('renders an assign step', () => {
     const step = new AssignStepAST([
       {
-        name: new VariableReferenceExpression('city'),
-        value: new StringExpression('New New York'),
+        name: variableReferenceEx('city'),
+        value: stringEx('New New York'),
       },
       {
-        name: new VariableReferenceExpression('value'),
+        name: variableReferenceEx('value'),
         value: parseExpression('1 + 2'),
       },
     ])
@@ -48,30 +48,30 @@ describe('workflow step AST', () => {
   it('assigns variables with index notation', () => {
     const step = new AssignStepAST([
       {
-        name: new VariableReferenceExpression('my_list'),
-        value: new ListExpression([
-          new NumberExpression(0),
-          new NumberExpression(1),
-          new NumberExpression(2),
-          new NumberExpression(3),
-          new NumberExpression(4),
+        name: variableReferenceEx('my_list'),
+        value: listEx([
+          numberEx(0),
+          numberEx(1),
+          numberEx(2),
+          numberEx(3),
+          numberEx(4),
         ]),
       },
       {
-        name: new VariableReferenceExpression('idx'),
-        value: new NumberExpression(0),
+        name: variableReferenceEx('idx'),
+        value: numberEx(0),
       },
       {
-        name: new VariableReferenceExpression('my_list[0]'),
-        value: new StringExpression('Value0'),
+        name: variableReferenceEx('my_list[0]'),
+        value: stringEx('Value0'),
       },
       {
-        name: new VariableReferenceExpression('my_list[idx + 1]'),
-        value: new StringExpression('Value1'),
+        name: variableReferenceEx('my_list[idx + 1]'),
+        value: stringEx('Value1'),
       },
       {
-        name: new VariableReferenceExpression('my_list[len(my_list) - 1]'),
-        value: new StringExpression('LastValue'),
+        name: variableReferenceEx('my_list[len(my_list) - 1]'),
+        value: stringEx('LastValue'),
       },
     ])
 
@@ -99,8 +99,8 @@ describe('workflow step AST', () => {
     const step = new CallStepAST(
       'deliver_package',
       {
-        destination: new StringExpression('Atlanta'),
-        deliveryCompany: new StringExpression('Planet Express'),
+        destination: stringEx('Atlanta'),
+        deliveryCompany: stringEx('Planet Express'),
       },
       'deliveryResult',
     )
@@ -135,7 +135,7 @@ describe('workflow step AST', () => {
       'increase_counter',
       new AssignStepAST([
         {
-          name: new VariableReferenceExpression('a'),
+          name: variableReferenceEx('a'),
           value: parseExpression('mars_counter + 1'),
         },
       ]),
@@ -185,7 +185,7 @@ describe('workflow step AST', () => {
       new CallStepAST(
         'http.get',
         {
-          url: new StringExpression('https://maybe.failing.test/'),
+          url: stringEx('https://maybe.failing.test/'),
         },
         'response',
       ),
@@ -196,10 +196,7 @@ describe('workflow step AST', () => {
         {
           condition: parseExpression('e.code == 404'),
           steps: [
-            namedStep(
-              'return_error',
-              new ReturnStepAST(new StringExpression('Not found')),
-            ),
+            namedStep('return_error', new ReturnStepAST(stringEx('Not found'))),
           ],
         },
       ]),
@@ -245,7 +242,7 @@ describe('workflow step AST', () => {
       new CallStepAST(
         'http.get',
         {
-          url: new StringExpression('https://maybe.failing.test/'),
+          url: stringEx('https://maybe.failing.test/'),
         },
         'response',
       ),
@@ -256,10 +253,7 @@ describe('workflow step AST', () => {
         {
           condition: parseExpression('e.code == 404'),
           steps: [
-            namedStep(
-              'return_error',
-              new ReturnStepAST(new StringExpression('Not found')),
-            ),
+            namedStep('return_error', new ReturnStepAST(stringEx('Not found'))),
           ],
         },
       ]),
@@ -306,7 +300,7 @@ describe('workflow step AST', () => {
       new CallStepAST(
         'http.get',
         {
-          url: new StringExpression('https://maybe.failing.test/'),
+          url: stringEx('https://maybe.failing.test/'),
         },
         'response',
       ),
@@ -317,10 +311,7 @@ describe('workflow step AST', () => {
         {
           condition: parseExpression('e.code == 404'),
           steps: [
-            namedStep(
-              'return_error',
-              new ReturnStepAST(new StringExpression('Not found')),
-            ),
+            namedStep('return_error', new ReturnStepAST(stringEx('Not found'))),
           ],
         },
       ]),
@@ -334,11 +325,11 @@ describe('workflow step AST', () => {
       [knownErrors, unknownErrors],
       {
         predicate: 'http.default_retry',
-        maxRetries: new NumberExpression(10),
+        maxRetries: numberEx(10),
         backoff: {
-          initialDelay: new NumberExpression(0.5),
-          maxDelay: new NumberExpression(60),
-          multiplier: new VariableReferenceExpression('multiplier'),
+          initialDelay: numberEx(0.5),
+          maxDelay: numberEx(60),
+          multiplier: variableReferenceEx('multiplier'),
         },
       },
       'e',
@@ -387,7 +378,7 @@ describe('workflow step AST', () => {
       new CallStepAST(
         'http.get',
         {
-          url: new StringExpression('https://maybe.failing.test/'),
+          url: stringEx('https://maybe.failing.test/'),
         },
         'response',
       ),
@@ -398,10 +389,7 @@ describe('workflow step AST', () => {
         {
           condition: parseExpression('e.code == 404'),
           steps: [
-            namedStep(
-              'return_error',
-              new ReturnStepAST(new StringExpression('Not found')),
-            ),
+            namedStep('return_error', new ReturnStepAST(stringEx('Not found'))),
           ],
         },
       ]),
@@ -415,11 +403,11 @@ describe('workflow step AST', () => {
       [knownErrors, unknownErrors],
       {
         predicate: predicateSubworkflow.name,
-        maxRetries: new NumberExpression(3),
+        maxRetries: numberEx(3),
         backoff: {
-          initialDelay: new NumberExpression(2),
-          maxDelay: new NumberExpression(60),
-          multiplier: new NumberExpression(4),
+          initialDelay: numberEx(2),
+          maxDelay: numberEx(60),
+          multiplier: numberEx(4),
         },
       },
       'e',
@@ -463,18 +451,14 @@ describe('workflow step AST', () => {
           'addStep',
           new AssignStepAST([
             {
-              name: new VariableReferenceExpression('sum'),
+              name: variableReferenceEx('sum'),
               value: parseExpression('sum + v'),
             },
           ]),
         ),
       ],
       'v',
-      new ListExpression([
-        new NumberExpression(1),
-        new NumberExpression(2),
-        new NumberExpression(3),
-      ]),
+      listEx([numberEx(1), numberEx(2), numberEx(3)]),
     )
 
     const expected = `
@@ -497,18 +481,14 @@ describe('workflow step AST', () => {
           'addStep',
           new AssignStepAST([
             {
-              name: new VariableReferenceExpression('sum'),
+              name: variableReferenceEx('sum'),
               value: parseExpression('sum + i*v'),
             },
           ]),
         ),
       ],
       'v',
-      new ListExpression([
-        new NumberExpression(10),
-        new NumberExpression(20),
-        new NumberExpression(30),
-      ]),
+      listEx([numberEx(10), numberEx(20), numberEx(30)]),
       'i',
     )
 
@@ -533,7 +513,7 @@ describe('workflow step AST', () => {
           'addStep',
           new AssignStepAST([
             {
-              name: new VariableReferenceExpression('sum'),
+              name: variableReferenceEx('sum'),
               value: parseExpression('sum + v'),
             },
           ]),
@@ -566,7 +546,7 @@ describe('workflow step AST', () => {
           'addStep',
           new AssignStepAST([
             {
-              name: new VariableReferenceExpression('sum'),
+              name: variableReferenceEx('sum'),
               value: parseExpression('sum + v'),
             },
           ]),
@@ -600,7 +580,7 @@ describe('workflow step AST', () => {
           namedStep(
             'say_hello_1',
             new CallStepAST('sys.log', {
-              text: new StringExpression('Hello from branch 1'),
+              text: stringEx('Hello from branch 1'),
             }),
           ),
         ],
@@ -611,7 +591,7 @@ describe('workflow step AST', () => {
           namedStep(
             'say_hello_2',
             new CallStepAST('sys.log', {
-              text: new StringExpression('Hello from branch 2'),
+              text: stringEx('Hello from branch 2'),
             }),
           ),
         ],
@@ -648,8 +628,8 @@ describe('workflow step AST', () => {
               'assign_1',
               new AssignStepAST([
                 {
-                  name: new VariableReferenceExpression('myVariable[0]'),
-                  value: new StringExpression('Set in branch 1'),
+                  name: variableReferenceEx('myVariable[0]'),
+                  value: stringEx('Set in branch 1'),
                 },
               ]),
             ),
@@ -662,8 +642,8 @@ describe('workflow step AST', () => {
               'assign_2',
               new AssignStepAST([
                 {
-                  name: new VariableReferenceExpression('myVariable[1]'),
-                  value: new StringExpression('Set in branch 2'),
+                  name: variableReferenceEx('myVariable[1]'),
+                  value: stringEx('Set in branch 2'),
                 },
               ]),
             ),
@@ -712,18 +692,18 @@ describe('workflow step AST', () => {
             'add',
             new AssignStepAST([
               {
-                name: new VariableReferenceExpression('total'),
+                name: variableReferenceEx('total'),
                 value: parseExpression('total + balance'),
               },
             ]),
           ),
         ],
         'userId',
-        new ListExpression([
-          new StringExpression('11'),
-          new StringExpression('12'),
-          new StringExpression('13'),
-          new StringExpression('14'),
+        listEx([
+          stringEx('11'),
+          stringEx('12'),
+          stringEx('13'),
+          stringEx('14'),
         ]),
       ),
       ['total'],
@@ -767,18 +747,18 @@ describe('workflow step AST', () => {
             'add',
             new AssignStepAST([
               {
-                name: new VariableReferenceExpression('total'),
+                name: variableReferenceEx('total'),
                 value: parseExpression('total + balance'),
               },
             ]),
           ),
         ],
         'userId',
-        new ListExpression([
-          new StringExpression('11'),
-          new StringExpression('12'),
-          new StringExpression('13'),
-          new StringExpression('14'),
+        listEx([
+          stringEx('11'),
+          stringEx('12'),
+          stringEx('13'),
+          stringEx('14'),
         ]),
       ),
       ['total'],
