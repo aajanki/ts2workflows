@@ -6,22 +6,8 @@ import {
 } from '@typescript-eslint/typescript-estree'
 import * as YAML from 'yaml'
 import { Expression } from '../src/ast/expressions.js'
-import {
-  NamedWorkflowStep,
-  WorkflowStepASTWithNamedNested,
-} from '../src/ast/steps.js'
 import { transpileText } from '../src/transpiler/index.js'
-import { convertExpression } from '../src/transpiler/expressions.js'
-
-export function namedStep(
-  name: string,
-  step: WorkflowStepASTWithNamedNested,
-): NamedWorkflowStep {
-  return {
-    name,
-    step,
-  }
-}
+import { convertExpression } from '../src/transpiler/parseexpressions.js'
 
 export function parseExpression(expressionString: string): Expression {
   // The parser chokes on JSON objects. Check if the input is JSON and special case

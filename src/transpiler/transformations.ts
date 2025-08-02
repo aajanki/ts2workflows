@@ -1,14 +1,4 @@
 import * as R from 'ramda'
-import {
-  AssignStepAST,
-  CallStepAST,
-  ForStepAST,
-  RaiseStepAST,
-  ReturnStepAST,
-  SwitchStepAST,
-  VariableAssignment,
-  WorkflowStepAST,
-} from '../ast/steps.js'
 import { InternalTranspilingError } from '../errors.js'
 import {
   binaryEx,
@@ -27,118 +17,333 @@ import {
   UnaryExpression,
   variableReferenceEx,
 } from '../ast/expressions.js'
+import {
+  applyNested,
+  AssignStatement,
+  DoWhileStatement,
+  ForRangeStatement,
+  ForStatement,
+  FunctionInvocationStatement,
+  IfStatement,
+  LabelledStatement,
+  RaiseStatement,
+  ReturnStatement,
+  SwitchStatement,
+  VariableAssignment,
+  WhileStatement,
+  WorkflowStatement,
+} from '../ast/statements.js'
 import { blockingFunctions } from './generated/functionMetadata.js'
 
-/**
- * Performs various transformations on the AST.
- */
-const transformPipe: (steps: WorkflowStepAST[]) => WorkflowStepAST[] = R.pipe(
-  mapLiteralsAsAssignSteps,
-  mergeAssignSteps,
-  flattenPlainNextConditions,
-  intrinsicFunctionImplementation,
-  blockingCallsAsCallSteps,
-)
-
-export function transformAST(steps: WorkflowStepAST[]): WorkflowStepAST[] {
-  return transformPipe(steps.map((x) => x.applyNestedSteps(transformAST)))
+export function transformAST(
+  statements: WorkflowStatement[],
+): WorkflowStatement[] {
+  return transformPipe(statements.map((s) => applyNested(transformAST, s)))
 }
 
 /**
- * Merge consecutive assign steps into one assign step
+ * Merge consecutive assign statements into one assign statement
  *
- * An assign step can contain up to 50 assignments.
+ * An assign is allowed to contain up to 50 assignments.
  */
-function mergeAssignSteps(steps: WorkflowStepAST[]): WorkflowStepAST[] {
-  return steps.reduce((acc: WorkflowStepAST[], current: WorkflowStepAST) => {
-    const prev = acc.length > 0 ? acc[acc.length - 1] : null
+function mergeAssigns(statements: WorkflowStatement[]): WorkflowStatement[] {
+  return statements.reduce(
+    (acc: WorkflowStatement[], current: WorkflowStatement) => {
+      const prev = acc.length > 0 ? acc[acc.length - 1] : null
+
+      let prevAssignments = undefined
+      let label = undefined
+      if (prev?.tag === 'assign') {
+        prevAssignments = prev.assignments
+      } else if (
+        prev?.tag === 'label' &&
+        prev.statements.every((x) => x.tag === 'assign')
+      ) {
+        prevAssignments = prev.statements.flatMap((x) => x.assignments)
+        label = prev.label
+      }
+
+      let currentAssignments = undefined
+      if (current.tag === 'assign') {
+        currentAssignments = current.assignments
+      } else if (
+        current.tag === 'label' &&
+        current.statements.every((x) => x.tag === 'assign')
+      ) {
+        currentAssignments = current.statements.flatMap((x) => x.assignments)
+        label ??= current.label
+      }
+
+      if (prevAssignments && currentAssignments) {
+        let merged: AssignStatement | LabelledStatement = new AssignStatement(
+          prevAssignments.concat(currentAssignments),
+        )
+        if (label) {
+          merged = new LabelledStatement(label, [merged])
+        }
+        acc.pop()
+        acc.push(merged)
+      } else {
+        acc.push(current)
+      }
+
+      return acc
+    },
+    [],
+  )
+}
+
+/**
+ * Transform expressions in a statement by applying transform.
+ *
+ * Returns an array of statements. The array includes the transformed statement
+ * and possibly additional statements constructed during the transformation.
+ * For example, a transformation might extract blocking call expressions into
+ * function call.
+ */
+const expandExpressionToStatements = R.curry(function (
+  transform: (ex: Expression) => [WorkflowStatement[], Expression],
+  statement: WorkflowStatement,
+): WorkflowStatement[] {
+  switch (statement.tag) {
+    case 'assign':
+      return expandAssign(transform, statement)
+
+    case 'function-invocation':
+      return expandFunctionInvocation(transform, statement)
+
+    case 'for':
+      return expandFor(transform, statement)
+
+    case 'for-range':
+      return expandForRange(transform, statement)
+
+    case 'if':
+      return expandIf(transform, statement)
+
+    case 'raise':
+      return expandRaise(transform, statement)
+
+    case 'return':
+      return expanrdReturn(transform, statement)
+
+    case 'switch':
+      return expandSwitch(transform, statement)
+
+    case 'while':
+    case 'do-while':
+      return expandWhile(transform, statement)
+
+    case 'break':
+    case 'continue':
+    case 'label':
+    case 'parallel':
+    case 'parallel-for':
+    case 'try':
+      return [statement]
+  }
+})
+
+function expandAssign(
+  transform: (ex: Expression) => [WorkflowStatement[], Expression],
+  statement: AssignStatement,
+): WorkflowStatement[] {
+  const newStatements: WorkflowStatement[] = []
+  const newAssignments = statement.assignments.map(({ name, value }) => {
+    const [st2, transformedKey] = transform(name)
+    const [st3, transformedValue] = transform(value)
+    newStatements.push(...st2)
+    newStatements.push(...st3)
 
     if (
-      current.tag === 'assign' &&
-      prev?.tag === 'assign' &&
-      prev.assignments.length < 50 &&
-      !prev.next
+      transformedKey.tag !== 'variableReference' &&
+      transformedKey.tag !== 'member'
     ) {
-      const merged = new AssignStepAST(
-        prev.assignments.concat(current.assignments),
-        current.next,
-        prev.label ?? current.label,
+      throw new InternalTranspilingError(
+        'Unexpected key type when transforming an assignment',
       )
-
-      acc.pop()
-      acc.push(merged)
-    } else {
-      acc.push(current)
     }
 
-    return acc
-  }, [])
+    return { name: transformedKey, value: transformedValue }
+  })
+  newStatements.push({ ...statement, assignments: newAssignments })
+  return newStatements
 }
 
-/**
- * Merge a next step to the previous step.
- *
- * For example, transforms this:
- *
- * switch:
- *   - condition: ${x > 0}
- *     steps:
- *       - next1:
- *           steps:
- *             next: target1
- *
- * into this:
- *
- * switch:
- *   - condition: ${x > 0}
- *     next: target1
- */
-export function flattenPlainNextConditions(
-  steps: WorkflowStepAST[],
-): WorkflowStepAST[] {
-  return steps.reduce((acc: WorkflowStepAST[], step: WorkflowStepAST) => {
-    if (acc.length > 0 && step.tag === 'next') {
-      // Merge a "next" to the previous "assign" step
-      const prev = acc[acc.length - 1]
-
-      if (prev.tag === 'assign' && !prev.next) {
-        acc.pop()
-        acc.push(prev.withNext(step.target))
-      } else {
-        acc.push(step)
-      }
-    } else if (step.tag === 'switch') {
-      // If the condition steps consists of a single "next", merge it with the condition
-      acc.push(flattenNextToCondition(step))
-    } else {
-      acc.push(step)
-    }
-
-    return acc
-  }, [])
+function expandFunctionInvocation(
+  transform: (ex: Expression) => [WorkflowStatement[], Expression],
+  statement: FunctionInvocationStatement,
+): WorkflowStatement[] {
+  if (statement.args) {
+    const newStatements: WorkflowStatement[] = []
+    const newArgs = R.map((ex) => {
+      const [st2, ex2] = transform(ex)
+      newStatements.push(...st2)
+      return ex2
+    }, statement.args)
+    newStatements.push({ ...statement, args: newArgs })
+    return newStatements
+  } else {
+    return [statement]
+  }
 }
 
-function flattenNextToCondition(step: SwitchStepAST): SwitchStepAST {
-  const transformedBranches = step.branches.map((cond) => {
-    if (!cond.next && cond.steps.length === 1 && cond.steps[0].tag === 'next') {
-      const nextStep = cond.steps[0]
-      return {
-        condition: cond.condition,
-        steps: [],
-        next: nextStep.target,
-      }
-    } else {
-      return cond
+function expandFor(
+  transform: (ex: Expression) => [WorkflowStatement[], Expression],
+  statement: ForStatement,
+): WorkflowStatement[] {
+  const [res, newListExpression] = transform(statement.listExpression)
+  res.push({ ...statement, listExpression: newListExpression })
+  return res
+}
+
+function expandForRange(
+  transform: (ex: Expression) => [WorkflowStatement[], Expression],
+  statement: ForRangeStatement,
+): WorkflowStatement[] {
+  const res: WorkflowStatement[] = []
+  let newRangeStart: number | Expression
+  let newRangeEnd: number | Expression
+
+  if (typeof statement.rangeStart === 'number') {
+    newRangeStart = statement.rangeStart
+  } else {
+    const [st1, ex1] = transform(statement.rangeStart)
+    res.push(...st1)
+    newRangeStart = ex1
+  }
+
+  if (typeof statement.rangeEnd === 'number') {
+    newRangeEnd = statement.rangeEnd
+  } else {
+    const [st2, ex2] = transform(statement.rangeEnd)
+    res.push(...st2)
+    newRangeEnd = ex2
+  }
+
+  res.push({ ...statement, rangeStart: newRangeStart, rangeEnd: newRangeEnd })
+
+  return res
+}
+
+function expandIf(
+  transform: (ex: Expression) => [WorkflowStatement[], Expression],
+  statement: IfStatement,
+): WorkflowStatement[] {
+  const res: WorkflowStatement[] = []
+  const newBranches = statement.branches.map((branch) => {
+    const [st, ex] = transform(branch.condition)
+
+    res.push(...st)
+
+    return {
+      ...branch,
+      condition: ex,
     }
   })
 
-  return new SwitchStepAST(transformedBranches)
+  res.push(new IfStatement(newBranches))
+
+  return res
+}
+
+function expandRaise(
+  transform: (ex: Expression) => [WorkflowStatement[], Expression],
+  statement: RaiseStatement,
+): WorkflowStatement[] {
+  const [res, newEx] = transform(statement.value)
+  res.push({ ...statement, value: newEx })
+  return res
+}
+
+function expanrdReturn(
+  transform: (ex: Expression) => [WorkflowStatement[], Expression],
+  statement: ReturnStatement,
+): WorkflowStatement[] {
+  if (statement.value) {
+    const [newStatements, newEx] = transform(statement.value)
+    newStatements.push({ ...statement, value: newEx })
+    return newStatements
+  } else {
+    return [statement]
+  }
+}
+
+function expandSwitch(
+  transform: (ex: Expression) => [WorkflowStatement[], Expression],
+  statement: SwitchStatement,
+): WorkflowStatement[] {
+  const res: WorkflowStatement[] = []
+  const newBranches = statement.branches.map((branch) => {
+    const [st2, ex2] = transform(branch.condition)
+    res.push(...st2)
+
+    return {
+      condition: ex2,
+      body: branch.body,
+    }
+  })
+  res.push({ ...statement, branches: newBranches })
+  return res
+}
+
+function expandWhile(
+  transform: (ex: Expression) => [WorkflowStatement[], Expression],
+  statement: WhileStatement | DoWhileStatement,
+): WorkflowStatement[] {
+  const [res, newCond] = transform(statement.condition)
+  res.push({ ...statement, condition: newCond })
+
+  return res
+}
+
+function createTempVariableGenerator(): () => string {
+  let i = 0
+  return () => `__temp${i++}`
+}
+
+function replaceBlockingCalls(
+  expression: Expression,
+): [FunctionInvocationStatement[], Expression] {
+  function replaceBlockingFunctionInvocations(ex: Expression): Expression {
+    if (ex.tag !== 'functionInvocation') {
+      return ex
+    }
+
+    const blockingCallArgumentNames = blockingFunctions.get(ex.functionName)
+    if (blockingCallArgumentNames) {
+      const nameAndValue = R.zip(blockingCallArgumentNames, ex.arguments)
+      const callArgs = R.fromPairs(nameAndValue)
+      const tempCallResultVariable = generateName()
+
+      callStatements.push(
+        new FunctionInvocationStatement(
+          ex.functionName,
+          callArgs,
+          tempCallResultVariable,
+        ),
+      )
+
+      // replace function invocation with a reference to the temporary variable
+      return variableReferenceEx(tempCallResultVariable)
+    } else {
+      return ex
+    }
+  }
+
+  const generateName = createTempVariableGenerator()
+  const callStatements: FunctionInvocationStatement[] = []
+
+  return [
+    callStatements,
+    transformExpression(replaceBlockingFunctionInvocations, expression),
+  ]
 }
 
 /**
- * Search for blocking calls in expressions and replace them with call step + variable.
+ * Search for blocking calls in expressions and replace them with a call + variable.
  *
- * The Workflows runtime requires that blocking calls must be executed by call steps.
+ * The Workflows runtime requires that blocking calls must be executed by a call step.
  *
  * For example, transforms this:
  *
@@ -155,192 +360,8 @@ function flattenNextToCondition(step: SwitchStepAST): SwitchStepAST {
  * - return1:
  *     return: ${__temp0}
  */
-function blockingCallsAsCallSteps(steps: WorkflowStepAST[]): WorkflowStepAST[] {
-  const transform = transformStepExpressions(replaceBlockingCalls)
-  return R.chain(transform, steps)
-}
-
-function createTempVariableGenerator(): () => string {
-  let i = 0
-  return () => `__temp${i++}`
-}
-
-function replaceBlockingCalls(
-  expression: Expression,
-): [CallStepAST[], Expression] {
-  function replaceBlockingFunctionInvocations(ex: Expression): Expression {
-    if (ex.expressionType !== 'functionInvocation') {
-      return ex
-    }
-
-    const blockingCallArgumentNames = blockingFunctions.get(ex.functionName)
-    if (blockingCallArgumentNames) {
-      const nameAndValue = R.zip(blockingCallArgumentNames, ex.arguments)
-      const callArgs = R.fromPairs(nameAndValue)
-      const tempCallResultVariable = generateName()
-
-      callSteps.push(
-        new CallStepAST(ex.functionName, callArgs, tempCallResultVariable),
-      )
-
-      // replace function invocation with a reference to the temporary variable
-      return variableReferenceEx(tempCallResultVariable)
-    } else {
-      return ex
-    }
-  }
-
-  const generateName = createTempVariableGenerator()
-  const callSteps: CallStepAST[] = []
-
-  return [
-    callSteps,
-    transformExpression(replaceBlockingFunctionInvocations, expression),
-  ]
-}
-
-/**
- * Transform expressions in a step by applying transform.
- *
- * Returns an array of steps. The array includes the transformed step and possibly
- * additional steps constructed during the transformation. For example, a
- * transformation might extract blocking call expressions into call steps.
- */
-const transformStepExpressions = R.curry(function (
-  transform: (ex: Expression) => [WorkflowStepAST[], Expression],
-  step: WorkflowStepAST,
-): WorkflowStepAST[] {
-  switch (step.tag) {
-    case 'assign':
-      return transformExpressionsAssign(transform, step)
-
-    case 'call':
-      return transformExpressionsCall(transform, step)
-
-    case 'for':
-      return transformExpressionsFor(transform, step)
-
-    case 'raise':
-      return transformExpressionsRaise(transform, step)
-
-    case 'return':
-      return transformExpressionsReturn(transform, step)
-
-    case 'switch':
-      return transformExpressionsSwitch(transform, step)
-
-    case 'forrange':
-    case 'next':
-    case 'parallel':
-    case 'parallel-for':
-    case 'try':
-    case 'jumptarget':
-      return [step]
-  }
-})
-
-function transformExpressionsAssign(
-  transform: (ex: Expression) => [WorkflowStepAST[], Expression],
-  step: AssignStepAST,
-): WorkflowStepAST[] {
-  const newSteps: WorkflowStepAST[] = []
-  const newAssignments = step.assignments.map(({ name, value }) => {
-    const [steps2, transformedKey] = transform(name)
-    const [steps3, transformedValue] = transform(value)
-    newSteps.push(...steps2)
-    newSteps.push(...steps3)
-
-    if (
-      transformedKey.expressionType !== 'variableReference' &&
-      transformedKey.expressionType !== 'member'
-    ) {
-      throw new InternalTranspilingError(
-        'Unexpected key type when transforming assign step',
-      )
-    }
-
-    return { name: transformedKey, value: transformedValue }
-  })
-  newSteps.push(new AssignStepAST(newAssignments, step.next, step.label))
-  return newSteps
-}
-
-function transformExpressionsCall(
-  transform: (ex: Expression) => [WorkflowStepAST[], Expression],
-  step: CallStepAST,
-): WorkflowStepAST[] {
-  if (step.args) {
-    const newSteps: WorkflowStepAST[] = []
-    const newArgs = R.map((ex) => {
-      const [steps2, ex2] = transform(ex)
-      newSteps.push(...steps2)
-      return ex2
-    }, step.args)
-    newSteps.push(new CallStepAST(step.call, newArgs, step.result, step.label))
-    return newSteps
-  } else {
-    return [step]
-  }
-}
-
-function transformExpressionsFor(
-  transform: (ex: Expression) => [WorkflowStepAST[], Expression],
-  step: ForStepAST,
-): WorkflowStepAST[] {
-  const [newSteps, newListExpression] = transform(step.listExpression)
-  newSteps.push(
-    new ForStepAST(
-      step.steps,
-      step.loopVariableName,
-      newListExpression,
-      step.indexVariableName,
-      step.label,
-    ),
-  )
-  return newSteps
-}
-
-function transformExpressionsRaise(
-  transform: (ex: Expression) => [WorkflowStepAST[], Expression],
-  step: RaiseStepAST,
-): WorkflowStepAST[] {
-  const [newSteps, newEx] = transform(step.value)
-  newSteps.push(new RaiseStepAST(newEx, step.label))
-  return newSteps
-}
-
-function transformExpressionsReturn(
-  transform: (ex: Expression) => [WorkflowStepAST[], Expression],
-  step: ReturnStepAST,
-): WorkflowStepAST[] {
-  if (step.value) {
-    const [newSteps, newEx] = transform(step.value)
-    newSteps.push(new ReturnStepAST(newEx, step.label))
-    return newSteps
-  } else {
-    return [step]
-  }
-}
-
-function transformExpressionsSwitch(
-  transform: (ex: Expression) => [WorkflowStepAST[], Expression],
-  step: SwitchStepAST,
-): WorkflowStepAST[] {
-  const newSteps: WorkflowStepAST[] = []
-  const newBranches = step.branches.map((cond) => {
-    const [steps2, ex2] = transform(cond.condition)
-    newSteps.push(...steps2)
-
-    return {
-      condition: ex2,
-      steps: cond.steps,
-      next: cond.next,
-    }
-  })
-
-  newSteps.push(new SwitchStepAST(newBranches, step.label))
-  return newSteps
-}
+const blockingCallsAsFunctionCalls =
+  expandExpressionToStatements(replaceBlockingCalls)
 
 /**
  * Apply transform to expressions recursively.
@@ -359,7 +380,7 @@ function transformNestedExpressions(
 ): Expression {
   const tr = (y: Expression) => transformExpression(transform, y)
 
-  switch (ex.expressionType) {
+  switch (ex.tag) {
     case 'string':
     case 'number':
     case 'boolean':
@@ -388,7 +409,7 @@ function transformNestedExpressions(
 }
 
 /**
- * Search for map literals in expressions and replace them with assign step + variable.
+ * Search for map literals in expressions and replace them with assign + variable.
  *
  * Workflows does not support a map literal in expressions.
  *
@@ -406,14 +427,11 @@ function transformNestedExpressions(
  * - return1:
  *     return: ${__temp0.value}
  */
-function mapLiteralsAsAssignSteps(steps: WorkflowStepAST[]): WorkflowStepAST[] {
-  const transformNestedMapsInExpressions =
-    transformStepExpressions(transformNestedMaps)
+const mapLiteralsAsAssigns = expandExpressionToStatements(transformNestedMaps)
 
-  return R.chain(transformNestedMapsInExpressions, steps)
-}
-
-function transformNestedMaps(ex: Expression): [WorkflowStepAST[], Expression] {
+function transformNestedMaps(
+  ex: Expression,
+): [WorkflowStatement[], Expression] {
   const generateTemporaryVariableName = createTempVariableGenerator()
   const { transformedExpression, tempVariables } = extractNestedMaps(
     ex,
@@ -421,7 +439,7 @@ function transformNestedMaps(ex: Expression): [WorkflowStepAST[], Expression] {
     0,
   )
   const assignments =
-    tempVariables.length > 0 ? [new AssignStepAST(tempVariables)] : []
+    tempVariables.length > 0 ? [new AssignStatement(tempVariables)] : []
 
   return [assignments, transformedExpression]
 }
@@ -431,7 +449,7 @@ function extractNestedMaps(
   generateName: () => string,
   nestingLevel: number,
 ): { transformedExpression: Expression; tempVariables: VariableAssignment[] } {
-  switch (ex.expressionType) {
+  switch (ex.tag) {
     case 'string':
     case 'number':
     case 'boolean':
@@ -605,21 +623,13 @@ function extractNestedMapUnary(
 /**
  * Replace `Array.isArray(x)` with `get_type(x) == "list"`
  */
-function intrinsicFunctionImplementation(
-  steps: WorkflowStepAST[],
-): WorkflowStepAST[] {
-  const tr = transformStepExpressions((ex) => [
-    [],
-    transformExpression(replaceIsArray, ex),
-  ])
-  return R.chain(tr, steps)
-}
+const intrinsicFunctionImplementation = expandExpressionToStatements((ex) => [
+  [],
+  transformExpression(replaceIsArray, ex),
+])
 
 function replaceIsArray(ex: Expression): Expression {
-  if (
-    ex.expressionType === 'functionInvocation' &&
-    ex.functionName === 'Array.isArray'
-  ) {
+  if (ex.tag === 'functionInvocation' && ex.functionName === 'Array.isArray') {
     return binaryEx(
       functionInvocationEx('get_type', ex.arguments),
       '==',
@@ -629,3 +639,14 @@ function replaceIsArray(ex: Expression): Expression {
     return ex
   }
 }
+
+/**
+ * Performs various transformations on the AST.
+ */
+const transformPipe: (statements: WorkflowStatement[]) => WorkflowStatement[] =
+  R.pipe(
+    R.chain(mapLiteralsAsAssigns),
+    mergeAssigns,
+    R.chain(intrinsicFunctionImplementation),
+    R.chain(blockingCallsAsFunctionCalls),
+  )

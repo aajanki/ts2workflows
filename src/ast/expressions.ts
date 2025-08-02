@@ -67,7 +67,7 @@ export type Expression =
 
 // A primitive (string, number, list, etc) value
 interface ExpressionLiteral<V, Tag> {
-  readonly expressionType: Tag
+  readonly tag: Tag
   readonly value: V
 }
 
@@ -78,34 +78,34 @@ export type BooleanExpression = ExpressionLiteral<boolean, 'boolean'>
 export type ListExpression = ExpressionLiteral<Expression[], 'list'>
 export type MapExpression = ExpressionLiteral<Record<string, Expression>, 'map'>
 
-export const nullEx: NullExpression = { expressionType: 'null', value: null }
+export const nullEx: NullExpression = { tag: 'null', value: null }
 
 export function stringEx(value: string): StringExpression {
-  return { expressionType: 'string', value }
+  return { tag: 'string', value }
 }
 
 export function numberEx(value: number): NumberExpression {
-  return { expressionType: 'number', value }
+  return { tag: 'number', value }
 }
 
 export function booleanEx(value: boolean): BooleanExpression {
-  return { expressionType: 'boolean', value }
+  return { tag: 'boolean', value }
 }
 
 export const trueEx = booleanEx(true)
 export const falseEx = booleanEx(false)
 
 export function listEx(value: Expression[]): ListExpression {
-  return { expressionType: 'list', value }
+  return { tag: 'list', value }
 }
 
 export function mapEx(value: Record<string, Expression>): MapExpression {
-  return { expressionType: 'map', value }
+  return { tag: 'map', value }
 }
 
 // expr OPERATOR expr
 export interface BinaryExpression {
-  readonly expressionType: 'binary'
+  readonly tag: 'binary'
   readonly binaryOperator: BinaryOperator
   readonly left: Expression
   readonly right: Expression
@@ -117,7 +117,7 @@ export function binaryEx(
   right: Expression,
 ): BinaryExpression {
   return {
-    expressionType: 'binary',
+    tag: 'binary',
     binaryOperator,
     left,
     right,
@@ -127,19 +127,19 @@ export function binaryEx(
 // Variable name: a plain identifier (y, year) or a list
 // element accessor (names[3])
 export interface VariableReferenceExpression {
-  readonly expressionType: 'variableReference'
+  readonly tag: 'variableReference'
   readonly variableName: VariableName
 }
 
 export function variableReferenceEx(
   variableName: VariableName,
 ): VariableReferenceExpression {
-  return { expressionType: 'variableReference', variableName }
+  return { tag: 'variableReference', variableName }
 }
 
 // Function invocation with anonymous parameters: sys.get_env("GOOGLE_CLOUD_PROJECT_ID")
 export interface FunctionInvocationExpression {
-  readonly expressionType: 'functionInvocation'
+  readonly tag: 'functionInvocation'
   readonly functionName: string
   readonly arguments: Expression[]
 }
@@ -149,7 +149,7 @@ export function functionInvocationEx(
   argumentExpressions: Expression[],
 ): FunctionInvocationExpression {
   return {
-    expressionType: 'functionInvocation',
+    tag: 'functionInvocation',
     functionName,
     arguments: argumentExpressions,
   }
@@ -157,7 +157,7 @@ export function functionInvocationEx(
 
 // object.property or object[property]
 export interface MemberExpression {
-  readonly expressionType: 'member'
+  readonly tag: 'member'
   readonly object: Expression
   readonly property: Expression
   readonly computed: boolean
@@ -168,12 +168,12 @@ export function memberEx(
   property: Expression,
   computed: boolean,
 ): MemberExpression {
-  return { expressionType: 'member', object, property, computed }
+  return { tag: 'member', object, property, computed }
 }
 
 // unary, e.g. -1, +42, not ok
 export interface UnaryExpression {
-  readonly expressionType: 'unary'
+  readonly tag: 'unary'
   readonly operator: UnaryOperator
   readonly value: Expression
 }
@@ -182,12 +182,12 @@ export function unaryEx(
   operator: UnaryOperator,
   value: Expression,
 ): UnaryExpression {
-  return { expressionType: 'unary', operator, value }
+  return { tag: 'unary', operator, value }
 }
 
 // Returns a string representation of ex, not enclosed in ${}
 export function expressionToString(ex: Expression): string {
-  switch (ex.expressionType) {
+  switch (ex.tag) {
     case 'string':
       return JSON.stringify(ex.value)
 
@@ -240,7 +240,7 @@ function binaryExpressionToString(ex: BinaryExpression): string {
   let leftString = expressionToString(ex.left)
   let rightString = expressionToString(ex.right)
 
-  if (ex.left.expressionType === 'binary') {
+  if (ex.left.tag === 'binary') {
     const leftOpValue = operatorPrecedenceValue.get(ex.left.binaryOperator) ?? 0
     const thisOpValue = operatorPrecedenceValue.get(ex.binaryOperator) ?? 0
     if (leftOpValue < thisOpValue) {
@@ -248,7 +248,7 @@ function binaryExpressionToString(ex: BinaryExpression): string {
     }
   }
 
-  if (ex.right.expressionType === 'binary') {
+  if (ex.right.tag === 'binary') {
     const rightOpValue =
       operatorPrecedenceValue.get(ex.right.binaryOperator) ?? 0
     const thisOpValue = operatorPrecedenceValue.get(ex.binaryOperator) ?? 0
@@ -263,45 +263,17 @@ function binaryExpressionToString(ex: BinaryExpression): string {
 function unaryExpressionToString(ex: UnaryExpression): string {
   const separator = ex.operator === 'not' ? ' ' : ''
   let valueString = expressionToString(ex.value)
-  if (ex.value.expressionType === 'binary') {
+  if (ex.value.tag === 'binary') {
     valueString = `(${valueString})`
   }
   return `${ex.operator}${separator}${valueString}`
-}
-
-// Returns true if expression is a literal value.
-// Examples of literals: number, string, array of numbers or strings, etc.
-// Examples of non-literals: array that contains complex expressions.
-export function isLiteral(ex: Expression): boolean {
-  switch (ex.expressionType) {
-    case 'string':
-    case 'number':
-    case 'boolean':
-    case 'null':
-      return true
-
-    case 'list':
-      return ex.value.every(isLiteral)
-
-    case 'map':
-      return Object.values(ex.value).every(isLiteral)
-
-    case 'unary':
-      return isLiteral(ex.value)
-
-    case 'binary':
-    case 'variableReference':
-    case 'functionInvocation':
-    case 'member':
-      return false
-  }
 }
 
 // Returns a literal for simple terms and a literal expression enclosed in ${} for complex terms.
 export function expressionToLiteralValueOrLiteralExpression(
   ex: Expression,
 ): LiteralValueOrLiteralExpression {
-  switch (ex.expressionType) {
+  switch (ex.tag) {
     case 'string':
     case 'number':
     case 'boolean':
@@ -321,7 +293,7 @@ export function expressionToLiteralValueOrLiteralExpression(
       return `\${${expressionToString(ex)}}`
 
     case 'unary':
-      if (ex.value.expressionType === 'number') {
+      if (ex.value.tag === 'number') {
         if (ex.operator === '+') {
           return ex.value.value
         } else if (ex.operator === '-') {
@@ -336,7 +308,7 @@ export function expressionToLiteralValueOrLiteralExpression(
 }
 
 export function isFullyQualifiedName(ex: Expression): boolean {
-  switch (ex.expressionType) {
+  switch (ex.tag) {
     case 'string':
     case 'number':
     case 'boolean':
@@ -356,9 +328,7 @@ export function isFullyQualifiedName(ex: Expression): boolean {
         isFullyQualifiedName(ex.object) &&
         (isFullyQualifiedName(ex.property) ||
           (ex.computed &&
-            ['null', 'string', 'number', 'boolean'].includes(
-              ex.property.expressionType,
-            )))
+            ['null', 'string', 'number', 'boolean'].includes(ex.property.tag)))
       )
   }
 }
@@ -367,12 +337,16 @@ export function isFullyQualifiedName(ex: Expression): boolean {
  * Returns true if ex is pure expression (can't have side-effects)
  */
 export function isPure(ex: Expression): boolean {
-  switch (ex.expressionType) {
+  switch (ex.tag) {
     case 'string':
     case 'number':
     case 'boolean':
     case 'null':
+    case 'variableReference':
       return true
+
+    case 'functionInvocation':
+      return false
 
     case 'list':
       return ex.value.every(isPure)
@@ -382,12 +356,6 @@ export function isPure(ex: Expression): boolean {
 
     case 'binary':
       return isPure(ex.left) && isPure(ex.right)
-
-    case 'functionInvocation':
-      return false
-
-    case 'variableReference':
-      return true
 
     case 'member':
       return isPure(ex.object) && isPure(ex.property)

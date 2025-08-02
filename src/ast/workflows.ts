@@ -6,7 +6,8 @@ import {
   VariableName,
   expressionToLiteralValueOrLiteralExpression,
 } from './expressions.js'
-import { NamedWorkflowStep, renderStep } from './steps.js'
+import { WorkflowStatement } from './statements.js'
+import { WorkflowStep, renderStep } from './steps.js'
 
 export interface WorkflowParameter {
   name: VariableName
@@ -38,15 +39,23 @@ export class WorkflowApp {
   }
 }
 
+export class SubworkflowStatements {
+  constructor(
+    public readonly name: string,
+    public readonly statements: WorkflowStatement[],
+    public readonly params?: WorkflowParameter[],
+  ) {}
+}
+
 // https://cloud.google.com/workflows/docs/reference/syntax/subworkflows
 export class Subworkflow {
   readonly name: string
-  readonly steps: NamedWorkflowStep[]
+  readonly steps: WorkflowStep[]
   readonly params?: WorkflowParameter[]
 
   constructor(
     name: string,
-    steps: NamedWorkflowStep[],
+    steps: WorkflowStep[],
     params?: WorkflowParameter[],
   ) {
     this.name = name
@@ -71,9 +80,7 @@ export class Subworkflow {
     }
 
     Object.assign(body, {
-      steps: this.steps.map(({ name, step }) => {
-        return { [name]: renderStep(step) }
-      }),
+      steps: this.steps.map(renderStep),
     })
 
     return body

@@ -942,6 +942,48 @@ describe('Switch statement', () => {
 
     assertTranspiled(code, expected)
   })
+
+  it('fall-through as the last case', () => {
+    const code = `
+    function main(person: string): string {
+      let royal: boolean = false;
+
+      switch (person) {
+        case "Bean":
+          royal = true;
+
+        case "Sorcerio":
+        default:
+      }
+
+      return royal;
+    }`
+
+    const expected = `
+    main:
+      params:
+        - person
+      steps:
+        - assign1:
+            assign:
+              - royal: false
+        - switch1:
+            switch:
+              - condition: \${person == "Bean"}
+                next: assign2
+              - condition: \${person == "Sorcerio"}
+                next: return1
+              - condition: true
+                next: return1
+        - assign2:
+            assign:
+              - royal: true
+        - return1:
+            return: \${royal}
+    `
+
+    assertTranspiled(code, expected)
+  })
 })
 
 describe('Return statement', () => {

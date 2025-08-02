@@ -524,10 +524,7 @@ export function convertVariableNameExpression(
 ): VariableReferenceExpression | MemberExpression {
   const ex = convertExpression(instance)
 
-  if (
-    ex.expressionType !== 'variableReference' &&
-    ex.expressionType !== 'member'
-  ) {
+  if (ex.tag !== 'variableReference' && ex.tag !== 'member') {
     throw new WorkflowSyntaxError(
       'The left-hand side of an assignment must be a variable or member expression',
       instance.loc,

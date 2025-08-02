@@ -544,7 +544,7 @@ describe('Loops', () => {
                             - assign3:
                                 assign:
                                   - x: \${2 * (1 - x)}
-                  - next1:
+                  - next2:
                       next: switch1
         - return1:
             return: \${x}
@@ -596,7 +596,7 @@ describe('Loops', () => {
                             - assign3:
                                 assign:
                                   - x: \${2 * (1 - x)}
-                  - next1:
+                  - next2:
                       next: switch1
     `
 
@@ -1005,6 +1005,100 @@ describe('Loops', () => {
                                   - x: \${x + 1}
                                 next: switch2
                   - next3:
+                      next: switch1
+    `
+
+    assertTranspiled(code, expected)
+  })
+
+  it('transpiles a continue in a for loop nested in a while loop', () => {
+    const code = `
+    function main() {
+      let x = 0;
+
+      while (x < 5) {
+        for (const y of [1, 2]) {
+          if (y % 2 === 0) {
+            continue;
+          } else {
+            x += 1;
+          }
+        }
+      }
+    }`
+
+    const expected = `
+    main:
+      steps:
+        - assign1:
+            assign:
+              - x: 0
+        - switch1:
+            switch:
+              - condition: \${x < 5}
+                steps:
+                  - for1:
+                      for:
+                        value: y
+                        in: [1, 2]
+                        steps:
+                          - switch2:
+                              switch:
+                                - condition: \${y % 2 == 0}
+                                  next: continue
+                                - condition: true
+                                  steps:
+                                    - assign2:
+                                        assign:
+                                          - x: \${x + 1}
+                  - next2:
+                      next: switch1
+    `
+
+    assertTranspiled(code, expected)
+  })
+
+  it('transpiles a break in a for loop nested in a while loop', () => {
+    const code = `
+    function main() {
+      let x = 0;
+
+      while (x < 5) {
+        for (const y of [1, 2]) {
+          if (y % 2 === 0) {
+            break;
+          } else {
+            x += 1;
+          }
+        }
+      }
+    }`
+
+    const expected = `
+    main:
+      steps:
+        - assign1:
+            assign:
+              - x: 0
+        - switch1:
+            switch:
+              - condition: \${x < 5}
+                steps:
+                  - for1:
+                      for:
+                        value: y
+                        in: [1, 2]
+                        steps:
+                          - switch2:
+                              switch:
+                                - condition: \${y % 2 == 0}
+                                  next: break
+                                - condition: true
+                                  steps:
+                                    - assign2:
+                                        assign:
+                                          - x: \${x + 1}
+                  - next2:
                       next: switch1
     `
 

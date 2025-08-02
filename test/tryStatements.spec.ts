@@ -218,9 +218,11 @@ describe('Try-catch-finally statement', () => {
                           - assign2:
                               assign:
                                 - __temp: \${writeData(data)}
+                          - assign3:
+                              assign:
                                 - __t2w_finally_condition1: return
                                 - __t2w_finally_value1: OK
-                              next: assign4
+                              next: assign5
                       except:
                         as: err
                         steps:
@@ -231,11 +233,11 @@ describe('Try-catch-finally statement', () => {
               except:
                 as: __fin_exc
                 steps:
-                  - assign3:
+                  - assign4:
                       assign:
                         - __t2w_finally_condition1: raise
                         - __t2w_finally_value1: \${__fin_exc}
-          - assign4:
+          - assign5:
               assign:
                 - __temp: \${closeConnection()}
           - switch1:

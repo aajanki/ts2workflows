@@ -9,7 +9,6 @@ import {
 } from '@typescript-eslint/typescript-estree'
 import ts from 'typescript'
 import * as YAML from 'yaml'
-import { SubworkflowAST } from '../ast/steps.js'
 import {
   InternalTranspilingError,
   IOError,
@@ -17,11 +16,11 @@ import {
 } from '../errors.js'
 import {
   Subworkflow,
+  SubworkflowStatements,
   WorkflowApp,
   WorkflowParameter,
 } from '../ast/workflows.js'
-import { generateStepNames } from '../ast/stepnames.js'
-import { parseStatement } from './statements.js'
+import { parseStatement } from './parsestatement.js'
 import { transformAST } from './transformations.js'
 import { findCalledFunctionDeclarations } from './linker.js'
 import {
@@ -31,7 +30,8 @@ import {
   NumberExpression,
   StringExpression,
 } from '../ast/expressions.js'
-import { convertExpression } from './expressions.js'
+import { convertExpression } from './parseexpressions.js'
+import { generateStepNames } from './stepnames.js'
 
 const workflowCache = new Map<string, WorkflowApp>()
 
@@ -41,9 +41,9 @@ export function transpile(
   linkSubworkflows: boolean,
 ): string {
   const { ast, services } = parseMainFile(input, tsconfigPath)
-  const inputWorkflow = generateStepNames({
-    subworkflows: ast.body.flatMap(parseTopLevelStatement),
-  })
+  const inputWorkflow = generateStepNames(
+    ast.body.flatMap(parseTopLevelStatement),
+  )
 
   if (linkSubworkflows && tsconfigPath && services.program && input.filename) {
     const canonicalInput = path.join(process.cwd(), input.filename)
@@ -64,9 +64,7 @@ export function transpile(
 export function transpileText(sourceCode: string) {
   const parserOptions = eslintParserOptions()
   const { ast } = parseAndGenerateServices(sourceCode, parserOptions)
-  const workflow = generateStepNames({
-    subworkflows: ast.body.flatMap(parseTopLevelStatement),
-  })
+  const workflow = generateStepNames(ast.body.flatMap(parseTopLevelStatement))
   return toYAMLString(workflow)
 }
 
@@ -151,9 +149,7 @@ function getCachedWorkflow(
     const parserOptions = eslintParserOptions(filename, tsconfigPath)
     const code = fs.readFileSync(filename, 'utf8')
     const { ast } = parseAndGenerateServices(code, parserOptions)
-    const workflow = generateStepNames({
-      subworkflows: ast.body.flatMap(parseTopLevelStatement),
-    })
+    const workflow = generateStepNames(ast.body.flatMap(parseTopLevelStatement))
 
     workflowCache.set(filename, workflow)
 
@@ -220,7 +216,7 @@ function isAmbient(
 
 function parseTopLevelStatement(
   node: TSESTree.ProgramStatement,
-): SubworkflowAST[] {
+): SubworkflowStatements[] {
   switch (node.type) {
     case AST_NODE_TYPES.FunctionDeclaration:
       return [parseSubworkflows(node)]
@@ -272,7 +268,7 @@ function parseTopLevelStatement(
 
 function parseSubworkflows(
   node: TSESTree.FunctionDeclarationWithName,
-): SubworkflowAST {
+): SubworkflowStatements {
   const workflowParams = parseWorkflowParams(node.params)
   const steps = transformAST(parseStatement(node.body, {}))
 
@@ -283,7 +279,7 @@ function parseSubworkflows(
     )
   }
 
-  return new SubworkflowAST(node.id.name, steps, workflowParams)
+  return new SubworkflowStatements(node.id.name, steps, workflowParams)
 }
 
 function parseWorkflowParams(
@@ -333,10 +329,10 @@ function parseSubworkflowDefaultArgument(param: TSESTree.AssignmentPattern) {
     | NullExpression
 
   if (
-    val.expressionType === 'string' ||
-    val.expressionType === 'number' ||
-    val.expressionType === 'boolean' ||
-    val.expressionType === 'null'
+    val.tag === 'string' ||
+    val.tag === 'number' ||
+    val.tag === 'boolean' ||
+    val.tag === 'null'
   ) {
     defaultValue = val
   } else {
