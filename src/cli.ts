@@ -77,17 +77,15 @@ function cliMain() {
   }
 
   files.forEach((inputFile) => {
+    const input = readSourceCode(inputFile)
+
     try {
       const transpiled = generateTranspiledText(
-        inputFile,
+        input,
         args.generatedFileComment,
         args.link,
         args.project,
       )
-
-      if (transpiled === undefined) {
-        process.exit(1)
-      }
 
       writeOutput(transpiled, inputFile, args.outdir)
     } catch (err) {
@@ -103,6 +101,12 @@ function cliMain() {
         }
         console.error(message)
         process.exit(1)
+      } else if (err instanceof WorkflowSyntaxError) {
+        prettyPrintSyntaxError(err, input)
+        process.exit(1)
+      } else if (err instanceof TSError) {
+        prettyPrintSyntaxError(err, input)
+        process.exit(1)
       } else {
         throw err
       }
@@ -111,49 +115,39 @@ function cliMain() {
 }
 
 function generateTranspiledText(
-  inputFile: string,
+  input: Input,
   addGeneratedFileComment: boolean,
   linkSubworkflows: boolean,
   project?: string,
-): string | undefined {
-  const input = readSourceCode(inputFile)
-
-  try {
-    if (inputFile === '-') {
-      return transpileText(input.read())
-    } else {
-      const header = addGeneratedFileComment
-        ? generatedFileComment(inputFile)
-        : ''
-      const transpiled = transpile(input, project, linkSubworkflows)
-      return `${header}${transpiled}`
-    }
-  } catch (err) {
-    if (err instanceof WorkflowSyntaxError) {
-      prettyPrintSyntaxError(err, input)
-      return undefined
-    } else if (err instanceof TSError) {
-      prettyPrintSyntaxError(err, input)
-      return undefined
-    } else {
-      throw err
-    }
+): string {
+  if (input.filename === undefined) {
+    return transpileText(input.read())
+  } else {
+    const header = addGeneratedFileComment
+      ? generatedFileComment(input.filename)
+      : ''
+    const transpiled = transpile(input, project, linkSubworkflows)
+    return `${header}${transpiled}`
   }
 }
 
 function readSourceCode(filename: string): Input {
-  if (filename === '-') {
-    // read and cache stdin
-    const code = fs.readFileSync(process.stdin.fd, 'utf8')
+  const readCode = crateMemorizedReader(
+    filename === '-' ? process.stdin.fd : filename,
+  )
 
-    return {
-      read: () => code,
-    }
-  } else {
-    return {
-      filename: filename,
-      read: () => fs.readFileSync(filename, 'utf8'),
-    }
+  return {
+    filename: filename === '-' ? undefined : filename,
+    read: () => readCode(),
+  }
+}
+
+function crateMemorizedReader(filenameOrFd: string | number): () => string {
+  let cached: string | undefined
+
+  return () => {
+    cached ??= fs.readFileSync(filenameOrFd, 'utf8')
+    return cached
   }
 }
 
