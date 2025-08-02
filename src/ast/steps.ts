@@ -1243,7 +1243,7 @@ function nestedSteps(step: WorkflowStep): WorkflowStep[][] {
       return [step.steps]
 
     case 'parallel':
-      return [step.branches.flatMap((x) => x.steps)] // FIXME should this be map???
+      return step.branches.map((x) => x.steps)
 
     case 'parallel-for':
       return [step.forStep.steps]
