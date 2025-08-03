@@ -631,6 +631,51 @@ describe('Assignment statement', () => {
     assertTranspiled(code, expected)
   })
 
+  it('compound assignment with a unary expression on LHS', () => {
+    const code = `
+    function main() {
+      values[-getIndex()] -= 1;
+    }
+
+    function getIndex() {
+      return 1;
+    }`
+
+    const expected = `
+    main:
+      steps:
+        - assign1:
+            assign:
+              - __temp0: \${-getIndex()}
+              - values[__temp0]: \${values[__temp0] - 1}
+    getIndex:
+      steps:
+        - return1:
+            return: 1
+    `
+
+    assertTranspiled(code, expected)
+  })
+
+  it('compound assignment with a list and map expressions on LHS', () => {
+    const code = `
+    function main() {
+      values[{"value": [1, 2, 3]}.value[0]] -= 1;
+    }`
+
+    const expected = `
+    main:
+      steps:
+        - assign1:
+            assign:
+              - __temp0:
+                  value: [1, 2, 3]
+              - values[__temp0.value[0]]: \${values[__temp0.value[0]] - 1}
+    `
+
+    assertTranspiled(code, expected)
+  })
+
   it('compound assignment to a member expression with side-effects', () => {
     const code = `
     function main() {

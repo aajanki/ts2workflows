@@ -123,19 +123,17 @@ function listFunctions(
 function qualifiedName(decl: ts.FunctionDeclaration): string {
   let name = decl.name?.getText()
 
-  if (!name) {
-    return ''
+  if (name) {
+    let node: ts.FunctionDeclaration | ts.ModuleDeclaration = decl
+    while (
+      ts.isModuleBlock(node.parent) &&
+      ts.isModuleDeclaration(node.parent.parent)
+    ) {
+      node = node.parent.parent as ts.ModuleDeclaration
+
+      name = node.name.getText() + '.' + name
+    }
   }
 
-  let node: ts.FunctionDeclaration | ts.ModuleDeclaration = decl
-  while (
-    ts.isModuleBlock(node.parent) &&
-    ts.isModuleDeclaration(node.parent.parent)
-  ) {
-    node = node.parent.parent as ts.ModuleDeclaration
-
-    name = node.name.getText() + '.' + name
-  }
-
-  return name
+  return name ?? ''
 }

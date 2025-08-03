@@ -2,7 +2,7 @@ import { expect } from 'chai'
 import * as YAML from 'yaml'
 import * as fs from 'node:fs'
 import { transpile, transpileText } from '../src/transpiler/index.js'
-import { assertTranspiled } from './testutils.js'
+import { assertTranspiled, assertNotCalled } from './testutils.js'
 import { IOError } from '../src/errors.js'
 
 describe('Type annotations', () => {
@@ -383,7 +383,7 @@ describe('Compiler intrinsics', () => {
 describe('Sample source files', () => {
   const samplesdir = './samples'
 
-  it('transpiles sample files', () => {
+  it('transpiles sample files with transpileText', () => {
     fs.readdirSync(samplesdir).forEach((file) => {
       if (file.endsWith('.ts')) {
         const fullPath = `${samplesdir}/${file}`
@@ -394,13 +394,13 @@ describe('Sample source files', () => {
     })
   })
 
-  it('transpiles sample files with project', () => {
+  it('transpiles sample files with a project', () => {
     fs.readdirSync(samplesdir).forEach((file) => {
       if (file.endsWith('.ts')) {
         const fullPath = `${samplesdir}/${file}`
         const input = {
           filename: fullPath,
-          read: () => fs.readFileSync(fullPath, 'utf-8'),
+          read: assertNotCalled,
         }
 
         expect(() =>
@@ -410,11 +410,25 @@ describe('Sample source files', () => {
     })
   })
 
+  it('transpiles sample files without a project', () => {
+    fs.readdirSync(samplesdir).forEach((file) => {
+      if (file.endsWith('.ts')) {
+        const fullPath = `${samplesdir}/${file}`
+        const input = {
+          filename: fullPath,
+          read: () => fs.readFileSync(fullPath, 'utf-8'),
+        }
+
+        expect(() => transpile(input, undefined, false)).not.to.throw()
+      }
+    })
+  })
+
   it('generates linked output', () => {
     const fullPath = `${samplesdir}/sample2.ts`
     const input = {
       filename: fullPath,
-      read: () => fs.readFileSync(fullPath, 'utf-8'),
+      read: assertNotCalled,
     }
     const yaml = transpile(input, 'samples/tsconfig.json', true)
     const observed = YAML.parse(yaml) as Record<string, unknown>
@@ -427,11 +441,11 @@ describe('Sample source files', () => {
   it('throws if the input file does not exist', () => {
     const input = {
       filename: `${samplesdir}/this-file-does-not-exist.ts`,
-      read: () => '',
+      read: assertNotCalled,
     }
-    const transpileAttemp = () =>
+    const transpileAttempt = () =>
       transpile(input, 'samples/tsconfig.json', false)
 
-    expect(transpileAttemp).to.throw(IOError, 'not found')
+    expect(transpileAttempt).to.throw(IOError, 'not found')
   })
 })

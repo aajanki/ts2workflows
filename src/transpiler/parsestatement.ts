@@ -74,24 +74,24 @@ export function parseStatement(
 
     case AST_NODE_TYPES.ExpressionStatement:
       if (node.expression.type === AST_NODE_TYPES.AssignmentExpression) {
-        return assignmentExpressionToSteps(node.expression, ctx)
+        return assignmentExpressionToStatement(node.expression, ctx)
       } else if (node.expression.type === AST_NODE_TYPES.CallExpression) {
-        return callExpressionToStep(node.expression, undefined, ctx)
+        return callExpressionToStatement(node.expression, undefined, ctx)
       } else {
-        return [generalExpressionToAssignStep(node.expression, ctx)]
+        return [generalExpressionToAssignment(node.expression, ctx)]
       }
 
     case AST_NODE_TYPES.ReturnStatement:
-      return [returnStatementToReturnStep(node)]
+      return [createReturnStatement(node)]
 
     case AST_NODE_TYPES.ThrowStatement:
-      return [throwStatementToRaiseStep(node)]
+      return [createRaiseStatement(node)]
 
     case AST_NODE_TYPES.IfStatement:
-      return [ifStatementToSwitchStep(node, ctx)]
+      return [createIfStatement(node, ctx)]
 
     case AST_NODE_TYPES.SwitchStatement:
-      return switchStatementToSteps(node, ctx)
+      return createSwitchStatement(node, ctx)
 
     case AST_NODE_TYPES.ForInStatement:
       throw new WorkflowSyntaxError(
@@ -100,25 +100,25 @@ export function parseStatement(
       )
 
     case AST_NODE_TYPES.ForOfStatement:
-      return [forOfStatementToForStep(node, ctx)]
+      return [createForOfStatement(node, ctx)]
 
     case AST_NODE_TYPES.DoWhileStatement:
-      return doWhileStatementSteps(node, ctx)
+      return createDoWhileStatement(node, ctx)
 
     case AST_NODE_TYPES.WhileStatement:
-      return whileStatementSteps(node, ctx)
+      return createWhileStatement(node, ctx)
 
     case AST_NODE_TYPES.BreakStatement:
-      return [breakStatementToNextStep(node)]
+      return [createBreakStatement(node)]
 
     case AST_NODE_TYPES.ContinueStatement:
-      return [continueStatementToNextStep(node)]
+      return [createContinueStatement(node)]
 
     case AST_NODE_TYPES.TryStatement:
-      return tryStatementToTrySteps(node, ctx)
+      return createTryStatement(node, ctx)
 
     case AST_NODE_TYPES.LabeledStatement:
-      return [labeledStep(node, ctx)]
+      return [createLabeledStatement(node, ctx)]
 
     case AST_NODE_TYPES.EmptyStatement:
       return []
@@ -183,7 +183,7 @@ function convertInitializer(
       )
     }
 
-    return callExpressionToStep(initializer, targetVariableName, ctx)
+    return callExpressionToStatement(initializer, targetVariableName, ctx)
   } else {
     const name = variableReferenceEx(targetVariableName)
     const value = initializer === null ? nullEx : convertExpression(initializer)
@@ -614,7 +614,7 @@ function objectDestructuringRestSteps(
   return [new AssignStatement([{ name, value }])]
 }
 
-function assignmentExpressionToSteps(
+function assignmentExpressionToStatement(
   node: TSESTree.AssignmentExpression,
   ctx: ParsingContext,
 ): WorkflowStatement[] {
@@ -662,7 +662,12 @@ function assignmentExpressionToSteps(
   if (compoundOperator === undefined) {
     return assignmentSteps(node.left, node.right, ctx)
   } else {
-    return compoundAssignmentSteps(node.left, node.right, compoundOperator, ctx)
+    return compoundAssignmentStatements(
+      node.left,
+      node.right,
+      compoundOperator,
+      ctx,
+    )
   }
 }
 
@@ -700,7 +705,7 @@ function assignmentSteps(
   return steps
 }
 
-function compoundAssignmentSteps(
+function compoundAssignmentStatements(
   left: TSESTree.Expression,
   right: TSESTree.Expression,
   operator: BinaryOperator,
@@ -843,13 +848,13 @@ function convertAssignmentExpressionIntrinsicRHS(
   }
 
   const resultVariable = tempName(ctx)
-  const steps = callExpressionToStep(callEx, resultVariable, ctx)
+  const steps = callExpressionToStatement(callEx, resultVariable, ctx)
   const tempVariable = variableReferenceEx(resultVariable)
 
   return { steps, tempVariable }
 }
 
-function callExpressionToStep(
+function callExpressionToStatement(
   node: TSESTree.CallExpression,
   resultVariable: string | undefined,
   ctx: ParsingContext,
@@ -865,11 +870,11 @@ function callExpressionToStep(
       // retry_policy() is handled by AST_NODE_TYPES.TryStatement and therefore ignored here
       return []
     } else if (calleeName === 'call_step') {
-      return [createCallStep(node, node.arguments, resultVariable)]
+      return [createCallStatement(node, node.arguments, resultVariable)]
     } else if (blockingFunctions.has(calleeName)) {
       const argumentNames = blockingFunctions.get(calleeName) ?? []
       return [
-        blockingFunctionCallStep(
+        blockingFunctionStatement(
           calleeName,
           argumentNames,
           node.arguments,
@@ -880,7 +885,7 @@ function callExpressionToStep(
       const resultVariable2 = resultVariable ?? tempName(ctx)
 
       return [
-        callExpressionAssignStep(calleeName, node.arguments, resultVariable2),
+        callExpressionAssignment(calleeName, node.arguments, resultVariable2),
       ]
     }
   } else {
@@ -891,7 +896,7 @@ function callExpressionToStep(
   }
 }
 
-function callExpressionAssignStep(
+function callExpressionAssignment(
   functionName: string,
   argumentsNode: TSESTree.CallExpressionArgument[],
   resultVariable: VariableName,
@@ -907,7 +912,7 @@ function callExpressionAssignStep(
   ])
 }
 
-function createCallStep(
+function createCallStatement(
   node: TSESTree.CallExpression,
   argumentsNode: TSESTree.CallExpressionArgument[],
   resultVariable?: VariableName,
@@ -959,7 +964,7 @@ function createCallStep(
   return new FunctionInvocationStatement(functionName, args, resultVariable)
 }
 
-function blockingFunctionCallStep(
+function blockingFunctionStatement(
   functionName: string,
   argumentNames: string[],
   argumentsNode: TSESTree.CallExpressionArgument[],
@@ -1094,7 +1099,7 @@ function parseParallelIteration(
     )
   }
 
-  return forOfStatementToForStep(node.body.body[0], ctx)
+  return createForOfStatement(node.body.body[0], ctx)
 }
 
 function parseParallelOptions(node: TSESTree.CallExpressionArgument) {
@@ -1152,7 +1157,7 @@ function parseParallelOptions(node: TSESTree.CallExpressionArgument) {
   }
 }
 
-function generalExpressionToAssignStep(
+function generalExpressionToAssignment(
   node: TSESTree.Expression,
   ctx: ParsingContext,
 ): AssignStatement {
@@ -1164,7 +1169,7 @@ function generalExpressionToAssignStep(
   ])
 }
 
-function returnStatementToReturnStep(
+function createReturnStatement(
   node: TSESTree.ReturnStatement,
 ): ReturnStatement | AssignStatement {
   const value = node.argument ? convertExpression(node.argument) : undefined
@@ -1172,13 +1177,11 @@ function returnStatementToReturnStep(
   return new ReturnStatement(value)
 }
 
-function throwStatementToRaiseStep(
-  node: TSESTree.ThrowStatement,
-): RaiseStatement {
+function createRaiseStatement(node: TSESTree.ThrowStatement): RaiseStatement {
   return new RaiseStatement(convertExpression(node.argument))
 }
 
-function ifStatementToSwitchStep(
+function createIfStatement(
   node: TSESTree.IfStatement,
   ctx: ParsingContext,
 ): IfStatement {
@@ -1210,7 +1213,7 @@ function flattenIfBranches(
   return branches
 }
 
-function switchStatementToSteps(
+function createSwitchStatement(
   node: TSESTree.SwitchStatement,
   ctx: ParsingContext,
 ): WorkflowStatement[] {
@@ -1232,7 +1235,7 @@ function switchStatementToSteps(
   return [new SwitchStatement(branches)]
 }
 
-function forOfStatementToForStep(
+function createForOfStatement(
   node: TSESTree.ForOfStatement,
   ctx: ParsingContext,
 ): ForStatement {
@@ -1290,7 +1293,7 @@ function forOfStatementToForStep(
   return new ForStatement(steps, loopVariableName, listExpression)
 }
 
-function whileStatementSteps(
+function createWhileStatement(
   node: TSESTree.WhileStatement,
   ctx: ParsingContext,
 ): WorkflowStatement[] {
@@ -1299,7 +1302,7 @@ function whileStatementSteps(
   return [new WhileStatement(condition, body)]
 }
 
-function doWhileStatementSteps(
+function createDoWhileStatement(
   node: TSESTree.DoWhileStatement,
   ctx: ParsingContext,
 ): WorkflowStatement[] {
@@ -1308,19 +1311,17 @@ function doWhileStatementSteps(
   return [new DoWhileStatement(condition, body)]
 }
 
-function breakStatementToNextStep(
-  node: TSESTree.BreakStatement,
-): BreakStatement {
+function createBreakStatement(node: TSESTree.BreakStatement): BreakStatement {
   return new BreakStatement(node.label?.name)
 }
 
-function continueStatementToNextStep(
+function createContinueStatement(
   node: TSESTree.ContinueStatement,
 ): ContinueStatement {
   return new ContinueStatement(node.label?.name)
 }
 
-function tryStatementToTrySteps(
+function createTryStatement(
   node: TSESTree.TryStatement,
   ctx: ParsingContext,
 ): WorkflowStatement[] {
@@ -1448,7 +1449,7 @@ function extractErrorVariableName(
   return param.name
 }
 
-function labeledStep(
+function createLabeledStatement(
   node: TSESTree.LabeledStatement,
   ctx: ParsingContext,
 ): LabelledStatement {
