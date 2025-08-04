@@ -57,8 +57,8 @@ import {
 import { blockingFunctions } from './generated/functionMetadata.js'
 
 export interface ParsingContext {
-  // parallelNestingLevel is the current nesting level of parallel steps. Used
-  // for naming temporary variables inside parallel branches.
+  // parallelNestingLevel is the current nesting level of parallel statements.
+  // Used for naming temporary variables inside parallel branches.
   readonly parallelNestingLevel?: number
 }
 
@@ -199,7 +199,7 @@ function convertArrayDestructuring(
   ctx: ParsingContext,
 ): WorkflowStatement[] {
   let initExpression
-  const steps: WorkflowStatement[] = []
+  const statements: WorkflowStatement[] = []
   if (
     initializer?.type === AST_NODE_TYPES.Identifier ||
     initializer?.type === AST_NODE_TYPES.MemberExpression
@@ -213,18 +213,18 @@ function convertArrayDestructuring(
   } else {
     // Otherwise, assign the expression to a temporary variable first.
     const initName = tempName(ctx)
-    steps.push(...convertInitializer(initName, initializer, ctx))
+    statements.push(...convertInitializer(initName, initializer, ctx))
     initExpression = variableReferenceEx(initName)
   }
 
-  steps.push(
-    ...arrayDestructuringSteps(arrayPattern.elements, initExpression, ctx),
+  statements.push(
+    ...arrayDestructuringStatements(arrayPattern.elements, initExpression, ctx),
   )
 
-  return steps
+  return statements
 }
 
-function arrayDestructuringSteps(
+function arrayDestructuringStatements(
   patterns: (TSESTree.DestructuringPattern | null)[],
   initializerExpression: Expression,
   ctx: ParsingContext,
@@ -248,7 +248,7 @@ function arrayDestructuringSteps(
       return [
         {
           condition: binaryEx(__temp_len, '>=', numberEx(patterns.length - i)),
-          body: arrayElementsDestructuringSteps(
+          body: arrayElementsDestructuringStatements(
             patterns,
             initializerExpression,
             patterns.length - i,
@@ -261,7 +261,7 @@ function arrayDestructuringSteps(
 
   branches.push({
     condition: trueEx,
-    body: arrayElementsDestructuringSteps(
+    body: arrayElementsDestructuringStatements(
       patterns,
       initializerExpression,
       0,
@@ -272,7 +272,7 @@ function arrayDestructuringSteps(
   return [new AssignStatement(initializeVariables), new IfStatement(branches)]
 }
 
-function arrayElementsDestructuringSteps(
+function arrayElementsDestructuringStatements(
   patterns: (TSESTree.DestructuringPattern | null)[],
   initializerExpression: Expression,
   take: number,
@@ -310,13 +310,13 @@ function arrayElementsDestructuringSteps(
       }
 
       case AST_NODE_TYPES.ObjectPattern:
-        return objectDestructuringSteps(pat.properties, iElement, ctx)
+        return objectDestructuringStatements(pat.properties, iElement, ctx)
 
       case AST_NODE_TYPES.ArrayPattern:
-        return arrayDestructuringSteps(pat.elements, iElement, ctx)
+        return arrayDestructuringStatements(pat.elements, iElement, ctx)
 
       case AST_NODE_TYPES.RestElement:
-        return arrayRestDestructuringSteps(
+        return arrayRestDestructuringStatements(
           patterns,
           pat,
           initializerExpression,
@@ -414,7 +414,7 @@ function throwIfInvalidRestElement(
   }
 }
 
-function arrayRestDestructuringSteps(
+function arrayRestDestructuringStatements(
   patterns: (TSESTree.DestructuringPattern | null)[],
   rest: TSESTree.RestElement,
   initializerExpression: Expression,
@@ -465,7 +465,7 @@ function convertObjectDestructuring(
   ctx: ParsingContext,
 ): WorkflowStatement[] {
   let initExpression: Expression
-  const steps: WorkflowStatement[] = []
+  const statements: WorkflowStatement[] = []
   if (
     initializer?.type === AST_NODE_TYPES.Identifier ||
     (initializer?.type === AST_NODE_TYPES.MemberExpression &&
@@ -476,25 +476,29 @@ function convertObjectDestructuring(
   } else {
     // Otherwise, assign the expression to a temporary variable first.
     const initName = tempName(ctx)
-    steps.push(...convertInitializer(initName, initializer, ctx))
+    statements.push(...convertInitializer(initName, initializer, ctx))
     initExpression = variableReferenceEx(initName)
   }
 
-  steps.push(
-    ...objectDestructuringSteps(objectPattern.properties, initExpression, ctx),
+  statements.push(
+    ...objectDestructuringStatements(
+      objectPattern.properties,
+      initExpression,
+      ctx,
+    ),
   )
 
-  return steps
+  return statements
 }
 
-function objectDestructuringSteps(
+function objectDestructuringStatements(
   properties: (TSESTree.RestElement | TSESTree.Property)[],
   initializerExpression: Expression,
   ctx: ParsingContext,
 ): WorkflowStatement[] {
   return properties.flatMap((prop) => {
     if (prop.type === AST_NODE_TYPES.RestElement) {
-      return objectDestructuringRestSteps(
+      return objectDestructuringRestStatements(
         properties,
         prop,
         initializerExpression,
@@ -512,9 +516,17 @@ function objectDestructuringSteps(
     )
 
     if (prop.value.type === AST_NODE_TYPES.ObjectPattern) {
-      return objectDestructuringSteps(prop.value.properties, keyExpression, ctx)
+      return objectDestructuringStatements(
+        prop.value.properties,
+        keyExpression,
+        ctx,
+      )
     } else if (prop.value.type === AST_NODE_TYPES.ArrayPattern) {
-      return arrayDestructuringSteps(prop.value.elements, keyExpression, ctx)
+      return arrayDestructuringStatements(
+        prop.value.elements,
+        keyExpression,
+        ctx,
+      )
     } else if (prop.value.type === AST_NODE_TYPES.Identifier) {
       const safeKeyExpression = functionInvocationEx('map.get', [
         initializerExpression,
@@ -530,7 +542,7 @@ function objectDestructuringSteps(
         ]),
       ]
     } else if (prop.value.type === AST_NODE_TYPES.AssignmentPattern) {
-      return objectAssignmentPatternSteps(
+      return objectAssignmentPatternStatements(
         prop.value,
         initializerExpression,
         keyExpression,
@@ -544,7 +556,7 @@ function objectDestructuringSteps(
   })
 }
 
-function objectAssignmentPatternSteps(
+function objectAssignmentPatternStatements(
   pat: TSESTree.AssignmentPattern,
   initializerExpression: Expression,
   keyExpression: MemberExpression,
@@ -556,8 +568,8 @@ function objectAssignmentPatternSteps(
     )
   }
 
-  // Using Switch step instead of default() because pat.right must be evaluated only
-  // in the default value branch (in case it has side effects)
+  // Using an if statement instead of default() because pat.right must be
+  // evaluated only in the default value branch (in case it has side effects)
   const name = variableReferenceEx(pat.left.name)
   return [
     new IfStatement([
@@ -579,7 +591,7 @@ function objectAssignmentPatternSteps(
   ]
 }
 
-function objectDestructuringRestSteps(
+function objectDestructuringRestStatements(
   properties: (TSESTree.RestElement | TSESTree.Property)[],
   rest: TSESTree.RestElement,
   initializerExpression: Expression,
@@ -678,7 +690,7 @@ function assignmentStatements(
   ctx: ParsingContext,
 ): WorkflowStatement[] {
   let valueExpression: Expression
-  const steps: WorkflowStatement[] = []
+  const statements: WorkflowStatement[] = []
 
   if (left.type === AST_NODE_TYPES.ArrayPattern) {
     return convertArrayDestructuring(left, right, ctx)
@@ -692,18 +704,18 @@ function assignmentStatements(
     isIntrinsic(right.callee.name)
   ) {
     const tr = convertAssignmentExpressionIntrinsicRHS(right, ctx)
-    steps.push(...tr.steps)
+    statements.push(...tr.statements)
     valueExpression = tr.tempVariable
   } else {
     valueExpression = convertExpression(right)
   }
 
   const targetExpression = convertVariableNameExpression(left)
-  steps.push(
+  statements.push(
     new AssignStatement([{ name: targetExpression, value: valueExpression }]),
   )
 
-  return steps
+  return statements
 }
 
 function compoundAssignmentStatements(
@@ -713,7 +725,7 @@ function compoundAssignmentStatements(
   ctx: ParsingContext,
 ): WorkflowStatement[] {
   let valueExpression: Expression
-  const { expression: targetExpression, steps } =
+  const { expression: targetExpression, statements } =
     convertCompoundAssignmentLeftHandSide(left, ctx)
 
   if (
@@ -722,7 +734,7 @@ function compoundAssignmentStatements(
     isIntrinsic(right.callee.name)
   ) {
     const tr = convertAssignmentExpressionIntrinsicRHS(right, ctx)
-    steps.push(...tr.steps)
+    statements.push(...tr.statements)
     valueExpression = tr.tempVariable
   } else {
     valueExpression = convertExpression(right)
@@ -730,11 +742,11 @@ function compoundAssignmentStatements(
 
   valueExpression = binaryEx(targetExpression, operator, valueExpression)
 
-  steps.push(
+  statements.push(
     new AssignStatement([{ name: targetExpression, value: valueExpression }]),
   )
 
-  return steps
+  return statements
 }
 
 function convertCompoundAssignmentLeftHandSide(
@@ -742,7 +754,7 @@ function convertCompoundAssignmentLeftHandSide(
   ctx: ParsingContext,
 ): {
   expression: MemberExpression | VariableReferenceExpression
-  steps: WorkflowStatement[]
+  statements: WorkflowStatement[]
 } {
   if (
     left.type === AST_NODE_TYPES.ArrayPattern ||
@@ -763,7 +775,8 @@ function convertCompoundAssignmentLeftHandSide(
 
   return {
     expression: transformed,
-    steps: assignments.length > 0 ? [new AssignStatement(assignments)] : [],
+    statements:
+      assignments.length > 0 ? [new AssignStatement(assignments)] : [],
   }
 }
 
@@ -830,7 +843,10 @@ function extractSideEffectsFromMemberExpression(
 function convertAssignmentExpressionIntrinsicRHS(
   callEx: TSESTree.CallExpression,
   ctx: ParsingContext,
-): { steps: WorkflowStatement[]; tempVariable: VariableReferenceExpression } {
+): {
+  statements: WorkflowStatement[]
+  tempVariable: VariableReferenceExpression
+} {
   if (callEx.callee.type !== AST_NODE_TYPES.Identifier) {
     throw new InternalTranspilingError('The callee should be an identifier')
   }
@@ -844,10 +860,11 @@ function convertAssignmentExpressionIntrinsicRHS(
   }
 
   const resultVariable = tempName(ctx)
-  const steps = callExpressionToStatement(callEx, resultVariable, ctx)
-  const tempVariable = variableReferenceEx(resultVariable)
 
-  return { steps, tempVariable }
+  return {
+    statements: callExpressionToStatement(callEx, resultVariable, ctx),
+    tempVariable: variableReferenceEx(resultVariable),
+  }
 }
 
 function callExpressionToStatement(
@@ -861,7 +878,7 @@ function callExpressionToStatement(
 
     if (calleeName === 'parallel') {
       // A handle the "parallel" intrinsic
-      return [callExpressionToParallelStep(node, ctx)]
+      return [callExpressionToParallelStatement(node, ctx)]
     } else if (calleeName === 'retry_policy') {
       // retry_policy() is handled by AST_NODE_TYPES.TryStatement and therefore ignored here
       return []
@@ -986,7 +1003,7 @@ function blockingFunctionStatement(
   return new FunctionInvocationStatement(functionName, args, resultName)
 }
 
-function callExpressionToParallelStep(
+function callExpressionToParallelStatement(
   node: TSESTree.CallExpression,
   ctx: ParsingContext,
 ): ParallelStatement | ParallelForStatement {
@@ -1077,7 +1094,10 @@ function parseParallelBranches(
     }
   })
 
-  return branches.map((steps, i) => ({ name: `branch${i + 1}`, body: steps }))
+  return branches.map((statements, i) => ({
+    name: `branch${i + 1}`,
+    body: statements,
+  }))
 }
 
 function parseParallelIteration(
@@ -1239,7 +1259,7 @@ function createForOfStatement(
     continueTarget: undefined,
     breakTarget: undefined,
   })
-  const steps = parseStatement(node.body, bodyCtx)
+  const statements = parseStatement(node.body, bodyCtx)
 
   let loopVariableName: string
   if (node.left.type === AST_NODE_TYPES.Identifier) {
@@ -1286,7 +1306,7 @@ function createForOfStatement(
     throw new WorkflowSyntaxError('Must be a list expression', node.right.loc)
   }
 
-  return new ForStatement(steps, loopVariableName, listExpression)
+  return new ForStatement(statements, loopVariableName, listExpression)
 }
 
 function createWhileStatement(
