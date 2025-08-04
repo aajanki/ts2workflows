@@ -1295,13 +1295,7 @@ function createForOfStatement(
 
   const listExpression = convertExpression(node.right)
 
-  if (
-    listExpression.tag === 'string' ||
-    listExpression.tag === 'number' ||
-    listExpression.tag === 'boolean' ||
-    listExpression.tag === 'map' ||
-    listExpression.tag === 'null'
-  ) {
+  if (isPrimitive(listExpression) || listExpression.tag === 'map') {
     throw new WorkflowSyntaxError('Must be a list expression', node.right.loc)
   }
 

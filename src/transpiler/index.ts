@@ -25,6 +25,7 @@ import { transformAST } from './transformations.js'
 import { findCalledFunctionDeclarations } from './linker.js'
 import {
   BooleanExpression,
+  isPrimitive,
   nullEx,
   NullExpression,
   NumberExpression,
@@ -328,12 +329,7 @@ function parseSubworkflowDefaultArgument(param: TSESTree.AssignmentPattern) {
     | BooleanExpression
     | NullExpression
 
-  if (
-    val.tag === 'string' ||
-    val.tag === 'number' ||
-    val.tag === 'boolean' ||
-    val.tag === 'null'
-  ) {
+  if (isPrimitive(val)) {
     defaultValue = val
   } else {
     throw new WorkflowSyntaxError(
