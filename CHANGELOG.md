@@ -2,12 +2,17 @@
 
 ## unreleased
 
+New features:
+
+- Generate self-contained YAML files (all needed subworkflows in one file) with the `--link` option
+
 Fixes:
 
 - Empty body in an if statements generated invalid code
 - In certain cases nested map literals generated invalid output
+- Some expressions that included many extractable sub-expressions (map literals, blocking calls) generated invalid output because a temporary variable was re-used incorrectly
 - Empty statements are accepted at the top level
-- Ignore extra arguments in blocking function calls in all cases
+- Ignore extra arguments in blocking function calls in all cases. Previously, extra arguments were ignored in some cases but threw errors in other cases.
 
 ## Version 0.11.0 - 2026-06-28
 

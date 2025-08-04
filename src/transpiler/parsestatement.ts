@@ -660,7 +660,7 @@ function assignmentExpressionToStatement(
   }
 
   if (compoundOperator === undefined) {
-    return assignmentSteps(node.left, node.right, ctx)
+    return assignmentStatements(node.left, node.right, ctx)
   } else {
     return compoundAssignmentStatements(
       node.left,
@@ -671,7 +671,7 @@ function assignmentExpressionToStatement(
   }
 }
 
-function assignmentSteps(
+function assignmentStatements(
   left: TSESTree.Expression,
   right: TSESTree.Expression,
   ctx: ParsingContext,
@@ -761,9 +761,11 @@ function convertCompoundAssignmentLeftHandSide(
       tempName(ctx),
       0,
     )
-    const steps = [new AssignStatement(assignments)]
 
-    return { expression: transformed, steps }
+    return {
+      expression: transformed,
+      steps: assignments.length > 0 ? [new AssignStatement(assignments)] : [],
+    }
   } else {
     return {
       expression: leftEx,

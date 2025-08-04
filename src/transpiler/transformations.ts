@@ -35,10 +35,21 @@ import {
 } from '../ast/statements.js'
 import { blockingFunctions } from './generated/functionMetadata.js'
 
+/**
+ * Performs various transformations on the AST.
+ */
 export function transformAST(
   statements: WorkflowStatement[],
 ): WorkflowStatement[] {
-  return transformPipe(statements.map((s) => applyNested(transformAST, s)))
+  const tempGen = createTempVariableGenerator()
+  const transform = R.pipe(
+    R.chain(mapLiteralsAsAssigns(tempGen)),
+    mergeAssigns,
+    R.chain(intrinsicFunctionImplementation),
+    R.chain(blockingCallsAsFunctionCalls(tempGen)),
+  )
+
+  return transform(statements.map((s) => applyNested(transformAST, s)))
 }
 
 /**
@@ -303,6 +314,7 @@ function createTempVariableGenerator(): () => string {
 }
 
 function replaceBlockingCalls(
+  generateName: () => string,
   expression: Expression,
 ): [FunctionInvocationStatement[], Expression] {
   function replaceBlockingFunctionInvocations(ex: Expression): Expression {
@@ -331,7 +343,6 @@ function replaceBlockingCalls(
     }
   }
 
-  const generateName = createTempVariableGenerator()
   const callStatements: FunctionInvocationStatement[] = []
 
   return [
@@ -347,11 +358,14 @@ function replaceBlockingCalls(
  *
  * For example, transforms this:
  *
+ * ```yaml
  * - return1:
  *     return: ${http.get("https://example.com")}
+ * ```
  *
  * into this:
  *
+ * ```yaml
  * - call_http_get_1:
  *     call: http.get
  *     args:
@@ -359,9 +373,16 @@ function replaceBlockingCalls(
  *     result: __temp0
  * - return1:
  *     return: ${__temp0}
+ * ```
  */
-const blockingCallsAsFunctionCalls =
-  expandExpressionToStatements(replaceBlockingCalls)
+function blockingCallsAsFunctionCalls(generateTempName: () => string) {
+  return (statement: WorkflowStatement): WorkflowStatement[] => {
+    return expandExpressionToStatements(
+      (ex) => replaceBlockingCalls(generateTempName, ex),
+      statement,
+    )
+  }
+}
 
 /**
  * Apply transform to expressions recursively.
@@ -415,27 +436,38 @@ function transformNestedExpressions(
  *
  * For example, transforms this:
  *
+ * ```yaml
  * - return1:
  *     return: ${ {value: 5}.value }
+ * ```
  *
  * into this:
  *
+ * ```yaml
  * - assign1:
  *     assign:
  *       - __temp0:
  *         value: 5
  * - return1:
  *     return: ${__temp0.value}
+ * ```
  */
-const mapLiteralsAsAssigns = expandExpressionToStatements(transformNestedMaps)
+function mapLiteralsAsAssigns(generateTempName: () => string) {
+  return (statement: WorkflowStatement): WorkflowStatement[] => {
+    return expandExpressionToStatements(
+      (ex) => transformNestedMaps(generateTempName, ex),
+      statement,
+    )
+  }
+}
 
 function transformNestedMaps(
+  generateTempName: () => string,
   ex: Expression,
 ): [WorkflowStatement[], Expression] {
-  const generateTemporaryVariableName = createTempVariableGenerator()
   const { transformedExpression, tempVariables } = extractNestedMaps(
     ex,
-    generateTemporaryVariableName,
+    generateTempName,
     0,
   )
   const assignments =
@@ -639,14 +671,3 @@ function replaceIsArray(ex: Expression): Expression {
     return ex
   }
 }
-
-/**
- * Performs various transformations on the AST.
- */
-const transformPipe: (statements: WorkflowStatement[]) => WorkflowStatement[] =
-  R.pipe(
-    R.chain(mapLiteralsAsAssigns),
-    mergeAssigns,
-    R.chain(intrinsicFunctionImplementation),
-    R.chain(blockingCallsAsFunctionCalls),
-  )

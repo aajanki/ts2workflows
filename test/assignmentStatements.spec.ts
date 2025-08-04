@@ -372,6 +372,49 @@ describe('Assignment statement', () => {
     assertTranspiled(code, expected)
   })
 
+  it('multiple map literals in an assignment statement', () => {
+    const code = `
+    function main() {
+      values[{a: [1, 2]}.a[0]] = values[{a: [3, 4]}.a[1]] + 1;
+    }`
+
+    const expected = `
+    main:
+      steps:
+        - assign1:
+            assign:
+              - __temp0:
+                  a: [1, 2]
+              - __temp1:
+                  a: [3, 4]
+              - values[__temp0.a[0]]: \${values[__temp1.a[1]] + 1}
+    `
+
+    assertTranspiled(code, expected)
+  })
+
+  it('multiple map literals in a call statement', () => {
+    const code = `function main() {
+      return get_friends({"name": "Bean"}, {"filter": {"age": "> 40"}});
+    }`
+
+    const expected = `
+    main:
+      steps:
+        - assign1:
+            assign:
+              - __temp0:
+                  name: Bean
+              - __temp1:
+                  filter:
+                    age: "> 40"
+        - return1:
+            return: \${get_friends(__temp0, __temp1)}
+    `
+
+    assertTranspiled(code, expected)
+  })
+
   it('extracts nested map only on one branches of combined assing step', () => {
     const code = `function main() {
       const data = {friends: get_friends({name: "Bean"})};

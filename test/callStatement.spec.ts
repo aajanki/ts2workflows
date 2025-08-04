@@ -120,6 +120,29 @@ describe('Function invocation statement', () => {
     assertTranspiled(code, expected)
   })
 
+  it('a blocking function call and a map literal in the same expression', () => {
+    const code = `function main() {
+      const response = combine(http.get("https://visit.dreamland.test/"), {values: [1, 2]}.values[0]);
+    }`
+
+    const expected = `
+    main:
+      steps:
+        - call_http_get_1:
+            call: http.get
+            args:
+              url: https://visit.dreamland.test/
+            result: __temp1
+        - assign1:
+            assign:
+              - __temp0:
+                  values: [1, 2]
+              - response: \${combine(__temp1, __temp0.values[0])}
+    `
+
+    assertTranspiled(code, expected)
+  })
+
   it('assigns the return value of a blocking function call to a complex variable', () => {
     const code = `function main() {
       const results = {};
