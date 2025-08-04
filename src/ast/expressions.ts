@@ -327,45 +327,12 @@ export function isFullyQualifiedName(ex: Expression): boolean {
       return (
         isFullyQualifiedName(ex.object) &&
         (isFullyQualifiedName(ex.property) ||
-          (ex.computed &&
-            ['null', 'string', 'number', 'boolean'].includes(ex.property.tag)))
+          (ex.computed && isPrimitive(ex.property)))
       )
   }
 }
 
-/**
- * Returns true if ex is pure expression (can't have side-effects)
- */
-export function isPure(ex: Expression): boolean {
-  switch (ex.tag) {
-    case 'string':
-    case 'number':
-    case 'boolean':
-    case 'null':
-    case 'variableReference':
-      return true
-
-    case 'functionInvocation':
-      return false
-
-    case 'list':
-      return ex.value.every(isPure)
-
-    case 'map':
-      return Object.values(ex.value).every(isPure)
-
-    case 'binary':
-      return isPure(ex.left) && isPure(ex.right)
-
-    case 'member':
-      return isPure(ex.object) && isPure(ex.property)
-
-    case 'unary':
-      return isPure(ex.value)
-  }
-}
-
-export function isLiteral(ex: Expression): boolean {
+export function isPrimitive(ex: Expression): boolean {
   return (
     ex.tag === 'string' ||
     ex.tag === 'number' ||

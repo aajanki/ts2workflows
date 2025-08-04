@@ -10,8 +10,7 @@ import {
   expressionToString,
   functionInvocationEx,
   isFullyQualifiedName,
-  isLiteral,
-  isPure,
+  isPrimitive,
   listEx,
   memberEx,
   nullEx,
@@ -469,7 +468,7 @@ function convertObjectDestructuring(
   if (
     initializer?.type === AST_NODE_TYPES.Identifier ||
     (initializer?.type === AST_NODE_TYPES.MemberExpression &&
-      isPure(convertExpression(initializer)))
+      isFullyQualifiedName(convertExpression(initializer)))
   ) {
     // If the initializer is an Identifier or MemberExpression (object variable?), use it directly.
     initExpression = convertExpression(initializer)
@@ -794,7 +793,7 @@ function extractSideEffectsFromMemberExpression(
   transformed: MemberExpression | VariableReferenceExpression
   assignments: VariableAssignment[]
 } {
-  if (ex.tag === 'member' && ex.computed && !isLiteral(ex.property)) {
+  if (ex.tag === 'member' && ex.computed && !isPrimitive(ex.property)) {
     // property potentially has side effects. Move to a temp variable for safety.
     let transformedObject: Expression
     let objectAssignments: VariableAssignment[]
