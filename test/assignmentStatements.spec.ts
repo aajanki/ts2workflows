@@ -668,7 +668,8 @@ describe('Assignment statement', () => {
         - assign1:
             assign:
               - i: 2
-              - people[4 + i].age: \${people[4 + i].age + 1}
+              - __temp0: \${4 + i}
+              - people[__temp0].age: \${people[__temp0].age + 1}
     `
 
     assertTranspiled(code, expected)
@@ -713,7 +714,8 @@ describe('Assignment statement', () => {
             assign:
               - __temp0:
                   value: [1, 2, 3]
-              - values[__temp0.value[0]]: \${values[__temp0.value[0]] - 1}
+              - __temp0: \${__temp0.value[0]}
+              - values[__temp0]: \${values[__temp0] - 1}
     `
 
     assertTranspiled(code, expected)

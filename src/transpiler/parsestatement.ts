@@ -10,6 +10,7 @@ import {
   expressionToString,
   functionInvocationEx,
   isFullyQualifiedName,
+  isLiteral,
   isPure,
   listEx,
   memberEx,
@@ -785,7 +786,8 @@ function extractSideEffectsFromMemberExpression(
   tempPrefix: string,
   tempIndex: number,
 ): { transformed: MemberExpression; assignments: VariableAssignment[] } {
-  if (ex.computed && !isPure(ex.property)) {
+  if (ex.computed && !isLiteral(ex.property)) {
+    // property potentially has side effects. Move to a temp variable for safety.
     let transformedObject: Expression
     let objectAssignments: VariableAssignment[]
 
@@ -812,14 +814,11 @@ function extractSideEffectsFromMemberExpression(
 
     return { transformed, assignments }
   } else if (ex.object.tag === 'member') {
-    const { transformed: object2, assignments: assignments } =
+    const { transformed: object2, assignments } =
       extractSideEffectsFromMemberExpression(ex.object, tempPrefix, tempIndex)
     const transformed = memberEx(object2, ex.property, ex.computed)
 
-    return {
-      transformed,
-      assignments,
-    }
+    return { transformed, assignments }
   } else {
     return {
       transformed: ex,

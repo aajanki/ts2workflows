@@ -364,3 +364,12 @@ export function isPure(ex: Expression): boolean {
       return isPure(ex.value)
   }
 }
+
+export function isLiteral(ex: Expression): boolean {
+  return (
+    ex.tag === 'string' ||
+    ex.tag === 'number' ||
+    ex.tag === 'boolean' ||
+    ex.tag === 'null'
+  )
+}
