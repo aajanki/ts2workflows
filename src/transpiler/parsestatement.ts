@@ -755,23 +755,15 @@ function convertCompoundAssignmentLeftHandSide(
   }
 
   const leftEx = convertVariableNameExpression(left)
+  const { transformed, assignments } = extractSideEffectsFromMemberExpression(
+    leftEx,
+    tempName(ctx),
+    0,
+  )
 
-  if (leftEx.tag === 'member') {
-    const { transformed, assignments } = extractSideEffectsFromMemberExpression(
-      leftEx,
-      tempName(ctx),
-      0,
-    )
-
-    return {
-      expression: transformed,
-      steps: assignments.length > 0 ? [new AssignStatement(assignments)] : [],
-    }
-  } else {
-    return {
-      expression: leftEx,
-      steps: [],
-    }
+  return {
+    expression: transformed,
+    steps: assignments.length > 0 ? [new AssignStatement(assignments)] : [],
   }
 }
 
@@ -782,11 +774,14 @@ function convertCompoundAssignmentLeftHandSide(
  * should only be evaluted once.
  */
 function extractSideEffectsFromMemberExpression(
-  ex: MemberExpression,
+  ex: MemberExpression | VariableReferenceExpression,
   tempPrefix: string,
   tempIndex: number,
-): { transformed: MemberExpression; assignments: VariableAssignment[] } {
-  if (ex.computed && !isLiteral(ex.property)) {
+): {
+  transformed: MemberExpression | VariableReferenceExpression
+  assignments: VariableAssignment[]
+} {
+  if (ex.tag === 'member' && ex.computed && !isLiteral(ex.property)) {
     // property potentially has side effects. Move to a temp variable for safety.
     let transformedObject: Expression
     let objectAssignments: VariableAssignment[]
@@ -813,7 +808,7 @@ function extractSideEffectsFromMemberExpression(
     })
 
     return { transformed, assignments }
-  } else if (ex.object.tag === 'member') {
+  } else if (ex.tag === 'member' && ex.object.tag === 'member') {
     const { transformed: object2, assignments } =
       extractSideEffectsFromMemberExpression(ex.object, tempPrefix, tempIndex)
     const transformed = memberEx(object2, ex.property, ex.computed)
