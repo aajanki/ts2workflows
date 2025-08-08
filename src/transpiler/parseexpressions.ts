@@ -77,6 +77,7 @@ export function convertExpression(instance: TSESTree.Expression): Expression {
     case AST_NODE_TYPES.TSAsExpression:
     case AST_NODE_TYPES.TSNonNullExpression:
     case AST_NODE_TYPES.TSInstantiationExpression:
+    case AST_NODE_TYPES.TSSatisfiesExpression:
       return convertExpression(instance.expression)
 
     case AST_NODE_TYPES.AwaitExpression:

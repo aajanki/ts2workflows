@@ -5,6 +5,7 @@
 New features:
 
 - Generate self-contained YAML files (all needed subworkflows in one file) with the `--link` option
+- Accept Typescript's `satisfies` expression. It does not affect the YAML output.
 
 Fixes:
 
