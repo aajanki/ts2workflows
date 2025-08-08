@@ -295,22 +295,38 @@ interface ChainedProperty {
 function chainExpressionToFlatArray(
   node: TSESTree.Expression,
 ): ChainedProperty[] {
-  if (node.type === AST_NODE_TYPES.MemberExpression) {
-    const data = {
-      property: throwIfPrivateIdentifier(node.property),
-      optional: node.optional,
-      computed: node.computed,
+  switch (node.type) {
+    case TSESTree.AST_NODE_TYPES.Identifier:
+    case TSESTree.AST_NODE_TYPES.ChainExpression:
+      return [
+        {
+          property: node,
+          optional: false,
+          computed: false,
+        },
+      ]
+
+    case TSESTree.AST_NODE_TYPES.MemberExpression: {
+      const data = {
+        property: throwIfPrivateIdentifier(node.property),
+        optional: node.optional,
+        computed: node.computed,
+      }
+
+      return chainExpressionToFlatArray(node.object).concat([data])
     }
 
-    return chainExpressionToFlatArray(node.object).concat([data])
-  } else {
-    return [
-      {
-        property: node,
-        optional: false,
-        computed: false,
-      },
-    ]
+    case AST_NODE_TYPES.TSAsExpression:
+    case AST_NODE_TYPES.TSNonNullExpression:
+    case AST_NODE_TYPES.TSInstantiationExpression:
+    case AST_NODE_TYPES.TSSatisfiesExpression:
+      return chainExpressionToFlatArray(node.expression)
+
+    default:
+      throw new WorkflowSyntaxError(
+        `Type ${node.type} is not supported in optional chaining`,
+        node.loc,
+      )
   }
 }
 

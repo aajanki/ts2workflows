@@ -155,7 +155,7 @@ export function functionInvocationEx(
   }
 }
 
-// object.property or object[property]
+// object.property (when computed = false) or object[property] (when computed = true)
 export interface MemberExpression {
   readonly tag: 'member'
   readonly object: Expression
