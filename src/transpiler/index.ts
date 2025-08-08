@@ -23,14 +23,7 @@ import {
 import { parseStatement } from './parsestatement.js'
 import { transformAST } from './transformations.js'
 import { findCalledFunctionDeclarations } from './linker.js'
-import {
-  BooleanExpression,
-  isPrimitive,
-  nullEx,
-  NullExpression,
-  NumberExpression,
-  StringExpression,
-} from '../ast/expressions.js'
+import { isPrimitive, nullEx } from '../ast/expressions.js'
 import { convertExpression } from './parseexpressions.js'
 import { generateStepNames } from './stepnames.js'
 
@@ -308,6 +301,8 @@ function parseWorkflowParams(
 }
 
 function parseSubworkflowDefaultArgument(param: TSESTree.AssignmentPattern) {
+  const defaultValue = convertExpression(param.right)
+
   if (param.left.type !== AST_NODE_TYPES.Identifier) {
     throw new WorkflowSyntaxError(
       'The default value must be an identifier',
@@ -320,18 +315,7 @@ function parseSubworkflowDefaultArgument(param: TSESTree.AssignmentPattern) {
       param.left.loc,
     )
   }
-
-  const name = param.left.name
-  const val = convertExpression(param.right)
-  let defaultValue:
-    | StringExpression
-    | NumberExpression
-    | BooleanExpression
-    | NullExpression
-
-  if (isPrimitive(val)) {
-    defaultValue = val
-  } else {
+  if (!isPrimitive(defaultValue)) {
     throw new WorkflowSyntaxError(
       'The default value must be a literal number, string, boolean, null, or undefined',
       param.right.loc,
@@ -339,7 +323,7 @@ function parseSubworkflowDefaultArgument(param: TSESTree.AssignmentPattern) {
   }
 
   return {
-    name,
+    name: param.left.name,
     default: defaultValue,
   }
 }

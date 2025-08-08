@@ -394,9 +394,6 @@ function extractDefaultAssignmentsFromDestructuringPattern(
           value: listEx([]),
         },
       ]
-
-    default:
-      return []
   }
 }
 

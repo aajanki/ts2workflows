@@ -75,16 +75,12 @@ export function convertExpression(instance: TSESTree.Expression): Expression {
       return convertConditionalExpression(instance)
 
     case AST_NODE_TYPES.TSAsExpression:
-      return convertExpression(instance.expression)
-
     case AST_NODE_TYPES.TSNonNullExpression:
+    case AST_NODE_TYPES.TSInstantiationExpression:
       return convertExpression(instance.expression)
 
     case AST_NODE_TYPES.AwaitExpression:
       return convertExpression(instance.argument)
-
-    case AST_NODE_TYPES.TSInstantiationExpression:
-      return convertExpression(instance.expression)
 
     default:
       throw new WorkflowSyntaxError(
@@ -103,18 +99,14 @@ export function convertObjectExpression(
         let keyPrimitive: string
         if (key.type === AST_NODE_TYPES.Identifier) {
           keyPrimitive = key.name
-        } else if (key.type === AST_NODE_TYPES.Literal) {
-          if (typeof key.value === 'string') {
-            keyPrimitive = key.value
-          } else {
-            throw new WorkflowSyntaxError(
-              `Map keys must be identifiers or strings, encountered: ${typeof key.value}`,
-              key.loc,
-            )
-          }
+        } else if (
+          key.type === AST_NODE_TYPES.Literal &&
+          typeof key.value === 'string'
+        ) {
+          keyPrimitive = key.value
         } else {
           throw new WorkflowSyntaxError(
-            `Not implemented object key type: ${key.type}`,
+            `Map keys must be identifiers or strings, encountered: ${key.type}`,
             key.loc,
           )
         }
@@ -244,10 +236,6 @@ function convertUnaryExpression(
       istypeof = true
       break
 
-    case undefined:
-      op = undefined
-      break
-
     default:
       throw new WorkflowSyntaxError(
         `Unsupported unary operator: ${instance.operator}`,
@@ -328,11 +316,6 @@ function chainExpressionToFlatArray(
 function optionalChainToMapGetArguments(
   properties: ChainedProperty[],
 ): Expression[] {
-  if (properties.length <= 0) {
-    // this shouldn't happen
-    return []
-  }
-
   let base: Expression
   let optionalSliceStart: number
   const firstOptional = properties.findIndex((p) => p.optional)

@@ -1,6 +1,8 @@
 import { expect } from 'chai'
 import { transpileText } from '../src/transpiler/index.js'
 import { assertTranspiled } from './testutils.js'
+import { WorkflowSyntaxError } from '../src/errors.js'
+import { TSError } from '@typescript-eslint/typescript-estree'
 
 describe('Try-catch-finally statement', () => {
   it('transpiles try-catch statement', () => {
@@ -952,7 +954,7 @@ describe('Try-catch-finally statement', () => {
       }
     }`
 
-    expect(() => transpileText(code)).to.throw()
+    expect(() => transpileText(code)).to.throw(WorkflowSyntaxError)
   })
 
   it('throws if retry policy backoff is not an object literal', () => {
@@ -972,7 +974,27 @@ describe('Try-catch-finally statement', () => {
       }
     }`
 
-    expect(() => transpileText(code)).to.throw()
+    expect(() => transpileText(code)).to.throw(WorkflowSyntaxError)
+  })
+
+  it('throws if retry policy predicate is not an identifier', () => {
+    const code = `
+    function main() {
+      try {
+        retry_policy({
+          predicate: 'always',
+          max_retries: 3,
+          backoff: { initial_delay: 0.5, max_delay: 60, multiplier: 2.5 }
+        });
+
+        const response = http.get("https://visit.dreamland.test/");
+        return response;
+      } catch {
+        log("Error!");
+      }
+    }`
+
+    expect(() => transpileText(code)).to.throw(WorkflowSyntaxError)
   })
 
   it('retries with a custom predicate', () => {
@@ -1334,7 +1356,7 @@ describe('Try-catch-finally statement', () => {
       }
     }`
 
-    expect(() => transpileText(code)).to.throw()
+    expect(() => transpileText(code)).to.throw(WorkflowSyntaxError)
   })
 
   it('throws if retry policy is an unexpected data type', () => {
@@ -1350,7 +1372,7 @@ describe('Try-catch-finally statement', () => {
       }
     }`
 
-    expect(() => transpileText(code)).to.throw()
+    expect(() => transpileText(code)).to.throw(WorkflowSyntaxError)
   })
 
   it('ignores retry_policy() outside of try block', () => {
@@ -1427,7 +1449,7 @@ describe('Try-catch-finally statement', () => {
       }
     }`
 
-    expect(() => transpileText(code)).to.throw()
+    expect(() => transpileText(code)).to.throw(TSError)
   })
 
   it('throws on catch without a try', () => {
@@ -1440,7 +1462,7 @@ describe('Try-catch-finally statement', () => {
       }
     }`
 
-    expect(() => transpileText(code)).to.throw()
+    expect(() => transpileText(code)).to.throw(TSError)
   })
 
   it('throws is there are multiple catch blocks', () => {
@@ -1459,7 +1481,23 @@ describe('Try-catch-finally statement', () => {
       }
     }`
 
-    expect(() => transpileText(code)).to.throw()
+    expect(() => transpileText(code)).to.throw(TSError)
+  })
+
+  it('object pattern as an exception variable is not supported', () => {
+    const code = `
+    function main() {
+      try {
+        response = http.get("https://visit.dreamland.test/");
+      }
+      catch ({ code }) {
+        if (code == 404) {
+          return "Not found";
+        }
+      }
+    }`
+
+    expect(() => transpileText(code)).to.throw(WorkflowSyntaxError)
   })
 
   it("retry_policy() can't be used in expression", () => {
@@ -1475,7 +1513,7 @@ describe('Try-catch-finally statement', () => {
       }
     }`
 
-    expect(() => transpileText(code)).to.throw()
+    expect(() => transpileText(code)).to.throw(WorkflowSyntaxError)
   })
 })
 

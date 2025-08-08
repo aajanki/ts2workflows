@@ -1,6 +1,7 @@
 import { expect } from 'chai'
 import { transpileText } from '../src/transpiler/index.js'
 import { assertTranspiled } from './testutils.js'
+import { WorkflowSyntaxError } from '../src/errors.js'
 
 describe('Function invocation statement', () => {
   it('assignment of a function call result', () => {
@@ -521,7 +522,7 @@ describe('Function invocation statement', () => {
     assertTranspiled(code, expected)
   })
 
-  it('call_step() without arguments', () => {
+  it('call_step() without function arguments', () => {
     const code = `function main() {
       const timestamp = call_step(sys.now)
     }`
@@ -537,6 +538,83 @@ describe('Function invocation statement', () => {
     assertTranspiled(code, expected)
   })
 
+  it('call_step() requires at least a function to be called', () => {
+    const code = `function main() {
+      const res = call_step()
+    }`
+
+    expect(() => transpileText(code)).to.throw(WorkflowSyntaxError)
+  })
+
+  it('rejects call_step() called with a non-function as the first argument', () => {
+    const code = `function main() {
+      call_step(5)
+    }`
+
+    expect(() => transpileText(code)).to.throw(WorkflowSyntaxError)
+  })
+
+  it('complex computed properties are not supported in call_step()', () => {
+    const code = `function main() {
+      call_step(sys[get_name()]);
+    }
+
+    function get_name() {
+      return "now"
+    }`
+
+    expect(() => transpileText(code)).to.throw(WorkflowSyntaxError)
+  })
+
+  it('call_step() as part of a complex expression is not yet supported', () => {
+    const code = `function main() {
+      return call_step(http.get, { url: "https://visit.dreamland.test/" }).data
+    }`
+
+    expect(() => transpileText(code)).to.throw(WorkflowSyntaxError)
+  })
+
+  it('spread syntax is not supported as function call arguments', () => {
+    const code = 'function main(values: number[]) { return sum(...values) }'
+
+    expect(() => transpileText(code)).to.throw(WorkflowSyntaxError)
+  })
+
+  it('rejects immediately invoked function expression', () => {
+    const code = `
+    function test() {
+      return (() => { return 5 })();
+    }`
+
+    expect(() => transpileText(code)).to.throw(WorkflowSyntaxError)
+  })
+
+  it('rejects a call of a returned function', () => {
+    const code = `
+    function test() {
+      wrapped()();
+    }
+
+    function wrapped() {
+      return () => 1;
+    }`
+
+    expect(() => transpileText(code)).to.throw(WorkflowSyntaxError)
+  })
+
+  it('rejects a call of a returned function in expression', () => {
+    const code = `
+    function test() {
+      return wrapped()();
+    }
+
+    function wrapped() {
+      return () => 1;
+    }`
+
+    expect(() => transpileText(code)).to.throw(WorkflowSyntaxError)
+  })
+
   it('rejects function calls at top level', () => {
     const code = `
     function main() {
@@ -546,6 +624,6 @@ describe('Function invocation statement', () => {
     main();
     `
 
-    expect(() => transpileText(code)).to.throw()
+    expect(() => transpileText(code)).to.throw(WorkflowSyntaxError)
   })
 })

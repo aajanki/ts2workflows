@@ -796,6 +796,68 @@ describe('Destructing', () => {
     assertTranspiled(code, expected)
   })
 
+  it('destructures object patterns nested in an array pattern', () => {
+    const code = `
+    function main(data: {name: string}[]) {
+      const [ {name} ] = data;
+    }`
+
+    const expected = `
+    main:
+      params:
+        - data
+      steps:
+        - assign1:
+            assign:
+              - __temp_len: \${len(data)}
+        - switch1:
+            switch:
+              - condition: \${__temp_len >= 1}
+                steps:
+                  - assign2:
+                      assign:
+                        - name: \${map.get(data[0], "name")}
+              - condition: true
+                steps:
+                  - assign3:
+                      assign:
+                        - name: null
+    `
+
+    assertTranspiled(code, expected)
+  })
+
+  it('destructures a nested rest element object pattern in an array pattern', () => {
+    const code = `
+    function main(arr: {name: string}[]) {
+      const [{...rest}] = arr;
+    }`
+
+    const expected = `
+    main:
+      params:
+        - arr
+      steps:
+        - assign1:
+            assign:
+              - __temp_len: \${len(arr)}
+        - switch1:
+            switch:
+              - condition: \${__temp_len >= 1}
+                steps:
+                  - assign2:
+                      assign:
+                        - rest: \${arr[0]}
+              - condition: true
+                steps:
+                  - assign3:
+                      assign:
+                        - rest: null
+    `
+
+    assertTranspiled(code, expected)
+  })
+
   it('throws if the rest element is not the last element in array destructuring pattern', () => {
     const code = `
     function main(arr: number[]) {

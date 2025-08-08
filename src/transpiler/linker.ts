@@ -3,16 +3,10 @@ import ts from 'typescript'
 // Find functions that are (recursively) called by rootNode
 export function findCalledFunctionDeclarations(
   typeChecker: ts.TypeChecker,
-  rootNode: ts.Node,
+  rootNode: ts.SourceFile,
 ): ts.FunctionDeclaration[] {
-  const declarations: ts.FunctionDeclaration[] = []
-
   // First add top level function declarations
-  if (ts.isFunctionDeclaration(rootNode)) {
-    declarations.push(rootNode)
-  } else if (ts.isSourceFile(rootNode)) {
-    declarations.push(...rootNode.statements.filter(ts.isFunctionDeclaration))
-  }
+  const declarations = rootNode.statements.filter(ts.isFunctionDeclaration)
 
   // Next, find nested function calls recursively
   findFunctionsRecursively(declarations, typeChecker, rootNode)

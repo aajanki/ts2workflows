@@ -1,6 +1,7 @@
 import { expect } from 'chai'
 import { transpileText } from '../src/transpiler/index.js'
 import { assertTranspiled } from './testutils.js'
+import { WorkflowSyntaxError } from '../src/errors.js'
 
 describe('workflow transpiler', () => {
   it('transpiles a function with parameters', () => {
@@ -170,7 +171,7 @@ describe('workflow transpiler', () => {
       return ""
     }`
 
-    expect(() => transpileText(code)).to.throw()
+    expect(() => transpileText(code)).to.throw(WorkflowSyntaxError)
   })
 
   it('rejects optional function argument with default value', () => {
@@ -179,24 +180,42 @@ describe('workflow transpiler', () => {
       return name ?? ""
     }`
 
-    expect(() => transpileText(code)).to.throw()
+    expect(() => transpileText(code)).to.throw(WorkflowSyntaxError)
   })
 
-  it('throws if the default value is a list', () => {
+  it('rejects a list as a default value', () => {
     const code = `
     function greeting(names = ["Bean"]) {
       return "Hello " + names[0]
     }`
 
-    expect(() => transpileText(code)).to.throw()
+    expect(() => transpileText(code)).to.throw(WorkflowSyntaxError)
   })
 
-  it('throws if the default value is an expression', () => {
+  it('rejects a binary expression as a default value', () => {
     const code = `function my_workflow(a = 1 + 2) {
       return null;
     }`
 
-    expect(() => transpileText(code)).to.throw()
+    expect(() => transpileText(code)).to.throw(WorkflowSyntaxError)
+  })
+
+  it('rejects arrow function as a default value', () => {
+    const code = `
+    function test(x = () => 5): string {
+      return x()
+    }`
+
+    expect(() => transpileText(code)).to.throw(WorkflowSyntaxError)
+  })
+
+  it('rejects array destructing pattern as a default value', () => {
+    const code = `
+    function test([x = 1, y = 2] = []): string {
+      return x + y
+    }`
+
+    expect(() => transpileText(code)).to.throw(WorkflowSyntaxError)
   })
 
   it('handles function with positional and optional parameters', () => {
@@ -220,6 +239,6 @@ describe('workflow transpiler', () => {
   it('throws if the subworkflow body is empty', () => {
     const code = `function empty_workflow() {}`
 
-    expect(() => transpileText(code)).to.throw()
+    expect(() => transpileText(code)).to.throw(WorkflowSyntaxError)
   })
 })

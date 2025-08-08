@@ -5,6 +5,8 @@ import {
 } from '../src/ast/expressions.js'
 import { assertTranspiled, parseExpression } from './testutils.js'
 import { transpileText } from '../src/transpiler/index.js'
+import { WorkflowSyntaxError } from '../src/errors.js'
+import { TSError } from '@typescript-eslint/typescript-estree'
 
 describe('Literals', () => {
   it('parses null', () => {
@@ -81,6 +83,12 @@ describe('Literals', () => {
     assertExpression('[1, , 2]', [1, null, 2])
   })
 
+  it('rejects rest elements in lists', () => {
+    const code = 'function test(x) { return [...x] }'
+
+    expect(() => transpileText(code)).to.throw(WorkflowSyntaxError)
+  })
+
   it('parses maps', () => {
     assertExpression('{"name": "Merkimer", "race": "pig"}', {
       name: 'Merkimer',
@@ -118,6 +126,18 @@ describe('Literals', () => {
     `
 
     assertTranspiled(code, expected)
+  })
+
+  it('rejects non-string map keys', () => {
+    const code = 'function test() { const x = {1: "one", 2: "two"} }'
+
+    expect(() => transpileText(code)).to.throw(WorkflowSyntaxError)
+  })
+
+  it('rejects rest elements in maps', () => {
+    const code = 'function test(x) { return {...x} }'
+
+    expect(() => transpileText(code)).to.throw(WorkflowSyntaxError)
   })
 
   it('parses nested maps', () => {
@@ -160,13 +180,13 @@ describe('Literals', () => {
   it('rejects BigInt literals', () => {
     const code = `function test() { x = 18446744073709552000n }`
 
-    expect(() => transpileText(code)).to.throw()
+    expect(() => transpileText(code)).to.throw(WorkflowSyntaxError)
   })
 
   it('rejects RegExp literals', () => {
     const code = `function test() { x = /a.c/ }`
 
-    expect(() => transpileText(code)).to.throw()
+    expect(() => transpileText(code)).to.throw(WorkflowSyntaxError)
   })
 })
 
@@ -183,7 +203,7 @@ describe('Expressions and operators', () => {
       return x >>> 2;
     }`
 
-    expect(() => transpileText(code)).to.throw()
+    expect(() => transpileText(code)).to.throw(WorkflowSyntaxError)
   })
 
   it('parses unary operators', () => {
@@ -203,7 +223,7 @@ describe('Expressions and operators', () => {
       return ~x;
     }`
 
-    expect(() => transpileText(code)).to.throw()
+    expect(() => transpileText(code)).to.throw(WorkflowSyntaxError)
   })
 
   it('parses logical expressions', () => {
@@ -512,12 +532,55 @@ describe('Expressions and operators', () => {
     assertTranspiled(code, expected)
   })
 
+  it('transpiles type alias in optional chaining', () => {
+    const code = `
+    interface Person { name?: string };
+
+    function test(data) {
+      return (data?.person as Person)?.name;
+    }`
+    const expected = `
+    test:
+      params:
+        - data
+      steps:
+        - return1:
+            return: \${map.get(map.get(data, "person"), "name")}
+    `
+
+    assertTranspiled(code, expected)
+  })
+
+  it('transpiles definite operator in optional chaining', () => {
+    const code = `function test(data) {
+      return data?.person!?.name;
+    }`
+    const expected = `
+    test:
+      params:
+        - data
+      steps:
+        - return1:
+            return: \${map.get(data, ["person", "name"])}
+    `
+
+    assertTranspiled(code, expected)
+  })
+
+  it('call expressions are not supported as part of optional chaining', () => {
+    const code = `function test(data) {
+      return data?.getPerson()?.name;
+    }`
+
+    expect(() => transpileText(code)).to.throw(WorkflowSyntaxError)
+  })
+
   it('optional call expression is not supported', () => {
     const code = `function test() {
       return sys.now?.();
     }`
 
-    expect(() => transpileText(code)).to.throw()
+    expect(() => transpileText(code)).to.throw(WorkflowSyntaxError)
   })
 
   it('transpiles typeof', () => {
@@ -560,6 +623,38 @@ describe('Expressions and operators', () => {
 
     assertTranspiled(code, expected)
   })
+
+  it('ignores satisfies operator', () => {
+    const code = `interface TrafficLight {
+      color: 'green' | 'yellow' | 'red'
+    }
+
+    function main(): void {
+      const light = { color: 'green' } satisfies TrafficLight;
+      return light.color;
+    }`
+
+    const expected = `
+    main:
+      steps:
+        - assign1:
+            assign:
+              - light:
+                  color: "green"
+        - return1:
+            return: \${light.color}
+    `
+
+    assertTranspiled(code, expected)
+  })
+
+  it('comma operator is not supported', () => {
+    const code = `function test(x: number) {
+      return sys.log('Logging in comma operator'), x
+    }`
+
+    expect(() => transpileText(code)).to.throw(WorkflowSyntaxError)
+  })
 })
 
 describe('Variable references', () => {
@@ -580,33 +675,33 @@ describe('Variable references', () => {
 
   it('must not start or end with a dot', () => {
     const block1 = '.results.values'
-    expect(() => parseExpression(block1)).to.throw()
+    expect(() => parseExpression(block1)).to.throw(TSError)
 
     const block2 = 'results.values.'
-    expect(() => parseExpression(block2)).to.throw()
+    expect(() => parseExpression(block2)).to.throw(TSError)
   })
 
   it('can not have empty components', () => {
     const block1 = 'results..values'
-    expect(() => parseExpression(block1)).to.throw()
+    expect(() => parseExpression(block1)).to.throw(TSError)
   })
 
   it('must not start with subscripts', () => {
     const block1 = '[3]results'
-    expect(() => parseExpression(block1)).to.throw()
+    expect(() => parseExpression(block1)).to.throw(TSError)
   })
 
   it('subscript can not be empty', () => {
     const block = 'results[]'
-    expect(() => parseExpression(block)).to.throw()
+    expect(() => parseExpression(block)).to.throw(TSError)
   })
 
   it('do not include incompleted subscripts', () => {
     const block1 = 'results[0'
-    expect(() => parseExpression(block1)).to.throw()
+    expect(() => parseExpression(block1)).to.throw(TSError)
 
     const block2 = 'results0]'
-    expect(() => parseExpression(block2)).to.throw()
+    expect(() => parseExpression(block2)).to.throw(TSError)
   })
 })
 

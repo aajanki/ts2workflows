@@ -1,6 +1,7 @@
 import { expect } from 'chai'
 import { transpileText } from '../src/transpiler/index.js'
 import { assertTranspiled } from './testutils.js'
+import { WorkflowSyntaxError } from '../src/errors.js'
 
 describe('Parallel statement', () => {
   it('outputs parallel steps', () => {
@@ -177,7 +178,7 @@ describe('Parallel statement', () => {
     assertTranspiled(code, expected)
   })
 
-  it('rejects invalid types in optional parameters', () => {
+  it('rejects non-number concurrency_limit', () => {
     const code = `
     function main() {
       parallel([branch1, branch2], {
@@ -185,7 +186,73 @@ describe('Parallel statement', () => {
       });
     }`
 
-    expect(() => transpileText(code)).to.throw()
+    expect(() => transpileText(code)).to.throw(WorkflowSyntaxError)
+  })
+
+  it('rejects non-list shared', () => {
+    const code = `
+    function main() {
+      const results = {};
+
+      parallel([
+        () => {
+          results.branch1 = "hello from branch 1";
+        },
+        () => {
+          results.branch2 = "hello from branch 2";
+        },
+      ], {
+        shared: "results",
+        exception_policy: "continueAll",
+        concurrency_limit: 2
+      });
+    }`
+
+    expect(() => transpileText(code)).to.throw(WorkflowSyntaxError)
+  })
+
+  it('rejects a list of non-strings in shared', () => {
+    const code = `
+    function main() {
+      const results = {};
+
+      parallel([
+        () => {
+          results.branch1 = "hello from branch 1";
+        },
+        () => {
+          results.branch2 = "hello from branch 2";
+        },
+      ], {
+        shared: [1],
+        exception_policy: "continueAll",
+        concurrency_limit: 2
+      });
+    }`
+
+    expect(() => transpileText(code)).to.throw(WorkflowSyntaxError)
+  })
+
+  it('rejects non-string exception_policy', () => {
+    const code = `
+    function main() {
+      const results = {};
+
+      parallel([
+        () => {
+          results.branch1 = "hello from branch 1";
+        },
+        () => {
+          results.branch2 = "hello from branch 2";
+        },
+      ], {
+        shared: ["results"],
+        exception_policy: 999,
+        concurrency_limit: 2
+      });
+    }`
+
+    expect(() => transpileText(code)).to.throw(WorkflowSyntaxError)
   })
 
   it('outputs parallel iteration if called with a for..of loop in an arrow function', () => {
@@ -246,7 +313,7 @@ describe('Parallel statement', () => {
       );
     }`
 
-    expect(() => transpileText(code)).to.throw()
+    expect(() => transpileText(code)).to.throw(WorkflowSyntaxError)
   })
 
   it('throws if a plain arrow function contains something else besides a for loop', () => {
@@ -260,7 +327,7 @@ describe('Parallel statement', () => {
       );
     }`
 
-    expect(() => transpileText(code)).to.throw()
+    expect(() => transpileText(code)).to.throw(WorkflowSyntaxError)
   })
 
   it("the return value of parallel() can't be assigned to a variable", () => {
@@ -276,7 +343,7 @@ describe('Parallel statement', () => {
         ]);
       }`
 
-    expect(() => transpileText(code)).to.throw()
+    expect(() => transpileText(code)).to.throw(WorkflowSyntaxError)
   })
 
   it("parallel() can't be used in expression", () => {
@@ -293,7 +360,7 @@ describe('Parallel statement', () => {
       }
     `
 
-    expect(() => transpileText(code)).to.throw()
+    expect(() => transpileText(code)).to.throw(WorkflowSyntaxError)
   })
 
   it("parallel() can't be used in expression 2", () => {
@@ -311,7 +378,7 @@ describe('Parallel statement', () => {
         };
       }`
 
-    expect(() => transpileText(code)).to.throw()
+    expect(() => transpileText(code)).to.throw(WorkflowSyntaxError)
   })
 
   it("parallel() can't be used in an compound assignment expression", () => {
@@ -328,7 +395,7 @@ describe('Parallel statement', () => {
       }
     `
 
-    expect(() => transpileText(code)).to.throw()
+    expect(() => transpileText(code)).to.throw(WorkflowSyntaxError)
   })
 
   it('throws if parallel is called with an expression as arrow function body', () => {
@@ -337,7 +404,7 @@ describe('Parallel statement', () => {
       parallel(() => 1);
     }`
 
-    expect(() => transpileText(code)).to.throw()
+    expect(() => transpileText(code)).to.throw(WorkflowSyntaxError)
   })
 
   it('throws if parallel is called with an expression as arrow function body 2', () => {
@@ -346,7 +413,7 @@ describe('Parallel statement', () => {
       parallel([() => 1, () => 2]);
     }`
 
-    expect(() => transpileText(code)).to.throw()
+    expect(() => transpileText(code)).to.throw(WorkflowSyntaxError)
   })
 
   it('throws if arrow function in parallel has arguments', () => {
@@ -355,7 +422,7 @@ describe('Parallel statement', () => {
       parallel((x) => { return x + 1 });
     }`
 
-    expect(() => transpileText(code)).to.throw()
+    expect(() => transpileText(code)).to.throw(WorkflowSyntaxError)
   })
 
   it('throws if arrow function in parallel has arguments 2', () => {
@@ -369,7 +436,7 @@ describe('Parallel statement', () => {
       );
     }`
 
-    expect(() => transpileText(code)).to.throw()
+    expect(() => transpileText(code)).to.throw(WorkflowSyntaxError)
   })
 
   it('throws if parallel is called without arguments', () => {
@@ -378,6 +445,15 @@ describe('Parallel statement', () => {
       parallel();
     }`
 
-    expect(() => transpileText(code)).to.throw()
+    expect(() => transpileText(code)).to.throw(WorkflowSyntaxError)
+  })
+
+  it('throws if parallel is called with non-function arguments', () => {
+    const code = `
+    function main() {
+      parallel(1, 2, 3);
+    }`
+
+    expect(() => transpileText(code)).to.throw(WorkflowSyntaxError)
   })
 })
