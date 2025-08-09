@@ -829,8 +829,8 @@ describe('Destructing', () => {
 
   it('destructures a nested rest element object pattern in an array pattern', () => {
     const code = `
-    function main(arr: {name: string}[]) {
-      const [{...rest}] = arr;
+    function main(arr: {name: string, age: number}[]) {
+      const [{ name, ...rest }] = arr;
     }`
 
     const expected = `
@@ -847,11 +847,13 @@ describe('Destructing', () => {
                 steps:
                   - assign2:
                       assign:
-                        - rest: \${arr[0]}
+                        - name: \${map.get(arr[0], "name")}
+                        - rest: \${map.delete(arr[0], "name")}
               - condition: true
                 steps:
                   - assign3:
                       assign:
+                        - name: null
                         - rest: null
     `
 

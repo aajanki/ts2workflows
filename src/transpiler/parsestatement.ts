@@ -366,7 +366,11 @@ function extractDefaultAssignmentsFromDestructuringPattern(
     case AST_NODE_TYPES.ObjectPattern:
       return pat.properties.flatMap((p) => {
         if (p.type === AST_NODE_TYPES.RestElement) {
-          return extractDefaultAssignmentsFromDestructuringPattern(p)
+          if (p.argument.type !== AST_NODE_TYPES.Identifier) {
+            throw new WorkflowSyntaxError('Identifier expected', p.argument.loc)
+          }
+
+          return [{ name: variableReferenceEx(p.argument.name), value: nullEx }]
         } else if (
           p.value.type === AST_NODE_TYPES.ArrayPattern ||
           p.value.type === AST_NODE_TYPES.AssignmentPattern ||
