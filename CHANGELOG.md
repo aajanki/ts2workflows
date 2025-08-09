@@ -16,6 +16,7 @@ Fixes:
 - Ignore extra arguments in blocking function calls in all cases. Previously, extra arguments were ignored in some cases but threw errors in other cases.
 - Call expressions in optional chaining (`data?.getPerson()?.name`) now result in error. Previously, they were incorrectly treated as non-optional in the generated code.
 - Fixed code generation for an object rest element nested in an array pattern: `const [{...rest}] = data`
+- `debugger` statement is accepted but ignored
 
 ## Version 0.11.0 - 2026-06-28
 

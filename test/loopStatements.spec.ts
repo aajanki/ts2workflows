@@ -1135,6 +1135,15 @@ describe('Loops', () => {
     expect(() => transpileText(code)).to.throw()
   })
 
+  it('does not support the old for', () => {
+    const code = `
+    function main() {
+      for (let x=0; i++; i < 10) {}
+    }`
+
+    expect(() => transpileText(code)).to.throw()
+  })
+
   it('does not support for...in', () => {
     const code = `
     function main() {

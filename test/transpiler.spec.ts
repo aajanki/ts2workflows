@@ -3,7 +3,7 @@ import * as YAML from 'yaml'
 import * as fs from 'node:fs'
 import { transpile, transpileText } from '../src/transpiler/index.js'
 import { assertTranspiled, assertNotCalled } from './testutils.js'
-import { IOError } from '../src/errors.js'
+import { IOError, WorkflowSyntaxError } from '../src/errors.js'
 
 describe('Type annotations', () => {
   it('accepts type annotations on variable declaration', () => {
@@ -156,6 +156,16 @@ describe('Type definitions', () => {
     `
 
     assertTranspiled(code, expected)
+  })
+
+  it('enums are not supported', () => {
+    const code = `
+    function main() {
+      enum Direction { Up, Down, Left, Right }
+      const dir: Direction = Direction.Up
+    }`
+
+    expect(() => transpileText(code)).to.throw(WorkflowSyntaxError)
   })
 })
 

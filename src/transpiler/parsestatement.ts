@@ -93,6 +93,12 @@ export function parseStatement(
     case AST_NODE_TYPES.SwitchStatement:
       return createSwitchStatement(node, ctx)
 
+    case AST_NODE_TYPES.ForStatement:
+      throw new WorkflowSyntaxError(
+        'for is not a supported construct. Use for...of.',
+        node.loc,
+      )
+
     case AST_NODE_TYPES.ForInStatement:
       throw new WorkflowSyntaxError(
         'for...in is not a supported construct. Use for...of.',
@@ -129,16 +135,15 @@ export function parseStatement(
         node.loc,
       )
 
+    case AST_NODE_TYPES.DebuggerStatement:
     case AST_NODE_TYPES.TSInterfaceDeclaration:
     case AST_NODE_TYPES.TSTypeAliasDeclaration:
     case AST_NODE_TYPES.TSDeclareFunction:
-      // Ignore "type", "interface" and "declare function"
+      // Ignore "debugger", "type", "interface" and "declare function"
       return []
 
     default:
-      throw new InternalTranspilingError(
-        `TODO: encountered unsupported type: ${node.type} on line ${node.loc.start.line}, column ${node.loc.start.column}`,
-      )
+      throw new WorkflowSyntaxError(`${node.type} is not supported`, node.loc)
   }
 }
 

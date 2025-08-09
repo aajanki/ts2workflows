@@ -719,3 +719,28 @@ describe('Labelled statement', () => {
     assertTranspiled(code, expected)
   })
 })
+
+describe('Debugger statement', () => {
+  it('ignores debugger statement', () => {
+    const code = `
+    function main() {
+      const x = 1;
+
+      debugger;
+
+      return x + 1;
+    }`
+
+    const expected = `
+    main:
+      steps:
+        - assign1:
+            assign:
+              - x: 1
+        - return1:
+            return: \${x + 1}
+    `
+
+    assertTranspiled(code, expected)
+  })
+})
