@@ -127,8 +127,27 @@ function generateLinkedOutput(
   const subworkflows = functions
     .filter((f) => !isAmbientFunctionDeclaration(f))
     .map((decl) => tsFunctionToSubworkflow(tsconfigPath, decl))
+    .sort(subworkflowOrdering)
 
   return subworkflows
+}
+
+// Compare function that puts a subworkflow called "main" first and orders the
+// other subworkflows alphabetically
+function subworkflowOrdering(a: Subworkflow, b: Subworkflow) {
+  if (a.name === 'main' && b.name === 'main') {
+    return 0
+  } else if (a.name === 'main') {
+    return -1
+  } else if (b.name === 'main') {
+    return 1
+  } else if (a.name < b.name) {
+    return -1
+  } else if (a.name > b.name) {
+    return 1
+  } else {
+    return 0
+  }
 }
 
 function getCachedWorkflow(

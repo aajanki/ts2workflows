@@ -31,6 +31,12 @@ Compile multiple files and write result to an output directory `workflowsfiles`.
 npx ts2workflows --project samples/tsconfig.json --outdir workflowsfiles samples/*.ts
 ```
 
+The `--link` argument generates YAML output that includes all necessary subworkflows (i.e. imported Typescript functions) in a single file. It will generate one output file for each input file.
+
+```sh
+npx ts2workflows --link --project samples/tsconfig.json --outdir workflowsfiles samples/sample*.ts
+```
+
 When developing ts2workflows, you can run the transpiler directly from the source directory:
 
 ```sh

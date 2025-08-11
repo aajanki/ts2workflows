@@ -85,7 +85,7 @@ sys.get_env('GOOGLE_CLOUD_PROJECT_ID')
 | !=, !==      | not equal to (both mean strict equality)           |
 | <, >, <=, >= | inequality comparisons                             |
 | &&, \|\|, !  | logical and, or, not                               |
-| in           | check if a property is present in an object        |
+| in           | check if a key is present in a map or array        |
 | ??           | nullish coalescing                                 |
 | ?.           | optional chaining                                  |
 | ? :          | conditional operator                               |
@@ -129,7 +129,7 @@ ${default(x, "default value")}
 
 ### Optional chaining
 
-ts2workflows converte the Typescript optional chaining expression
+ts2workflows converts the Typescript optional chaining expression
 
 ```javascript
 data.user?.name
@@ -140,6 +140,12 @@ to a [map.get() expression](https://cloud.google.com/workflows/docs/reference/st
 ```yaml
 ${map.get(data, ["user", "name"])}
 ```
+
+### in operator
+
+The `in` operator checks if a key is present in a map or if a value is present in a list.
+
+⚠️ The `in` operator applied to a list behaves differently on Workflows than on Typescript. The Workflows `in` operator checks if a value is present in the list, whereas on Typescript `in` checks for the presence of a _property_ on the array object. In particular, the following evaluates to `true` on Workflows (but `false` on Typescript): `"x" in ["x", "y"]`.
 
 ### typeof operator
 
