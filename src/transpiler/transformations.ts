@@ -392,14 +392,7 @@ function transformExpression(
   transform: (x: Expression) => Expression,
   ex: Expression,
 ): Expression {
-  return transform(transformNestedExpressions(transform, ex))
-}
-
-function transformNestedExpressions(
-  transform: (x: Expression) => Expression,
-  ex: Expression,
-): Expression {
-  const tr = (y: Expression) => transformExpression(transform, y)
+  const nestedTr = (y: Expression) => transformExpression(transform, y)
 
   switch (ex.tag) {
     case 'string':
@@ -407,25 +400,31 @@ function transformNestedExpressions(
     case 'boolean':
     case 'null':
     case 'variableReference':
-      return ex
+      return transform(ex)
 
     case 'list':
-      return listEx(R.map(tr, ex.value))
+      return transform(listEx(R.map(nestedTr, ex.value)))
 
     case 'map':
-      return mapEx(R.map(tr, ex.value))
+      return transform(mapEx(R.map(nestedTr, ex.value)))
 
     case 'binary':
-      return binaryEx(tr(ex.left), ex.binaryOperator, tr(ex.right))
+      return transform(
+        binaryEx(nestedTr(ex.left), ex.binaryOperator, nestedTr(ex.right)),
+      )
 
     case 'functionInvocation':
-      return functionInvocationEx(ex.functionName, ex.arguments.map(tr))
+      return transform(
+        functionInvocationEx(ex.functionName, ex.arguments.map(nestedTr)),
+      )
 
     case 'member':
-      return memberEx(tr(ex.object), tr(ex.property), ex.computed)
+      return transform(
+        memberEx(nestedTr(ex.object), nestedTr(ex.property), ex.computed),
+      )
 
     case 'unary':
-      return unaryEx(ex.operator, tr(ex.value))
+      return transform(unaryEx(ex.operator, nestedTr(ex.value)))
   }
 }
 
@@ -447,7 +446,7 @@ function transformNestedExpressions(
  * - assign1:
  *     assign:
  *       - __temp0:
- *         value: 5
+ *           value: 5
  * - return1:
  *     return: ${__temp0.value}
  * ```
@@ -464,7 +463,7 @@ function mapLiteralsAsAssigns(generateTempName: () => string) {
 function transformNestedMaps(
   generateTempName: () => string,
   ex: Expression,
-): [WorkflowStatement[], Expression] {
+): [AssignStatement[], Expression] {
   const { transformedExpression, tempVariables } = extractNestedMaps(
     ex,
     generateTempName,
