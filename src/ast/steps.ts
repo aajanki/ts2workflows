@@ -1201,17 +1201,14 @@ function nextNonJumpTargetNode(
   while (nestingLevel >= 0) {
     // Consider only the steps in the current code block (= the same nesting
     // level, taking steps until isLastInBlock)
-    let endOfBlockIndex = stack.findLastIndex(
+    const endOfBlockIndex = stack.findLastIndex(
       (x) => x.nestingLevel === nestingLevel && x.isLastInBlock,
     )
     if (endOfBlockIndex < 0) {
       // should not be reached
-      endOfBlockIndex = stack.findLastIndex(
-        (x) => x.nestingLevel <= nestingLevel,
+      throw new InternalTranspilingError(
+        'Failed to find end of block in nextNonJumpTargetNode',
       )
-      if (endOfBlockIndex < 0) {
-        endOfBlockIndex = 0
-      }
     }
 
     const firstNonJumpTarget = stack
