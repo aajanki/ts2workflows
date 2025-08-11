@@ -20,7 +20,7 @@
     "lint": "eslint src test scripts",
     "format": "prettier . --write",
     "test": "mocha",
-    "test-coverage": "nyc mocha",
+    "test-coverage": "nyc --reporter=text --reporter=html mocha",
     "prepare": "husky && npm run build"
   },
   "lint-staged": {

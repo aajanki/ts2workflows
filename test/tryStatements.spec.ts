@@ -1,7 +1,7 @@
 import { expect } from 'chai'
 import { transpileText } from '../src/transpiler/index.js'
 import { assertTranspiled } from './testutils.js'
-import { WorkflowSyntaxError } from '../src/errors.js'
+import { InternalTranspilingError, WorkflowSyntaxError } from '../src/errors.js'
 import { TSError } from '@typescript-eslint/typescript-estree'
 
 describe('Try-catch-finally statement', () => {
@@ -1514,6 +1514,102 @@ describe('Try-catch-finally statement', () => {
     }`
 
     expect(() => transpileText(code)).to.throw(WorkflowSyntaxError)
+  })
+
+  it('transpiles break inside try without a finalizer ', () => {
+    const code = `
+    function main() {
+      try {
+        const total = 0;
+
+        for (const i of [1, 2, 3]) {
+          if (i % 2 === 0) {
+            break;
+          }
+
+          total += i;
+        }
+
+        return total;
+      } catch (err) {
+        sys.log(err);
+      }
+    }`
+
+    const expected = `
+      main:
+        steps:
+          - try1:
+              try:
+                steps:
+                  - assign1:
+                      assign:
+                        - total: 0
+                  - for1:
+                      for:
+                        value: i
+                        in: [1, 2, 3]
+                        steps:
+                          - switch1:
+                              switch:
+                                - condition: \${i % 2 == 0}
+                                  next: break
+                          - assign2:
+                              assign:
+                                - total: \${total + i}
+                  - return1:
+                      return: \${total}
+              except:
+                as: err
+                steps:
+                  - call_sys_log_1:
+                      call: sys.log
+                      args:
+                        data: \${err}
+    `
+
+    assertTranspiled(code, expected)
+  })
+
+  it('break is not yet supported inside a try if it has a finalizer', () => {
+    const code = `
+    function safeWrite(blocks) {
+      try {
+        for (const block of blocks) {
+          const x = writeData(block);
+          if (x < 0) {
+            break;
+          }
+        }
+      } catch (err) {
+        sys.log(err);
+      } finally {
+        closeConnection();
+      }
+    }`
+
+    expect(() => transpileText(code)).to.throw(InternalTranspilingError)
+  })
+
+  it('continue is not yet supported inside a try if it has a finalizer', () => {
+    const code = `
+    function safeWrite(blocks) {
+      try {
+        for (const block of blocks) {
+          if (len(block) === 0) {
+            continue;
+          }
+
+          writeData(block);
+        }
+      } catch (err) {
+        sys.log(err);
+      } finally {
+        closeConnection();
+      }
+    }`
+
+    expect(() => transpileText(code)).to.throw(InternalTranspilingError)
   })
 })
 
