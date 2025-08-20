@@ -1,7 +1,9 @@
 import { TSESTree, AST_NODE_TYPES } from '@typescript-eslint/typescript-estree'
 import {
+  BinaryExpression,
   BinaryOperator,
   Expression,
+  FunctionInvocationExpression,
   ListExpression,
   MapExpression,
   MemberExpression,
@@ -137,7 +139,7 @@ function convertArrayExpression(
 
 function convertBinaryExpression(
   instance: TSESTree.BinaryExpression | TSESTree.LogicalExpression,
-): Expression {
+): BinaryExpression | FunctionInvocationExpression {
   // Special case for nullish coalescing because the result is a function call
   // expression, not a binary expression
   if (instance.operator === '??') {
@@ -194,7 +196,7 @@ function convertBinaryExpression(
 function nullishCoalescingExpression(
   left: TSESTree.Expression,
   right: TSESTree.Expression,
-): Expression {
+): FunctionInvocationExpression {
   return functionInvocationEx('default', [
     convertExpression(left),
     convertExpression(right),
@@ -255,7 +257,9 @@ function convertUnaryExpression(
   }
 }
 
-function convertTypeOfExpression(value: Expression): Expression {
+function convertTypeOfExpression(
+  value: Expression,
+): FunctionInvocationExpression {
   // Note for future refactoring: evalute value only once (in case it has side effects)
   return functionInvocationEx('text.replace_all_regex', [
     functionInvocationEx('text.replace_all_regex', [
@@ -270,7 +274,7 @@ function convertTypeOfExpression(value: Expression): Expression {
 
 export function convertMemberExpression(
   node: TSESTree.MemberExpression,
-): Expression {
+): MemberExpression {
   const object = convertExpression(node.object)
   return memberEx(
     object,
@@ -279,7 +283,9 @@ export function convertMemberExpression(
   )
 }
 
-function convertChainExpression(node: TSESTree.ChainExpression): Expression {
+function convertChainExpression(
+  node: TSESTree.ChainExpression,
+): FunctionInvocationExpression {
   const properties = chainExpressionToFlatArray(node.expression)
   const args = optionalChainToMapGetArguments(properties)
 
@@ -398,7 +404,9 @@ function memberExpressionFromList(properties: ChainedProperty[]): Expression {
   }
 }
 
-function convertCallExpression(node: TSESTree.CallExpression): Expression {
+function convertCallExpression(
+  node: TSESTree.CallExpression,
+): FunctionInvocationExpression {
   if (node.optional) {
     throw new WorkflowSyntaxError(
       'Optional call expressions are not supported',
@@ -443,7 +451,7 @@ export function isIntrinsicStatement(calleeName: string): boolean {
 
 function convertConditionalExpression(
   node: TSESTree.ConditionalExpression,
-): Expression {
+): FunctionInvocationExpression {
   const test = convertExpression(node.test)
   const consequent = convertExpression(node.consequent)
   const alternate = convertExpression(node.alternate)
