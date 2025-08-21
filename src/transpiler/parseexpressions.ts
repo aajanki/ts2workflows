@@ -51,7 +51,7 @@ export function convertExpression(instance: TSESTree.Expression): Expression {
       return convertTemplateLiteralToExpression(instance)
 
     case AST_NODE_TYPES.Identifier:
-      if (instance.name === 'null' || instance.name === 'undefined') {
+      if (instance.name === 'undefined') {
         return nullEx
       } else {
         return variableReferenceEx(instance.name)
