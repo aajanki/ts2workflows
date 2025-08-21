@@ -1,6 +1,7 @@
 import { expect } from 'chai'
 import { transpileText } from '../src/transpiler/index.js'
 import { assertTranspiled } from './testutils.js'
+import { WorkflowSyntaxError } from '../src/errors.js'
 
 describe('Destructing', () => {
   it('destructures array elements', () => {
@@ -591,6 +592,15 @@ describe('Destructing', () => {
     `
 
     assertTranspiled(code, expected)
+  })
+
+  it('throws if undefined is used as array pattern element', () => {
+    const code = `
+    function main(data) {
+      const [a, undefined, b] = data;
+    }`
+
+    expect(() => transpileText(code)).to.throw(WorkflowSyntaxError)
   })
 
   it('rest element in nested array patterns', () => {

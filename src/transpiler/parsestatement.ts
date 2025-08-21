@@ -51,7 +51,7 @@ import {
   isIntrinsic,
   throwIfSpread,
   isIntrinsicStatement,
-  convertVariableNameExpression,
+  convertAssignmentTarget,
 } from './parseexpressions.js'
 import { blockingFunctions } from './generated/functionMetadata.js'
 
@@ -295,11 +295,12 @@ function arrayElementsDestructuringStatements(
 
     switch (pat?.type) {
       case AST_NODE_TYPES.MemberExpression:
-      case AST_NODE_TYPES.Identifier: {
-        const name = convertVariableNameExpression(pat)
-
-        return [new AssignStatement([{ name, value: iElement }])]
-      }
+      case AST_NODE_TYPES.Identifier:
+        return [
+          new AssignStatement([
+            { name: convertAssignmentTarget(pat), value: iElement },
+          ]),
+        ]
 
       case AST_NODE_TYPES.AssignmentPattern: {
         if (pat.left.type !== AST_NODE_TYPES.Identifier) {
@@ -366,7 +367,7 @@ function extractDefaultAssignmentsFromDestructuringPattern(
       return [{ name: variableReferenceEx(pat.name), value: nullEx }]
 
     case AST_NODE_TYPES.MemberExpression:
-      return [{ name: convertVariableNameExpression(pat), value: nullEx }]
+      return [{ name: convertAssignmentTarget(pat), value: nullEx }]
 
     case AST_NODE_TYPES.ObjectPattern:
       return pat.properties.flatMap((p) => {
@@ -715,7 +716,7 @@ function assignmentStatements(
     valueExpression = convertExpression(right)
   }
 
-  const targetExpression = convertVariableNameExpression(left)
+  const targetExpression = convertAssignmentTarget(left)
   statements.push(
     new AssignStatement([{ name: targetExpression, value: valueExpression }]),
   )
@@ -761,17 +762,7 @@ function convertCompoundAssignmentLeftHandSide(
   expression: MemberExpression | VariableReferenceExpression
   statements: WorkflowStatement[]
 } {
-  if (
-    left.type === AST_NODE_TYPES.ArrayPattern ||
-    left.type === AST_NODE_TYPES.ObjectPattern
-  ) {
-    throw new WorkflowSyntaxError(
-      `Invalid left-hand side in assignment`,
-      left.loc,
-    )
-  }
-
-  const leftEx = convertVariableNameExpression(left)
+  const leftEx = convertAssignmentTarget(left)
   const { transformed, assignments } = extractSideEffectsFromMemberExpression(
     leftEx,
     tempName(ctx),

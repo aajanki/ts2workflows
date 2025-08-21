@@ -527,15 +527,15 @@ export function throwIfPrivateIdentifier(
   return prop
 }
 
-export function convertVariableNameExpression(
-  instance: TSESTree.Expression,
+export function convertAssignmentTarget(
+  node: TSESTree.Expression,
 ): VariableReferenceExpression | MemberExpression {
-  const ex = convertExpression(instance)
+  const ex = convertExpression(node)
 
   if (ex.tag !== 'variableReference' && ex.tag !== 'member') {
     throw new WorkflowSyntaxError(
-      'The left-hand side of an assignment must be a variable or member expression',
-      instance.loc,
+      'An assignment taget must be an identifer or a member expression',
+      node.loc,
     )
   }
 
