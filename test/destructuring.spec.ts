@@ -438,6 +438,24 @@ describe('Destructing', () => {
     assertTranspiled(code, expected)
   })
 
+  it('default values are not supported in nested array destructuring', () => {
+    const code = `
+    function main(arr: number[][]) {
+      const [[a] = [99]] = arr;
+    }`
+
+    expect(() => transpileText(code)).to.throw(WorkflowSyntaxError)
+  })
+
+  it('default values are not supported in nested object pattern in array destructuring', () => {
+    const code = `
+    function main(arr: {val: number}[]) {
+      const [{ val } = {val: 99}] = arr;
+    }`
+
+    expect(() => transpileText(code)).to.throw(WorkflowSyntaxError)
+  })
+
   it('rest element in array destructuring', () => {
     const code = `
     function main() {
@@ -915,6 +933,15 @@ describe('Destructing', () => {
     expect(() => transpileText(code)).to.throw()
   })
 
+  it('throws if the rest element is an array', () => {
+    const code = `
+    function main(arr: number[]) {
+      const [a, b, ...[firstOfRest]] = arr;
+    }`
+
+    expect(() => transpileText(code)).to.throw()
+  })
+
   it('destructures objects', () => {
     const code = `
     function main() {
@@ -1382,6 +1409,18 @@ describe('Destructing', () => {
     `
 
     assertTranspiled(code, expected)
+  })
+
+  it('nested object pattern rest element in object destructuring is not supported', () => {
+    const code = `
+    function main(data) {
+      let n;
+      let c;
+
+      ({ name: n, ...{ country: c } } = data)
+    }`
+
+    expect(() => transpileText(code)).to.throw(WorkflowSyntaxError)
   })
 
   it('rest element in a nested object in object destructuring', () => {

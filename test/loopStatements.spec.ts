@@ -1,6 +1,7 @@
 import { expect } from 'chai'
 import { transpileText } from '../src/transpiler/index.js'
 import { assertTranspiled } from './testutils.js'
+import { WorkflowSyntaxError } from '../src/errors.js'
 
 describe('Loops', () => {
   it('transpiles a for loop', () => {
@@ -1112,7 +1113,7 @@ describe('Loops', () => {
       }
     }`
 
-    expect(() => transpileText(code)).to.throw()
+    expect(() => transpileText(code)).to.throw(WorkflowSyntaxError)
   })
 
   it('fails to parse for...of a string', () => {
@@ -1122,7 +1123,7 @@ describe('Loops', () => {
       }
     }`
 
-    expect(() => transpileText(code)).to.throw()
+    expect(() => transpileText(code)).to.throw(WorkflowSyntaxError)
   })
 
   it('fails to parse for...of a map', () => {
@@ -1132,7 +1133,7 @@ describe('Loops', () => {
       }
     }`
 
-    expect(() => transpileText(code)).to.throw()
+    expect(() => transpileText(code)).to.throw(WorkflowSyntaxError)
   })
 
   it('does not support the old for', () => {
@@ -1141,7 +1142,7 @@ describe('Loops', () => {
       for (let x=0; i++; i < 10) {}
     }`
 
-    expect(() => transpileText(code)).to.throw()
+    expect(() => transpileText(code)).to.throw(WorkflowSyntaxError)
   })
 
   it('does not support for...in', () => {
@@ -1151,6 +1152,26 @@ describe('Loops', () => {
       }
     }`
 
-    expect(() => transpileText(code)).to.throw()
+    expect(() => transpileText(code)).to.throw(WorkflowSyntaxError)
+  })
+
+  it('object pattern is not supported in for...of', () => {
+    const code = `
+    function main() {
+      for ({ val } of [{ val: 1 }, { val: 2}]) {
+      }
+    }`
+
+    expect(() => transpileText(code)).to.throw(WorkflowSyntaxError)
+  })
+
+  it('object pattern declaration is not supported in for...of', () => {
+    const code = `
+    function main() {
+      for (const { val } of [{ val: 1 }, { val: 2}]) {
+      }
+    }`
+
+    expect(() => transpileText(code)).to.throw(WorkflowSyntaxError)
   })
 })

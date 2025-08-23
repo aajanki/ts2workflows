@@ -43,7 +43,7 @@ import {
   ContinueStatement,
   SwitchStatement,
 } from '../ast/statements.js'
-import { InternalTranspilingError, WorkflowSyntaxError } from '../errors.js'
+import { WorkflowSyntaxError } from '../errors.js'
 import {
   convertExpression,
   convertMemberExpression,
@@ -159,14 +159,13 @@ function convertVariableDeclarations(
   }
 
   return node.declarations.flatMap((decl) => {
-    if (decl.id.type === AST_NODE_TYPES.Identifier) {
-      return convertInitializer(decl.id.name, decl.init, ctx)
-    } else if (decl.id.type === AST_NODE_TYPES.ArrayPattern) {
+    if (decl.id.type === AST_NODE_TYPES.ArrayPattern) {
       return convertArrayDestructuring(decl.id, decl.init, ctx)
     } else if (decl.id.type === AST_NODE_TYPES.ObjectPattern) {
       return convertObjectDestructuring(decl.id, decl.init, ctx)
     } else {
-      throw new WorkflowSyntaxError('Unsupported pattern', decl.loc)
+      // decl.id.type === AST_NODE_TYPES.Identifier
+      return convertInitializer(decl.id.name, decl.init, ctx)
     }
   })
 }
@@ -613,14 +612,13 @@ function objectDestructuringRestStatements(
   )
   const nonRestKeys = nonRestProperties
     .map((p) => p.key)
-    .map((p) => {
-      if (p.type !== AST_NODE_TYPES.Identifier) {
-        throw new WorkflowSyntaxError('Identifier expected', p.loc)
+    .map((k) => {
+      if (k.type !== AST_NODE_TYPES.Identifier) {
+        throw new WorkflowSyntaxError('Identifier expected', k.loc)
       }
 
-      return p
+      return k.name
     })
-    .map((p) => p.name)
 
   const name = variableReferenceEx(rest.argument.name)
   const value = nonRestKeys.reduce(
@@ -709,7 +707,11 @@ function assignmentStatements(
     right.callee.type === AST_NODE_TYPES.Identifier &&
     isIntrinsic(right.callee.name)
   ) {
-    const tr = convertAssignmentExpressionIntrinsicRHS(right, ctx)
+    const tr = convertAssignmentExpressionIntrinsicRHS(
+      right,
+      right.callee.name,
+      ctx,
+    )
     statements.push(...tr.statements)
     valueExpression = tr.tempVariable
   } else {
@@ -739,7 +741,11 @@ function compoundAssignmentStatements(
     right.callee.type === AST_NODE_TYPES.Identifier &&
     isIntrinsic(right.callee.name)
   ) {
-    const tr = convertAssignmentExpressionIntrinsicRHS(right, ctx)
+    const tr = convertAssignmentExpressionIntrinsicRHS(
+      right,
+      right.callee.name,
+      ctx,
+    )
     statements.push(...tr.statements)
     valueExpression = tr.tempVariable
   } else {
@@ -833,21 +839,15 @@ function extractSideEffectsFromMemberExpression(
 
 /**
  * Special case for handling call_step() RHS in assignment expressions.
- *
- * This can be removed once the generic convertExpression() is able to handle call_step.
  */
 function convertAssignmentExpressionIntrinsicRHS(
   callEx: TSESTree.CallExpression,
+  calleeName: string,
   ctx: ParsingContext,
 ): {
   statements: WorkflowStatement[]
   tempVariable: VariableReferenceExpression
 } {
-  if (callEx.callee.type !== AST_NODE_TYPES.Identifier) {
-    throw new InternalTranspilingError('The callee should be an identifier')
-  }
-
-  const calleeName = callEx.callee.name
   if (isIntrinsicStatement(calleeName)) {
     throw new WorkflowSyntaxError(
       `"${calleeName}" can't be called as part of an expression`,
@@ -874,7 +874,7 @@ function callExpressionToStatement(
 
     if (calleeName === 'parallel') {
       // A handle the "parallel" intrinsic
-      return [callExpressionToParallelStatement(node, ctx)]
+      return [createParallelStatement(node.arguments, node.loc, ctx)]
     } else if (calleeName === 'retry_policy') {
       // retry_policy() is handled by AST_NODE_TYPES.TryStatement and therefore ignored here
       return []
@@ -962,7 +962,7 @@ function createCallStatement(
   if (argumentsNode.length >= 2) {
     if (argumentsNode[1].type !== AST_NODE_TYPES.ObjectExpression) {
       throw new WorkflowSyntaxError(
-        'The second argument must be an object',
+        'The second argument must be a map literal',
         argumentsNode[1].loc,
       )
     }
@@ -999,28 +999,14 @@ function blockingFunctionStatement(
   return new FunctionInvocationStatement(functionName, args, resultName)
 }
 
-function callExpressionToParallelStatement(
-  node: TSESTree.CallExpression,
+function createParallelStatement(
+  args: TSESTree.CallExpressionArgument[],
+  loc: TSESTree.SourceLocation,
   ctx: ParsingContext,
 ): ParallelStatement | ParallelForStatement {
-  if (
-    node.callee.type !== AST_NODE_TYPES.Identifier ||
-    node.callee.name !== 'parallel'
-  ) {
-    throw new InternalTranspilingError(
-      `The parameter must be a call to "parallel"`,
-    )
-  }
-
-  let shared: string[] | undefined = undefined
-  let concurrencyLimit: number | undefined = undefined
-  let exceptionPolicy: string | undefined = undefined
-  if (node.arguments.length > 1) {
-    const options = parseParallelOptions(node.arguments[1])
-    shared = options.shared
-    concurrencyLimit = options.concurrencyLimit
-    exceptionPolicy = options.exceptionPolicy
-  }
+  const { shared, concurrencyLimit, exceptionPolicy } = parseParallelOptions(
+    args[1],
+  )
 
   const ctx2: ParsingContext = Object.assign({}, ctx, {
     parallelNestingLevel: ctx.parallelNestingLevel
@@ -1028,10 +1014,10 @@ function callExpressionToParallelStatement(
       : 1,
   })
 
-  switch (node.arguments[0]?.type) {
+  switch (args[0]?.type) {
     case AST_NODE_TYPES.ArrayExpression:
       return new ParallelStatement(
-        parseParallelBranches(node.arguments[0], ctx2),
+        parseParallelBranches(args[0], ctx2),
         shared,
         concurrencyLimit,
         exceptionPolicy,
@@ -1039,19 +1025,19 @@ function callExpressionToParallelStatement(
 
     case AST_NODE_TYPES.ArrowFunctionExpression:
       return new ParallelForStatement(
-        parseParallelIteration(node.arguments[0], ctx2),
+        parseParallelIteration(args[0], ctx2),
         shared,
         concurrencyLimit,
         exceptionPolicy,
       )
 
     case undefined:
-      throw new WorkflowSyntaxError('At least one argument required', node.loc)
+      throw new WorkflowSyntaxError('At least one argument required', loc)
 
     default:
       throw new WorkflowSyntaxError(
         'The first parameter must be an array of functions or an arrow function',
-        node.arguments[0].loc,
+        args[0].loc,
       )
   }
 }
@@ -1114,7 +1100,13 @@ function parseParallelIteration(
   return createForOfStatement(node.body.body[0], ctx)
 }
 
-function parseParallelOptions(node: TSESTree.CallExpressionArgument) {
+function parseParallelOptions(
+  node: TSESTree.CallExpressionArgument | undefined,
+) {
+  if (node === undefined) {
+    return {}
+  }
+
   if (node.type !== AST_NODE_TYPES.ObjectExpression) {
     throw new WorkflowSyntaxError(
       'The second parameter must be an object',
@@ -1260,22 +1252,11 @@ function createForOfStatement(
   let loopVariableName: string
   if (node.left.type === AST_NODE_TYPES.Identifier) {
     loopVariableName = node.left.name
-  } else if (node.left.type === AST_NODE_TYPES.VariableDeclaration) {
-    if (node.left.declarations.length !== 1) {
-      throw new WorkflowSyntaxError(
-        'Only one variable can be declared here',
-        node.left.loc,
-      )
-    }
-
+  } else if (
+    node.left.type === AST_NODE_TYPES.VariableDeclaration &&
+    node.left.declarations.length >= 1
+  ) {
     const declaration = node.left.declarations[0]
-    if (declaration.init !== null) {
-      throw new WorkflowSyntaxError(
-        'Initial value not allowed',
-        declaration.init.loc,
-      )
-    }
-
     if (declaration.id.type !== AST_NODE_TYPES.Identifier) {
       throw new WorkflowSyntaxError(
         `Identifier expected, got ${declaration.id.type}`,
@@ -1285,9 +1266,7 @@ function createForOfStatement(
 
     loopVariableName = declaration.id.name
   } else {
-    throw new InternalTranspilingError(
-      `Identifier or VariableDeclaration expected, got ${node.left.type}`,
-    )
+    throw new WorkflowSyntaxError('Unsupported initializer', node.left.loc)
   }
 
   const listExpression = convertExpression(node.right)

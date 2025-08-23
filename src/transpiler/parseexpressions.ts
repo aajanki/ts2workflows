@@ -206,7 +206,7 @@ function nullishCoalescingExpression(
 function convertUnaryExpression(
   instance: TSESTree.UnaryExpression,
 ): Expression {
-  if (instance.prefix === false) {
+  if (!instance.prefix) {
     throw new WorkflowSyntaxError(
       'only prefix unary operators are supported',
       instance.loc,

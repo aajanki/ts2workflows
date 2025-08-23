@@ -1193,11 +1193,7 @@ function stepsToJumpStackElements(
 function nextNonJumpTargetNode(
   stack: readonly JumpStackElement[],
 ): WorkflowStep | undefined {
-  if (stack.length <= 0) {
-    return undefined
-  }
-
-  let nestingLevel = stack[stack.length - 1].nestingLevel
+  let nestingLevel = stack[stack.length - 1]?.nestingLevel ?? -1
   while (nestingLevel >= 0) {
     // Consider only the steps in the current code block (= the same nesting
     // level, taking steps until isLastInBlock)
@@ -1426,12 +1422,8 @@ function renameJumpTargetsNext(
   step: NextStep,
   replaceLabels: Map<StepName, StepName>,
 ): NextStep {
-  const newLabel = replaceLabels.get(step.next)
-  if (newLabel) {
-    return { ...step, next: newLabel }
-  } else {
-    return step
-  }
+  const newLabel = replaceLabels.get(step.next) ?? step.next
+  return { ...step, next: newLabel }
 }
 
 function renameJumpTargetsParallel(
@@ -1457,16 +1449,14 @@ function renameJumpTargetsSwitch(
   step: SwitchStep,
   replaceLabels: Map<StepName, StepName>,
 ): SwitchStep {
-  let updatedNext: StepName | undefined = undefined
-  if (step.next) {
-    updatedNext = replaceLabels.get(step.next) ?? step.next
-  }
+  const updatedNext = step.next
+    ? (replaceLabels.get(step.next) ?? step.next)
+    : undefined
 
   const updatedBranches = step.branches.map((cond) => {
-    let updatedCondNext: StepName | undefined = undefined
-    if (cond.next) {
-      updatedCondNext = replaceLabels.get(cond.next) ?? cond.next
-    }
+    const updatedCondNext = cond.next
+      ? (replaceLabels.get(cond.next) ?? cond.next)
+      : undefined
 
     const updatedCondSteps = cond.steps?.map((nested) =>
       renameJumpTargets(nested, replaceLabels),

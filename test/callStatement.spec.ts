@@ -554,6 +554,14 @@ describe('Function invocation statement', () => {
     expect(() => transpileText(code)).to.throw(WorkflowSyntaxError)
   })
 
+  it('rejects call_step() called with a non map literal as the second argument', () => {
+    const code = `function main() {
+      call_step(http.get, 5);
+    }`
+
+    expect(() => transpileText(code)).to.throw(WorkflowSyntaxError)
+  })
+
   it('complex computed properties are not supported in call_step()', () => {
     const code = `function main() {
       call_step(sys[get_name()]);

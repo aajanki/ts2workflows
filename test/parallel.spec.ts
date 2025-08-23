@@ -448,10 +448,28 @@ describe('Parallel statement', () => {
     expect(() => transpileText(code)).to.throw(WorkflowSyntaxError)
   })
 
-  it('throws if parallel is called with non-function arguments', () => {
+  it('throws if parallel is called with one non-function argument', () => {
+    const code = `
+    function main() {
+      parallel(1);
+    }`
+
+    expect(() => transpileText(code)).to.throw(WorkflowSyntaxError)
+  })
+
+  it('throws if parallel is called with many non-function arguments', () => {
     const code = `
     function main() {
       parallel(1, 2, 3);
+    }`
+
+    expect(() => transpileText(code)).to.throw(WorkflowSyntaxError)
+  })
+
+  it('throws if parallel is called with an array of non-function arguments', () => {
+    const code = `
+    function main() {
+      parallel([1, 2, 3]);
     }`
 
     expect(() => transpileText(code)).to.throw(WorkflowSyntaxError)
