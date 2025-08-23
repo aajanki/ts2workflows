@@ -12,7 +12,7 @@ import {
   booleanEx,
   expressionToString,
   functionInvocationEx,
-  isFullyQualifiedName,
+  isQualifiedName,
   listEx,
   mapEx,
   memberEx,
@@ -360,7 +360,7 @@ function optionalChainToMapGetArguments(
     const propertyExp = convertExpression(opt.property)
     if (opt.computed) {
       return propertyExp
-    } else if (isFullyQualifiedName(propertyExp)) {
+    } else if (isQualifiedName(propertyExp)) {
       return stringEx(expressionToString(propertyExp))
     } else {
       throw new WorkflowSyntaxError(
@@ -415,7 +415,7 @@ function convertCallExpression(
   }
 
   const calleeExpression = convertExpression(node.callee)
-  if (isFullyQualifiedName(calleeExpression)) {
+  if (isQualifiedName(calleeExpression)) {
     const calleeName = expressionToString(calleeExpression)
     if (isIntrinsic(calleeName)) {
       let msg: string

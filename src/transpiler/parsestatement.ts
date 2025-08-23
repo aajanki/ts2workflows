@@ -9,7 +9,7 @@ import {
   binaryEx,
   expressionToString,
   functionInvocationEx,
-  isFullyQualifiedName,
+  isQualifiedName,
   isPrimitive,
   listEx,
   memberEx,
@@ -474,7 +474,7 @@ function convertObjectDestructuring(
   if (
     initializer?.type === AST_NODE_TYPES.Identifier ||
     (initializer?.type === AST_NODE_TYPES.MemberExpression &&
-      isFullyQualifiedName(convertExpression(initializer)))
+      isQualifiedName(convertExpression(initializer)))
   ) {
     // If the initializer is an Identifier or MemberExpression (object variable?), use it directly.
     initExpression = convertExpression(initializer)
@@ -869,7 +869,7 @@ function callExpressionToStatement(
   ctx: ParsingContext,
 ): WorkflowStatement[] {
   const calleeExpression = convertExpression(node.callee)
-  if (isFullyQualifiedName(calleeExpression)) {
+  if (isQualifiedName(calleeExpression)) {
     const calleeName = expressionToString(calleeExpression)
 
     if (calleeName === 'parallel') {
@@ -943,9 +943,9 @@ function createCallStatement(
   } else if (argNode.type === AST_NODE_TYPES.MemberExpression) {
     const memberExp = convertMemberExpression(argNode)
 
-    if (!isFullyQualifiedName(memberExp)) {
+    if (!isQualifiedName(memberExp)) {
       throw new WorkflowSyntaxError(
-        'Function name must be a fully-qualified name',
+        'Function name must be a qualified name',
         argNode.loc,
       )
     }
@@ -1359,7 +1359,7 @@ function extractRetryPolicy(
       )[0]
       const argsLoc = statement.expression.arguments[0].loc
 
-      if (isFullyQualifiedName(arg0)) {
+      if (isQualifiedName(arg0)) {
         return expressionToString(arg0)
       } else if (arg0.tag === 'map') {
         return retryPolicyFromParams(arg0.value, argsLoc)
@@ -1407,7 +1407,7 @@ function predicateFromRetryParams(
 ): string | undefined {
   if (!('predicate' in params)) {
     return undefined
-  } else if (isFullyQualifiedName(params.predicate)) {
+  } else if (isQualifiedName(params.predicate)) {
     return expressionToString(params.predicate)
   } else {
     throw new WorkflowSyntaxError(

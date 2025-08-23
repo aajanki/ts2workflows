@@ -307,7 +307,7 @@ export function expressionToLiteralValueOrLiteralExpression(
   }
 }
 
-export function isFullyQualifiedName(ex: Expression): boolean {
+export function isQualifiedName(ex: Expression): boolean {
   switch (ex.tag) {
     case 'string':
     case 'number':
@@ -325,8 +325,8 @@ export function isFullyQualifiedName(ex: Expression): boolean {
 
     case 'member':
       return (
-        isFullyQualifiedName(ex.object) &&
-        (isFullyQualifiedName(ex.property) ||
+        isQualifiedName(ex.object) &&
+        (isQualifiedName(ex.property) ||
           (ex.computed && isPrimitive(ex.property)))
       )
   }
