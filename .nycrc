@@ -1,5 +1,23 @@
 {
   "extends": "@istanbuljs/nyc-config-typescript",
+  "watermarks": {
+    "lines": [
+      80,
+      95
+    ],
+    "functions": [
+      95,
+      99
+    ],
+    "branches": [
+      50,
+      80
+    ],
+    "statements": [
+      80,
+      95
+    ]
+  },
   "exclude": [
     "src/transpiler/generated"
   ]

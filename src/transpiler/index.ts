@@ -134,6 +134,7 @@ function generateLinkedOutput(
 
 // Compare function that puts a subworkflow called "main" first and orders the
 // other subworkflows alphabetically
+/* istanbul ignore next @preserve */
 function subworkflowOrdering(a: Subworkflow, b: Subworkflow) {
   if (a.name === 'main' && b.name === 'main') {
     return 0

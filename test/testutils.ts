@@ -1,4 +1,4 @@
-/* istanbul ignore file */
+/* istanbul ignore file @preserve */
 
 import { expect } from 'chai'
 import {
