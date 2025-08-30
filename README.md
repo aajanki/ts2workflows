@@ -9,11 +9,9 @@ Only a subset of Typescript features are supported. The [language reference](lan
 
 See the [samples](samples) directory for code examples.
 
-Project status: It's possible to write Workflows programs, but the transpiler has not been extensively tested. Expect some rough edges!
-
 ## Installation
 
-```
+```sh
 npm install ts2workflows
 ```
 
@@ -73,20 +71,20 @@ Type checking step is completely separate from the transpiling. The ts2workflows
 
 ### Build
 
-```
+```sh
 npm install
 npm run build
 ```
 
 ### Run unit tests
 
-```
+```sh
 npm run test
 ```
 
 Run tests and print the test coverage:
 
-```
+```sh
 npm run test-coverage
 ```
 

@@ -1,24 +1,23 @@
 # ts2workflows changelog
 
-## unreleased
+## Version 0.12.0 - 2025-08-30
 
 New features:
 
-- Generate self-contained YAML files (all needed subworkflows in one file) with the `--link` option
-- Accept Typescript's `satisfies` expression. It does not affect the YAML output.
+- New command line option `--link` generates self-contained YAML files (all needed subworkflows in one file)
+- Accepts Typescript's `satisfies` expression and `debugger` statement. They do not affect the YAML output.
 
 Fixes:
 
-- Empty body in an if statements generated invalid code
-- In certain cases nested map literals generated invalid output
-- Some expressions that included many extractable sub-expressions (map literals, blocking calls) generated invalid output because a temporary variable was re-used incorrectly
+- Empty body in an `if` statements generated invalid code
+- In certain cases nested map literals generated invalid code
+- Some expressions with many extractable sub-expressions (map literals, blocking calls) generated invalid code because a temporary variable was re-used incorrectly
 - Empty statements are accepted at the top level
 - Ignore extra arguments in blocking function calls in all cases. Previously, extra arguments were ignored in some cases but threw errors in other cases.
 - Call expressions in optional chaining (`data?.getPerson()?.name`) now result in error. Previously, they were incorrectly treated as non-optional in the generated code.
 - Fixed code generation for an object rest element nested in an array pattern: `const [{...rest}] = data`
-- `debugger` statement is accepted but ignored
 
-## Version 0.11.0 - 2026-06-28
+## Version 0.11.0 - 2025-06-28
 
 Breaking changes:
 
