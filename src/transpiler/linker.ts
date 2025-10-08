@@ -58,6 +58,21 @@ function findNestedFunctions(
       if (decl && ts.isFunctionDeclaration(decl)) {
         functionDeclarations.push(decl)
       }
+    } else if (ts.isIdentifier(node)) {
+      const symbol = typeChecker.getSymbolAtLocation(node)
+
+      for (const decl of symbol?.getDeclarations() ?? []) {
+        if (ts.isFunctionDeclaration(decl)) {
+          functionDeclarations.push(decl)
+        } else if (symbol && ts.isImportSpecifier(decl)) {
+          const symbol2 = typeChecker.getAliasedSymbol(symbol)
+          for (const decl2 of symbol2.getDeclarations() ?? []) {
+            if (ts.isFunctionDeclaration(decl2)) {
+              functionDeclarations.push(decl2)
+            }
+          }
+        }
+      }
     }
 
     ts.forEachChild(node, visit)
