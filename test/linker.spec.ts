@@ -46,6 +46,18 @@ describe('function listing', () => {
     ])
   })
 
+  it('lists functions referenced by identifier in an imported file', () => {
+    const functions = listFunctions('test/fixtures/identifierinimported.ts', [])
+
+    expect(functions).to.have.lengthOf(4)
+    expect(functions).to.have.members([
+      'main',
+      'compute',
+      'timesTwo',
+      'number1',
+    ])
+  })
+
   it('finds imported function with alias', () => {
     const functions = listFunctions('test/fixtures/importalias.ts', [
       'test/fixtures/computation.ts',
