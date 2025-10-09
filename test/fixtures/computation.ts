@@ -6,6 +6,10 @@ export function compute() {
   return average(x, y)
 }
 
+export function max(x: number, y: number): number {
+  return x > y ? x : y
+}
+
 function average(x: number, y: number): number {
   return (x + y) / 2
 }

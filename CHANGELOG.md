@@ -1,5 +1,11 @@
 # ts2workflows changelog
 
+## unreleased
+
+Fixes:
+
+- function identifiers (e.g. in call_step and parallel) are included in the `--link` output
+
 ## Version 0.12.0 - 2025-08-30
 
 New features:

@@ -58,7 +58,10 @@ function findNestedFunctions(
       if (decl && ts.isFunctionDeclaration(decl)) {
         functionDeclarations.push(decl)
       }
-    } else if (ts.isIdentifier(node)) {
+    } else if (
+      ts.isIdentifier(node) &&
+      !ts.isImportOrExportSpecifier(node.parent)
+    ) {
       const symbol = typeChecker.getSymbolAtLocation(node)
 
       if (symbol && symbol.flags & ts.SymbolFlags.Alias) {
