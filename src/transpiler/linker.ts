@@ -51,33 +51,11 @@ function findNestedFunctions(
   const functionDeclarations: ts.FunctionDeclaration[] = []
 
   function visit(node: ts.Node) {
-    if (ts.isCallExpression(node)) {
-      const sig = typeChecker.getResolvedSignature(node)
-      const decl = sig?.getDeclaration()
-
-      if (decl && ts.isFunctionDeclaration(decl)) {
-        functionDeclarations.push(decl)
-      }
-    } else if (
-      ts.isIdentifier(node) &&
-      !ts.isImportOrExportSpecifier(node.parent)
-    ) {
-      const symbol = typeChecker.getSymbolAtLocation(node)
-
-      if (symbol && symbol.flags & ts.SymbolFlags.Alias) {
-        const symbol2 = typeChecker.getAliasedSymbol(symbol)
-        for (const decl of symbol2.getDeclarations() ?? []) {
-          if (ts.isFunctionDeclaration(decl)) {
-            functionDeclarations.push(decl)
-          }
-        }
-      } else {
-        for (const decl of symbol?.getDeclarations() ?? []) {
-          if (ts.isFunctionDeclaration(decl)) {
-            functionDeclarations.push(decl)
-          }
-        }
-      }
+    // isImportOrExportSpecifier() check ignores foo in "import { foo } from ..."
+    if (ts.isIdentifier(node) && !ts.isImportOrExportSpecifier(node.parent)) {
+      functionDeclarations.push(
+        ...functionDeclarationsForIdentifier(typeChecker, node),
+      )
     }
 
     ts.forEachChild(node, visit)
@@ -86,4 +64,16 @@ function findNestedFunctions(
   visit(node)
 
   return functionDeclarations
+}
+
+function functionDeclarationsForIdentifier(
+  typeChecker: ts.TypeChecker,
+  node: ts.Identifier,
+): ts.FunctionDeclaration[] {
+  const symbol = typeChecker.getSymbolAtLocation(node)
+  const isAliased = symbol && symbol.flags & ts.SymbolFlags.Alias
+  const symbol2 = isAliased ? typeChecker.getAliasedSymbol(symbol) : symbol
+  const declarations = symbol2?.getDeclarations() ?? []
+
+  return declarations.filter(ts.isFunctionDeclaration)
 }
