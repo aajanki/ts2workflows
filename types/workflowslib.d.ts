@@ -213,7 +213,13 @@ export declare namespace list {
 // Typescript `object` is actually too liberal as it includes arrays. Workflows
 // will throw an error if the input is an array.
 export declare namespace map {
-  function _delete<T>(map: Record<string, T>, key: string): Record<string, T>
+  // If K is a literal key of T, return the exact type.
+  // Otherwise the best we can do is to return a Record with
+  // any of T property values.
+  function _delete<T extends object, K extends string>(
+    map: T,
+    key: K,
+  ): K extends keyof T ? Omit<T, K> : Record<string, T[keyof T]>
   // map.get() with a string key.
   // If K is a literal key of T, this returns the exact type T[K].
   // Otherwise returns less exact union of all T property types or null.
