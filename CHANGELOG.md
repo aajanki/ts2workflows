@@ -5,7 +5,7 @@
 Fixes:
 
 - function identifiers (e.g. in call_step and parallel) are included in the `--link` output
-- Type annotations: map merge functions accept `object` types
+- Improve type annotations of map.\* functions
 
 ## Version 0.12.0 - 2025-08-30
 

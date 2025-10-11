@@ -210,14 +210,19 @@ export declare namespace list {
   function prepend<T, U>(objs: T[], val: U): (T | U)[]
 }
 
-// Typescript object is actually too liberal as it includes arrays. Workflows
+// Typescript `object` is actually too liberal as it includes arrays. Workflows
 // will throw an error if the input is an array.
 export declare namespace map {
   function _delete<T>(map: Record<string, T>, key: string): Record<string, T>
-  // map.get() with a string key, returns a property value or null
-  export function get<T>(map: Record<string, T>, keys: string): T | null
-  // map.get() with string[] key or non-object lookup, the return type is unknown
-  export function get(map: object, keys: string | string[]): WorkflowsValue
+  // map.get() with a string key.
+  // If K is a literal key of T, this returns the exact type T[K].
+  // Otherwise returns less exact union of all T property types or null.
+  export function get<T extends object, K extends string>(
+    map: T,
+    keys: K,
+  ): K extends keyof T ? T[K] : T[keyof T] | null
+  // map.get() with string[] key, the return type is not inferred
+  export function get(map: object, keys: string[]): WorkflowsValue
   export function merge<T extends object, U extends object>(
     first: T,
     second: U,
