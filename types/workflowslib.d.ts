@@ -210,20 +210,22 @@ export declare namespace list {
   function prepend<T, U>(objs: T[], val: U): (T | U)[]
 }
 
+// Typescript object is actually too liberal as it includes arrays. Workflows
+// will throw an error if the input is an array.
 export declare namespace map {
   function _delete<T>(map: Record<string, T>, key: string): Record<string, T>
   // map.get() with a string key, returns a property value or null
   export function get<T>(map: Record<string, T>, keys: string): T | null
   // map.get() with string[] key or non-object lookup, the return type is unknown
-  export function get(map: any, keys: string | string[]): WorkflowsValue
-  export function merge<T, U>(
-    first: Record<string, T>,
-    second: Record<string, U>,
-  ): Record<string, T | U>
-  export function merge_nested<T, U>(
-    first: Record<string, T>,
-    second: Record<string, U>,
-  ): Record<string, T | U>
+  export function get(map: object, keys: string | string[]): WorkflowsValue
+  export function merge<T extends object, U extends object>(
+    first: T,
+    second: U,
+  ): T & U
+  export function merge_nested<T extends object, U extends object>(
+    first: T,
+    second: U,
+  ): T & U
   export { _delete as delete }
 }
 
