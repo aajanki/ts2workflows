@@ -1,5 +1,11 @@
 # ts2workflows changelog
 
+## unreleased
+
+Fixes:
+
+- Type annotation fixes for the Firestore connector
+
 ## Version 0.13.0 - 2025-10-12
 
 Fixes:

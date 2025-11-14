@@ -528,9 +528,9 @@ export declare namespace googleapis {
         transaction?: string
       }
       interface RunQueryResponse {
-        document: Document
+        document?: Document
         readTime: string
-        skippedResults: number
+        skippedResults?: number
         transaction?: string
       }
       interface Status {
@@ -679,8 +679,8 @@ export declare namespace googleapis {
             ): PartitionQueryResponse
             export function patch(
               name: string,
-              currentDocument: Precondition,
-              mask: DocumentMask,
+              currentDocument: Precondition | undefined,
+              mask: DocumentMask | undefined,
               updateMask: DocumentMask,
               body: Pick<Document, 'fields' | 'name'>,
             ): Document
@@ -691,7 +691,7 @@ export declare namespace googleapis {
             export function runQuery(
               parent: string,
               body: RunQueryRequest,
-            ): RunQueryResponse
+            ): RunQueryResponse[]
             export { _delete as delete }
           }
           namespace operations {
