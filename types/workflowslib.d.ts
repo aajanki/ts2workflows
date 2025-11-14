@@ -37,11 +37,21 @@ type HTTPQuery = Record<
 export declare function double(x: string | number): number
 export declare function int(x: string | number): number
 export declare function string(x: string | number | boolean): string
-export declare function keys(map: Record<string, unknown>): string[]
+export declare function keys<T extends object>(map: T): (keyof T)[]
 export declare function len(
   value: unknown[] | Record<string, unknown> | string,
 ): number
-export declare function get_type(value: unknown): string
+export declare function get_type(
+  value: unknown,
+):
+  | 'boolean'
+  | 'bytes'
+  | 'double'
+  | 'integer'
+  | 'list'
+  | 'map'
+  | 'string'
+  | 'null'
 
 // GCP Workflows standard library functions
 // https://cloud.google.com/workflows/docs/reference/stdlib/overview
