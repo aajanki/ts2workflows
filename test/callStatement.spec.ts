@@ -107,14 +107,16 @@ describe('Function invocation statement', () => {
     const expected = `
     main:
       steps:
+        - assign1:
+            assign:
+              - response:
         - call_http_get_1:
             call: http.get
             args:
               url: https://visit.dreamland.test/
             result: __temp0
-        - assign1:
+        - assign2:
             assign:
-              - response:
               - response: \${__temp0}
     `
 
@@ -129,15 +131,17 @@ describe('Function invocation statement', () => {
     const expected = `
     main:
       steps:
+        - assign1:
+            assign:
+              - __temp0:
+                  values: [1, 2]
         - call_http_get_1:
             call: http.get
             args:
               url: https://visit.dreamland.test/
             result: __temp1
-        - assign1:
+        - assign2:
             assign:
-              - __temp0:
-                  values: [1, 2]
               - response: \${combine(__temp1, __temp0.values[0])}
     `
 
@@ -153,14 +157,16 @@ describe('Function invocation statement', () => {
     const expected = `
     main:
       steps:
+        - assign1:
+            assign:
+              - results: {}
         - call_http_get_1:
             call: http.get
             args:
               url: https://visit.dreamland.test/
             result: __temp0
-        - assign1:
+        - assign2:
             assign:
-              - results: {}
               - results.response: \${__temp0}
     `
 
@@ -217,14 +223,16 @@ describe('Function invocation statement', () => {
     const expected = `
     scopes:
       steps:
+        - assign1:
+            assign:
+            - result: {}
         - call_http_get_1:
             call: http.get
             args:
               url: https://visit.dreamland.test/outer.html
             result: __temp0
-        - assign1:
+        - assign2:
             assign:
-            - result: {}
             - result.outer: \${__temp0}
         - switch1:
             switch:
@@ -321,6 +329,71 @@ describe('Function invocation statement', () => {
             result: __temp1
         - return1:
             return: \${"response:" + map.get(__temp0, "body") + __temp1.body}
+    `
+
+    assertTranspiled(code, expected)
+  })
+
+  it('generates assign and call steps in correct order in expressions', () => {
+    const code = `function main() {
+      const url = "https://visit.dreamland.test/elfo.html";
+      const message = "response:" + http.get(url).body;
+      return message;
+    }`
+
+    const expected = `
+    main:
+      steps:
+        - assign1:
+            assign:
+              - url: https://visit.dreamland.test/elfo.html
+        - call_http_get_1:
+            call: http.get
+            args:
+              url: \${url}
+            result: __temp0
+        - assign2:
+            assign:
+              - message: \${"response:" + __temp0.body}
+        - return1:
+            return: \${message}
+    `
+
+    assertTranspiled(code, expected)
+  })
+
+  it('regression: parameter assignments and blocking call in correct order when the call result is type cast', () => {
+    const code = `
+    function main() {
+      const parent = 'projects/test/databases/(default)/documents';
+      const collectionId = 'chatrooms';
+      const result = googleapis.firestore.v1.projects.databases.documents.list(
+        collectionId,
+        parent,
+      ) as unknown;
+
+      return result;
+    }
+    `
+
+    const expected = `
+    main:
+      steps:
+        - assign1:
+            assign:
+              - parent: projects/test/databases/(default)/documents
+              - collectionId: chatrooms
+        - call_googleapis_firestore_v1_projects_databases_documents_list_1:
+            call: googleapis.firestore.v1.projects.databases.documents.list
+            args:
+              collectionId: \${collectionId}
+              parent: \${parent}
+            result: __temp0
+        - assign2:
+            assign:
+              - result: \${__temp0}
+        - return1:
+            return: \${result}
     `
 
     assertTranspiled(code, expected)

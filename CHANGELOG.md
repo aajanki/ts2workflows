@@ -4,6 +4,7 @@
 
 Fixes:
 
+- Blocking calls and assignments were generated in a wrong order in complex expressions
 - Type annotation fixes in workflowslib
 
 ## Version 0.13.0 - 2025-10-12

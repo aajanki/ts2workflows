@@ -44,9 +44,9 @@ export function transformAST(
   const tempGen = createTempVariableGenerator()
   const transform = R.pipe(
     R.chain(mapLiteralsAsAssigns(tempGen)),
-    mergeAssigns,
     R.chain(intrinsicFunctionImplementation),
     R.chain(blockingCallsAsFunctionCalls(tempGen)),
+    mergeAssigns,
   )
 
   return transform(statements.map((s) => applyNested(transformAST, s)))
