@@ -141,12 +141,14 @@ export function variableReferenceEx(
 export interface FunctionInvocationExpression {
   readonly tag: 'functionInvocation'
   readonly functionName: string
-  readonly arguments: Expression[]
+  // arguments: function call arguments. Undefined is left out in call steps and
+  // treated as null in function invocation expressions.
+  readonly arguments: (Expression | undefined)[]
 }
 
 export function functionInvocationEx(
   functionName: string,
-  argumentExpressions: Expression[],
+  argumentExpressions: (Expression | undefined)[],
 ): FunctionInvocationExpression {
   return {
     tag: 'functionInvocation',
@@ -222,7 +224,10 @@ export function expressionToString(ex: Expression): string {
       return ex.variableName
 
     case 'functionInvocation':
-      return `${ex.functionName}(${ex.arguments.map(expressionToString).join(', ')})`
+      return `${ex.functionName}(${ex.arguments
+        .map((x) => x ?? nullEx)
+        .map(expressionToString)
+        .join(', ')})`
 
     case 'member':
       if (ex.computed) {

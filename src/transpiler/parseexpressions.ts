@@ -430,12 +430,25 @@ function convertCallExpression(
     }
 
     const argumentExpressions = throwIfSpread(node.arguments).map(
-      convertExpression,
+      convertExpressionOrUndefined,
     )
 
     return functionInvocationEx(calleeName, argumentExpressions)
   } else {
     throw new WorkflowSyntaxError('Callee should be a qualified name', node.loc)
+  }
+}
+
+function convertExpressionOrUndefined(
+  instance: TSESTree.Expression,
+): Expression | undefined {
+  if (
+    instance.type === TSESTree.AST_NODE_TYPES.Identifier &&
+    instance.name === 'undefined'
+  ) {
+    return undefined
+  } else {
+    return convertExpression(instance)
   }
 }
 

@@ -324,7 +324,10 @@ function replaceBlockingCalls(
 
     const blockingCallArgumentNames = blockingFunctions.get(ex.functionName)
     if (blockingCallArgumentNames) {
-      const nameAndValue = R.zip(blockingCallArgumentNames, ex.arguments)
+      const nameAndValue = R.zip(
+        blockingCallArgumentNames,
+        ex.arguments,
+      ).filter(isDefinedArgument)
       const callArgs = R.fromPairs(nameAndValue)
       const tempCallResultVariable = generateName()
 
@@ -349,6 +352,12 @@ function replaceBlockingCalls(
     callStatements,
     transformExpression(replaceBlockingFunctionInvocations, expression),
   ]
+}
+
+function isDefinedArgument(
+  x: [string, Expression | undefined],
+): x is [string, Expression] {
+  return x[1] !== undefined
 }
 
 /**
@@ -393,6 +402,11 @@ function transformExpression(
   ex: Expression,
 ): Expression {
   const nestedTr = (y: Expression) => transformExpression(transform, y)
+  const nestedTr2 = R.ifElse(
+    R.isNil<Expression | undefined>,
+    () => undefined,
+    nestedTr,
+  )
 
   switch (ex.tag) {
     case 'string':
@@ -415,7 +429,7 @@ function transformExpression(
 
     case 'functionInvocation':
       return transform(
-        functionInvocationEx(ex.functionName, ex.arguments.map(nestedTr)),
+        functionInvocationEx(ex.functionName, ex.arguments.map(nestedTr2)),
       )
 
     case 'member':
@@ -580,16 +594,24 @@ function extractNestedMapFunctionInvocation(
 ) {
   const { expressions, temps } = ex.arguments.reduce(
     (acc, arg) => {
-      const { transformedExpression, tempVariables } = extractNestedMaps(
-        arg,
-        generateName,
-        nestingLevel + 1,
-      )
-      acc.expressions.push(transformedExpression)
-      acc.temps.push(...tempVariables)
+      if (arg === undefined) {
+        acc.expressions.push(undefined)
+      } else {
+        const { transformedExpression, tempVariables } = extractNestedMaps(
+          arg,
+          generateName,
+          nestingLevel + 1,
+        )
+        acc.expressions.push(transformedExpression)
+        acc.temps.push(...tempVariables)
+      }
+
       return acc
     },
-    { expressions: [] as Expression[], temps: [] as VariableAssignment[] },
+    {
+      expressions: [] as (Expression | undefined)[],
+      temps: [] as VariableAssignment[],
+    },
   )
 
   return {

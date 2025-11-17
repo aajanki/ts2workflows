@@ -399,6 +399,91 @@ describe('Function invocation statement', () => {
     assertTranspiled(code, expected)
   })
 
+  it('does not output undefined arguments in blocking calls', () => {
+    const code = `function main() {
+      const docname =
+        'projects/test/databases/(default)/documents/tvshows/disenchantment';
+      const updated = googleapis.firestore.v1.projects.databases.documents.patch(
+        docname,
+        undefined,
+        undefined,
+        { fieldPaths: ['rating'] },
+        { fields: { rating: { doubleValue: 9.0 } } },
+      );
+
+      return updated;
+    }`
+
+    const expected = `
+    main:
+      steps:
+        - assign1:
+            assign:
+              - docname: projects/test/databases/(default)/documents/tvshows/disenchantment
+        - call_googleapis_firestore_v1_projects_databases_documents_patch_1:
+            call: googleapis.firestore.v1.projects.databases.documents.patch
+            args:
+              name: \${docname}
+              updateMask:
+                fieldPaths:
+                  - rating
+              body:
+                fields:
+                  rating:
+                    doubleValue: 9
+            result: updated
+        - return1:
+            return: \${updated}
+    `
+
+    assertTranspiled(code, expected)
+  })
+
+  it('does not output undefined arguments in blocking calls in expressions', () => {
+    const code = `function main() {
+      const docname =
+        'projects/test/databases/(default)/documents/tvshows/disenchantment';
+      const updated = googleapis.firestore.v1.projects.databases.documents.patch(
+        docname,
+        undefined,
+        undefined,
+        { fieldPaths: ['rating'] },
+        { fields: { rating: { doubleValue: 9.0 } } },
+      ).updateTime;
+
+      return updated;
+    }`
+
+    const expected = `
+    main:
+      steps:
+        - assign1:
+            assign:
+              - docname: projects/test/databases/(default)/documents/tvshows/disenchantment
+              - __temp0:
+                  fieldPaths:
+                    - rating
+              - __temp1:
+                  fields:
+                    rating:
+                      doubleValue: 9
+        - call_googleapis_firestore_v1_projects_databases_documents_patch_1:
+            call: googleapis.firestore.v1.projects.databases.documents.patch
+            args:
+              name: \${docname}
+              updateMask: \${__temp0}
+              body: \${__temp1}
+            result: __temp2
+        - assign2:
+            assign:
+              - updated: \${__temp2.updateTime}
+        - return1:
+            return: \${updated}
+    `
+
+    assertTranspiled(code, expected)
+  })
+
   it('creates call steps for nested blocking calls', () => {
     const code = `function nested() {
       return http.get(http.get(http.get("https://example.com/redirected.json").body).body)
