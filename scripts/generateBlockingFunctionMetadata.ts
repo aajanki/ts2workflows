@@ -24,7 +24,7 @@ interface FunctionMetadata {
 }
 
 interface ParsingContext {
-  namespace?: string | undefined
+  namespace?: string
 }
 
 function main() {
