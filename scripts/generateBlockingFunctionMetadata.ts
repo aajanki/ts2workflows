@@ -24,7 +24,7 @@ interface FunctionMetadata {
 }
 
 interface ParsingContext {
-  namespace: string | undefined
+  namespace?: string | undefined
 }
 
 function main() {
@@ -35,9 +35,7 @@ function main() {
   const sourceCode = fs.readFileSync(inputFile, 'utf8')
   const ast = parse(sourceCode, parserOptions)
   const functions = ast.body
-    .flatMap((node) => {
-      return extractFunctionDefinitions(node, { namespace: undefined })
-    })
+    .flatMap((node) => extractFunctionDefinitions(node, {}))
     .filter((metadata) => isBlockingFunction(metadata.functionName))
   const generated = generateCode(functions)
 
