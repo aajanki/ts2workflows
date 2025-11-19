@@ -78,7 +78,7 @@ export declare namespace events {
     received_time: string
     type: string
   }
-  function create_callback_endpoint(http_callback_method: string): {
+  function create_callback_endpoint(http_callback_method?: string): {
     url: string
   }
 }
