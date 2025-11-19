@@ -319,9 +319,9 @@ export declare namespace uuid {
 
 // Connectors
 
-// Cloud Firestore API Connector
-// https://cloud.google.com/workflows/docs/reference/googleapis/firestore/Overview
 export declare namespace googleapis {
+  // Cloud Firestore API Connector
+  // https://cloud.google.com/workflows/docs/reference/googleapis/firestore/Overview
   namespace firestore {
     namespace v1 {
       interface ArrayValue {
@@ -725,6 +725,340 @@ export declare namespace googleapis {
             pageSize?: number,
             pageToken?: string,
           ): ListLocationsResponse
+        }
+      }
+    }
+  }
+
+  // Cloud Pub/Sub API Connector
+  // https://docs.cloud.google.com/workflows/docs/reference/googleapis/pubsub/Overview
+  namespace pubsub {
+    namespace v1 {
+      interface AcknowledgeRequest {
+        ackIds: string[]
+      }
+      interface Binding {
+        condition: Expr
+        members: string[]
+        role: string
+      }
+      interface CreateSnapshotRequest {
+        label?: Record<string, string>
+        subscription: string
+      }
+      interface DeadLetterPolicy {
+        deadLetterTopic: string
+        maxDeliveryAttempts?: number
+      }
+      interface Expr {
+        description?: string
+        expression: string
+        location?: string
+        title?: string
+      }
+      interface ExpirationPolicy {
+        ttl: string
+      }
+      interface ListSchemasResponse {
+        nextPageToken?: string
+        schemas: Schema[]
+      }
+      interface ListSnapshotsResponse {
+        nextPagetoken?: string
+        snapshots?: Snapshot[]
+      }
+      interface ListSubscriptionsResponse {
+        nextPageToken?: string
+        subscriptions?: Subscription[]
+      }
+      interface ListTopicsResponse {
+        nextPageToken?: string
+        topics?: Topic[]
+      }
+      interface ListTopicSubscriptionsResponse {
+        nextPageToken?: string
+        subscriptions?: string[]
+      }
+      interface ListTopicSnapshotsResponse {
+        nextPageToken?: string
+        snapshots?: string[]
+      }
+      interface MessageStoragePolicy {
+        allowedPersistenceRegions?: string[]
+      }
+      interface ModifyAckDeadlineRequest {
+        ackDeadlineSeconds: number
+        ackIds: string[]
+      }
+      interface ModifyPushConfigRequest {
+        pushConfig: PushConfig
+      }
+      interface OidcToken {
+        audience: string
+        serviceAccountEmail: string
+      }
+      interface Policy {
+        bindings: Binding[]
+        etag: string
+        version: number
+      }
+      interface PublishRequest {
+        messages: PubsubMessage[]
+      }
+      interface PublishResponse {
+        messageIds?: string[]
+      }
+      interface PubsubMessage {
+        attributes?: Record<string, string>
+        data?: string
+        messageId?: string
+        orderingKey?: string
+        publishTime?: string
+      }
+      interface PullRequest {
+        maxMessages: number
+        returnImmediately?: boolean
+      }
+      interface PullResponse {
+        receivedMessages: ReceivedMessage[]
+      }
+      interface PushConfig {
+        attributes: Record<string, string>
+        oidcToken: OidcToken
+        pushEndpoint: string
+      }
+      interface ReceivedMessage {
+        ackId: string
+        deliveryAttempt: number
+        message: PubsubMessage
+      }
+      interface RetryPolicy {
+        maximumBackoff?: string
+        minimumBackoff?: string
+      }
+      interface Schema {
+        definition: string
+        name: string
+        type: 'TYPE_UNSPECIFIED' | 'PROTOCOL_BUFFER' | 'AVRO'
+      }
+      interface SchemaSettings {
+        encoding?: 'ENCODING_UNSPECIFIED' | 'JSON' | 'BINARY'
+        schema: string
+      }
+      interface SeekRequest {
+        snapshot?: string
+        time?: string
+      }
+      interface SetIamPolicyRequest {
+        policy: Policy
+      }
+      interface Snapshot {
+        expireTime?: string
+        labels?: Record<string, string>
+        name?: string
+        topic?: string
+      }
+      interface Subscription {
+        ackDeadlineSeconds?: number
+        deadLetterPolicy?: DeadLetterPolicy
+        detached?: boolean
+        enableMessageOrdering?: boolean
+        expirationPolicy?: ExpirationPolicy
+        filter?: string
+        labels?: Record<string, string>
+        messageRetentionDuration?: string
+        name: string
+        pushConfig?: PushConfig
+        retainAckedMessages?: boolean
+        retryPolicy?: RetryPolicy
+        topic: string
+        topicMessageRetentionDuration?: string
+      }
+      interface TestIamPermissionsRequest {
+        permissions: string[]
+      }
+      interface TestIamPermissionsResponse {
+        permissions: string[]
+      }
+      interface Topic {
+        kmsKeyName?: string
+        labels?: Map<string, string>
+        messageRetentionDuration?: string
+        messageStoragePolicy?: MessageStoragePolicy
+        name: string
+        satisfiesPzs?: boolean
+        schemaSettings?: SchemaSettings
+      }
+      interface UpdateSnapshotRequest {
+        snapshot: Snapshot
+        updateMask: string
+      }
+      interface UpdateSubscriptionRequest {
+        subscription: Subscription
+        updateMask: string
+      }
+      interface UpdateTopicRequest {
+        topic: Topic
+        updateMask: string
+      }
+      interface ValidateMessageRequest {
+        encoding: 'ENCODING_UNSPECIFIED' | 'JSON' | 'BINARY'
+        message: string
+        name?: string
+        schema?: Schema
+      }
+      interface ValidateSchemaRequest {
+        object: Schema
+      }
+
+      namespace projects {
+        namespace schemas {
+          export function create(
+            parent: string,
+            schemaId: string,
+            body: Schema,
+          ): Schema
+          function _delete(name: string): void
+          export { _delete as delete }
+          export function get(
+            name: string,
+            view?: 'SCHEMA_VIEW_UNSPECIFIED' | 'BASIC' | 'FULL',
+          ): Schema
+          export function list(
+            parent: string,
+            pageSize?: number,
+            pageToken?: string,
+            view?: 'SCHEMA_VIEW_UNSPECIFIED' | 'BASIC' | 'FULL',
+          ): ListSchemasResponse
+          export function validate(
+            parent: string,
+            body: ValidateSchemaRequest,
+          ): void
+          export function validateMessage(
+            parent: string,
+            body: ValidateMessageRequest,
+          ): void
+        }
+
+        namespace snapshots {
+          export function create(
+            name: string,
+            object: CreateSnapshotRequest,
+          ): Snapshot
+          function _delete(snapshot: string): void
+          export { _delete as delete }
+          export function getIamPolicy(
+            resource: string,
+            options: { requestedPolicyVersion: number },
+          ): Policy
+          export function list(
+            project: string,
+            pageSize?: number,
+            pageToken?: string,
+          ): ListSnapshotsResponse
+          export function patch(
+            name: string,
+            body: UpdateSnapshotRequest,
+          ): Snapshot
+          export function setIamPolicy(
+            resource: string,
+            body: SetIamPolicyRequest,
+          ): Policy
+          export function testIamPermissions(
+            resource: string,
+            body: TestIamPermissionsRequest,
+          ): TestIamPermissionsResponse
+        }
+
+        namespace subscriptions {
+          export function acknowledge(
+            subscription: string,
+            body: AcknowledgeRequest,
+          ): void
+          export function create(name: string, body: Subscription): Subscription
+          function _delete(subscription: string): void
+          export { _delete as delete }
+          export function detach(subscription: string): void
+          export function get(subscription: string): Subscription
+          export function getIamPolicy(
+            resource: string,
+            options: { requestedPolicyVersion: number },
+          ): Policy
+          export function list(
+            project: string,
+            pageSize?: number,
+            pageToken?: string,
+          ): ListSubscriptionsResponse
+          export function modifyAckDeadline(
+            subscription: string,
+            body: ModifyAckDeadlineRequest,
+          ): void
+          export function modifyPushConfig(
+            subscription: string,
+            body: ModifyPushConfigRequest,
+          ): void
+          export function patch(
+            name: string,
+            body: UpdateSubscriptionRequest,
+          ): Subscription
+          export function pull(
+            subscription: string,
+            body: PullRequest,
+          ): PullResponse
+          export function seek(subscription: string, body: SeekRequest): void
+          export function setIamPolicy(
+            resource: string,
+            body: SetIamPolicyRequest,
+          ): Policy
+          export function testIamPermissions(
+            resource: string,
+            body: TestIamPermissionsRequest,
+          ): TestIamPermissionsResponse
+        }
+
+        namespace topics {
+          export function create(name: string, body: Topic): Topic
+          function _delete(topic: string): void
+          export { _delete as delete }
+          export function get(topic: string): Topic
+          export function getIamPolicy(
+            resource: string,
+            options: { requestedPolicyVersion: number },
+          ): Policy
+          export function list(
+            project: string,
+            pageSize?: number,
+            pageToken?: string,
+          ): ListTopicsResponse
+          export function patch(name: string, body: UpdateTopicRequest): Topic
+          export function publish(
+            topic: string,
+            body: PublishRequest,
+          ): PublishResponse
+          export function setIamPolicy(
+            resource: string,
+            body: SetIamPolicyRequest,
+          ): Policy
+          export function testIamPermissions(
+            resource: string,
+            body: TestIamPermissionsRequest,
+          ): TestIamPermissionsResponse
+
+          namespace snapshots {
+            export function list(
+              topic: string,
+              pageSize?: number,
+              pageToken?: string,
+            ): ListTopicSnapshotsResponse
+          }
+
+          namespace subscriptions {
+            export function list(
+              topic: string,
+              pageSize?: number,
+              pageToken?: string,
+            ): ListTopicSubscriptionsResponse
+          }
         }
       }
     }
