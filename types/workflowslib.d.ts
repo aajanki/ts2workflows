@@ -57,8 +57,8 @@ export declare function get_type(
 // https://cloud.google.com/workflows/docs/reference/stdlib/overview
 
 export declare namespace base64 {
-  function decode(data: bytes, padding?: boolean): string
-  function encode(data: string, padding?: boolean): bytes
+  function decode(data: string, padding?: boolean): bytes
+  function encode(data: bytes, padding?: boolean): string
 }
 
 export declare namespace events {
