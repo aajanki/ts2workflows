@@ -88,7 +88,8 @@ function extractFunctionDefinitions(
       ) {
         return extractFunctionDefinitions(node.declaration, ctx)
       } else if (
-        node.declaration.type === AST_NODE_TYPES.TSTypeAliasDeclaration
+        node.declaration.type === AST_NODE_TYPES.TSTypeAliasDeclaration ||
+        node.declaration.type === AST_NODE_TYPES.VariableDeclaration
       ) {
         return []
       } else {
