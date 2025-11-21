@@ -925,19 +925,7 @@ The `parallel` function executes code blocks in parallel using a [parallel step]
 ### retry_policy()
 
 ```typescript
-function retry_policy(
-  params:
-    | ((errormap: Record<string, any>) => void)
-    | {
-        predicate: (errormap: Record<string, any>) => boolean
-        max_retries: number
-        backoff: {
-          initial_delay: number
-          max_delay: number
-          multiplier: number
-        }
-      },
-): void
+function retry_policy(params: RetryPolicy): void
 ```
 
 A retry policy can be attached to a `try`-`catch` block by calling `retry_policy` inside the `try` block. ts2workflows ignores `retry_policy` everywhere else.

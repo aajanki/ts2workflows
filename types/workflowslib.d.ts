@@ -32,6 +32,16 @@ type HTTPQuery = Record<
   string | number | boolean | (string | number | boolean)[]
 >
 
+type RetryPolicy = {
+  predicate?: (errormap: Record<string, any>) => boolean
+  max_retries?: number | string | null
+  backoff: {
+    initial_delay?: number | string | null
+    max_delay?: number | string | null
+    multiplier?: number | string | null
+  }
+}
+
 // GCP Workflows expression helpers
 
 export declare function double(x: string | number): number
@@ -93,10 +103,8 @@ export declare namespace hash {
 }
 
 export declare namespace http {
-  export function default_retry(errormap: Record<string, any>): void
-  export function default_retry_non_idempotent(
-    errormap: Record<string, any>,
-  ): void
+  export const default_retry: RetryPolicy
+  export const default_retry_non_idempotent: RetryPolicy
   export function default_retry_predicate(
     errormap: Record<string, any>,
   ): boolean
@@ -1076,19 +1084,7 @@ export declare function parallel(
   },
 ): void
 
-export declare function retry_policy(
-  params:
-    | ((errormap: Record<string, any>) => void)
-    | {
-        predicate?: (errormap: Record<string, any>) => boolean
-        max_retries?: number | string | null
-        backoff: {
-          initial_delay?: number | string | null
-          max_delay?: number | string | null
-          multiplier?: number | string | null
-        }
-      },
-): void
+export declare function retry_policy(params: RetryPolicy): void
 
 export declare function call_step<T, A extends any[]>(
   func: (...args: A) => T,
