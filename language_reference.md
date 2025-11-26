@@ -72,6 +72,23 @@ name === 'Bean'
 sys.get_env('GOOGLE_CLOUD_PROJECT_ID')
 ```
 
+### Member expression
+
+To get a value in an array, use the following code:
+
+```javasript
+const val = arr[2];
+```
+
+To get a value in a map, use either of following:
+
+```javasript
+const val = obj.name;
+const val2 = obj["name"];
+```
+
+⚠️ Numeric keys in maps are not cast to strings like in Typescript. It's best not to use numeric keys because GCP Workflows throws errors on numeric keys.
+
 ## Operators
 
 | Operator     | Description                                        |
