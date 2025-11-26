@@ -128,10 +128,18 @@ describe('Literals', () => {
     assertTranspiled(code, expected)
   })
 
-  it('rejects non-string map keys', () => {
-    const code = 'function test() { const x = {1: "one", 2: "two"} }'
+  it('parses maps with numbers as keys', () => {
+    const code = 'function test() { const x = {42: "answer"} }'
+    const expected = `
+    test:
+      steps:
+        - assign1:
+            assign:
+              - x:
+                  "42": answer
+    `
 
-    expect(() => transpileText(code)).to.throw(WorkflowSyntaxError)
+    assertTranspiled(code, expected)
   })
 
   it('rejects rest elements in maps', () => {
@@ -227,10 +235,7 @@ describe('Expressions and operators', () => {
   })
 
   it('parses logical expressions', () => {
-    assertExpression(
-      '!(status in ["OK", "success"])',
-      '${not (status in ["OK", "success"])}',
-    )
+    assertExpression('!(x > 0)', '${not (x > 0)}')
     assertExpression('(y >= 0) && !(x >= 0)', '${y >= 0 and not (x >= 0)}')
   })
 
@@ -268,6 +273,10 @@ describe('Expressions and operators', () => {
 
   it('parses membership expressions', () => {
     assertExpression('8 in luckyNumbers', '${8 in luckyNumbers}')
+
+    // Note that the semantics differ between Typescript and GCP Workflows!
+    // Typescript: is "Elfo" one of array keys?
+    // Workflows: is "Elfo" one of array values?
     assertExpression(
       '"Elfo" in ["Luci", "Elfo"]',
       '${"Elfo" in ["Luci", "Elfo"]}',
@@ -399,7 +408,7 @@ describe('Expressions and operators', () => {
     assertTranspiled(code, expected)
   })
 
-  it('parses non-alphanumeric keys', () => {
+  it('parses non-alphanumeric map keys', () => {
     assertExpression('{"important!key": "value"}', { 'important!key': 'value' })
     assertExpression('myMap["important!key"]', '${myMap["important!key"]}')
   })

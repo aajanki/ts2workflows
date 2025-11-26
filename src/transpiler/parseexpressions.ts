@@ -107,6 +107,11 @@ export function convertObjectExpression(
           typeof key.value === 'string'
         ) {
           keyPrimitive = key.value
+        } else if (
+          key.type === AST_NODE_TYPES.Literal &&
+          typeof key.value === 'number'
+        ) {
+          keyPrimitive = key.value.toString()
         } else {
           throw new WorkflowSyntaxError(
             `Map keys must be identifiers or strings, encountered: ${key.type}`,
