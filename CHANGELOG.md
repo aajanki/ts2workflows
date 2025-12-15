@@ -1,6 +1,6 @@
 # ts2workflows changelog
 
-## <unreleased>
+## unreleased
 
 Fixes:
 
