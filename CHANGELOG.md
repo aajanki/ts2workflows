@@ -2,6 +2,10 @@
 
 ## unreleased
 
+New features:
+
+- Static method `Array.includes(arr, x)` for checking if the array `arr` contain the value `x`
+
 Fixes:
 
 - Type annotation fixes in workflowslib

@@ -12,6 +12,7 @@ import {
   MapExpression,
   memberEx,
   MemberExpression,
+  nullEx,
   stringEx,
   unaryEx,
   UnaryExpression,
@@ -673,14 +674,14 @@ function extractNestedMapUnary(
   }
 }
 
+const intrinsicFunctionImplementation = expandExpressionToStatements((ex) => [
+  [],
+  transformExpression(R.pipe(replaceIsArray, replaceArrayIncludes), ex),
+])
+
 /**
  * Replace `Array.isArray(x)` with `get_type(x) == "list"`
  */
-const intrinsicFunctionImplementation = expandExpressionToStatements((ex) => [
-  [],
-  transformExpression(replaceIsArray, ex),
-])
-
 function replaceIsArray(ex: Expression): Expression {
   if (ex.tag === 'functionInvocation' && ex.functionName === 'Array.isArray') {
     return binaryEx(
@@ -688,6 +689,19 @@ function replaceIsArray(ex: Expression): Expression {
       '==',
       stringEx('list'),
     )
+  } else {
+    return ex
+  }
+}
+
+/**
+ * Replace `Array.includes(arr, x)` with `x in arr`
+ */
+function replaceArrayIncludes(ex: Expression): Expression {
+  if (ex.tag === 'functionInvocation' && ex.functionName === 'Array.includes') {
+    const arrayEx = ex.arguments[0] ?? nullEx
+    const valueEx = ex.arguments[1] ?? nullEx
+    return binaryEx(valueEx, 'in', arrayEx)
   } else {
     return ex
   }

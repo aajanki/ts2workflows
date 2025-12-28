@@ -38,6 +38,7 @@ declare global {
 
   interface ArrayConstructor {
     isArray(arg: any): arg is any[]
+    includes<T>(arr: Array<T>, x: T): boolean
   }
 
   var Array: ArrayConstructor

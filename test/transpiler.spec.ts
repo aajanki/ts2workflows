@@ -388,6 +388,24 @@ describe('Compiler intrinsics', () => {
 
     assertTranspiled(code, expected)
   })
+
+  it('Array.includes(arr, x) is converted to x in arr', () => {
+    const code = `
+    function main(arr: number[]) {
+      return Array.includes(arr, 55)
+    }`
+
+    const expected = `
+    main:
+      params:
+        - arr
+      steps:
+        - return1:
+            return: \${55 in arr}
+    `
+
+    assertTranspiled(code, expected)
+  })
 })
 
 describe('Sample source files', () => {

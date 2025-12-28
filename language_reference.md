@@ -897,7 +897,15 @@ This section describes the few standard Javascript runtime functions that are av
 Array.isArray(arg: any): arg is any[]
 ```
 
-Gets converted to the comparison `get_type(arg) == "list"`. Unlike a direct call to `get_type()`, `Array.isArray()` acts a type guard and allows narrowing the `arg` type to an array.
+Returns true, if arg is an array, and false otherwise. `Array.isArray` gets converted to the following comparison on Workflows code: `get_type(arg) == "list"`. Unlike a direct call to `get_type()`, `Array.isArray()` acts a type guard in Typescript and allows narrowing the type of `arg` to an array.
+
+### Array.includes()
+
+```typescript
+Array.includes<T>(arr: Array<T>, x: T): boolean
+```
+
+Returns true, if the array `arr` contains the value `x`, and false otherwise. This static Array method should be used instead of `arr.includes()`, which won't work in Workflows, because arrays in Workflows don't have methods. `Array.includes()` is converted to `x in arr` in the outputted Workflows code.
 
 ## Compiler intrinsics
 
