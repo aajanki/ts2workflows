@@ -241,7 +241,8 @@ function highlightedSourceCodeLine(
   if (
     typeof lineNumber === 'undefined' ||
     typeof start === 'undefined' ||
-    isNaN(start)
+    isNaN(start) ||
+    start < 0
   ) {
     return ''
   }
@@ -253,11 +254,12 @@ function highlightedSourceCodeLine(
   }
 
   let markerLength
-  if (typeof end === 'undefined') {
+  if (typeof end === 'undefined' || end < 0) {
     markerLength = sourceLine.length - start
   } else {
     markerLength = Math.min(end - start + 1, sourceLine.length - start)
   }
+  markerLength = Math.max(markerLength, 0)
 
   const markerLine = `${' '.repeat(start)}${'^'.repeat(markerLength)}`
 
