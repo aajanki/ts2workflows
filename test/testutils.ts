@@ -63,7 +63,3 @@ function isJSONObject(val: string): boolean {
 export function assertTranspiled(code: string, expected: string): void {
   expect(YAML.parse(transpileText(code))).to.deep.equal(YAML.parse(expected))
 }
-
-export function assertNotCalled<T>(): T {
-  throw new Error('This is not supposed to be called in the unit test')
-}

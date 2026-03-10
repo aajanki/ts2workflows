@@ -12,6 +12,7 @@ import * as YAML from 'yaml'
 import {
   InternalTranspilingError,
   IOError,
+  syntaxErrorWithText,
   WorkflowSyntaxError,
 } from '../errors.js'
 import {
@@ -30,17 +31,20 @@ import { generateStepNames } from './stepnames.js'
 const workflowCache = new Map<string, WorkflowApp>()
 
 export function transpile(
-  input: { filename?: string; read: () => string },
+  filename: string,
+  sourceCode: string,
   tsconfigPath: string | undefined,
   linkSubworkflows: boolean,
 ): string {
-  const { ast, services } = parseMainFile(input, tsconfigPath)
-  const inputWorkflow = generateStepNames(
-    ast.body.flatMap(parseTopLevelStatement),
+  const { ast, services } = parseMainFile(filename, sourceCode, tsconfigPath)
+  const inputWorkflow = esProgramToWorkflowAppEnrichErrors(
+    ast,
+    filename,
+    sourceCode,
   )
 
-  if (linkSubworkflows && tsconfigPath && services.program && input.filename) {
-    const canonicalInput = path.join(process.cwd(), input.filename)
+  if (linkSubworkflows && tsconfigPath && services.program && filename) {
+    const canonicalInput = path.join(process.cwd(), filename)
     workflowCache.set(canonicalInput, inputWorkflow)
 
     const subworkflows = generateLinkedOutput(
@@ -58,32 +62,57 @@ export function transpile(
 export function transpileText(sourceCode: string) {
   const parserOptions = eslintParserOptions()
   const { ast } = parseAndGenerateServices(sourceCode, parserOptions)
-  const workflow = generateStepNames(ast.body.flatMap(parseTopLevelStatement))
+  const workflow = esProgramToWorkflowAppEnrichErrors(
+    ast,
+    '<stdin>',
+    sourceCode,
+  )
   return toYAMLString(workflow)
 }
 
+function esProgramToWorkflowAppEnrichErrors(
+  program: TSESTree.Program,
+  filename: string,
+  sourceCode: string,
+): WorkflowApp {
+  try {
+    return esProgramToWorkflowApp(program)
+  } catch (error) {
+    if (error instanceof WorkflowSyntaxError) {
+      throw syntaxErrorWithText(error, filename, sourceCode)
+    } else {
+      throw error
+    }
+  }
+}
+
+function esProgramToWorkflowApp(program: TSESTree.Program): WorkflowApp {
+  return generateStepNames(program.body.flatMap(parseTopLevelStatement))
+}
+
 function parseMainFile(
-  input: { filename?: string; read: () => string },
+  filename: string,
+  sourceCode: string,
   tsconfigPath: string | undefined,
 ): ParseAndGenerateServicesResult<TSESTreeOptions> {
-  const parserOptions = eslintParserOptions(input.filename, tsconfigPath)
+  const parserOptions = eslintParserOptions(filename, tsconfigPath)
 
-  if (tsconfigPath && input.filename) {
+  if (tsconfigPath) {
     const cwd = process.cwd()
     const configJSON: unknown = JSON.parse(
       fs.readFileSync(path.join(cwd, tsconfigPath), 'utf-8'),
     )
     const { options } = ts.parseJsonConfigFileContent(configJSON, ts.sys, cwd)
-    const program = ts.createProgram([input.filename], options)
-    const mainSourceFile = program.getSourceFile(input.filename)
+    const program = ts.createProgram([filename], options)
+    const mainSourceFile = program.getSourceFile(filename)
 
     if (mainSourceFile === undefined) {
-      throw new IOError(`Source file ${input.filename} not found`, 'ENOENT')
+      throw new IOError(`Source file ${filename} not found`, 'ENOENT')
     }
 
     return parseAndGenerateServices(mainSourceFile, parserOptions)
   } else {
-    return parseAndGenerateServices(input.read(), parserOptions)
+    return parseAndGenerateServices(sourceCode, parserOptions)
   }
 }
 
@@ -163,7 +192,7 @@ function getCachedWorkflow(
     const parserOptions = eslintParserOptions(filename, tsconfigPath)
     const code = fs.readFileSync(filename, 'utf8')
     const { ast } = parseAndGenerateServices(code, parserOptions)
-    const workflow = generateStepNames(ast.body.flatMap(parseTopLevelStatement))
+    const workflow = esProgramToWorkflowAppEnrichErrors(ast, filename, code)
 
     workflowCache.set(filename, workflow)
 

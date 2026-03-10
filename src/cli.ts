@@ -5,7 +5,11 @@ import * as path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { program } from 'commander'
 import { transpile, transpileText } from './transpiler/index.js'
-import { SourceCodeLocation, WorkflowSyntaxError } from './errors.js'
+import {
+  SourceCodeLocation,
+  WorkflowSyntaxError,
+  WorkflowSyntaxErrorWithText,
+} from './errors.js'
 import { TSError } from '@typescript-eslint/typescript-estree'
 
 interface CLIOptions {
@@ -102,10 +106,10 @@ function cliMain() {
         console.error(message)
         process.exit(1)
       } else if (err instanceof WorkflowSyntaxError) {
-        prettyPrintSyntaxError(err, input)
+        prettyPrintSyntaxError(err)
         process.exit(1)
       } else if (err instanceof TSError) {
-        prettyPrintSyntaxError(err, input)
+        prettyPrintSyntaxError(err)
         process.exit(1)
       } else {
         throw err
@@ -126,7 +130,12 @@ function generateTranspiledText(
     const header = addGeneratedFileComment
       ? generatedFileComment(input.filename)
       : ''
-    const transpiled = transpile(input, project, linkSubworkflows)
+    const transpiled = transpile(
+      input.filename,
+      input.read(),
+      project,
+      linkSubworkflows,
+    )
     return `${header}${transpiled}`
   }
 }
@@ -189,26 +198,28 @@ function isIoError(err: unknown): err is Error {
   return err instanceof Error && 'code' in err
 }
 
-function prettyPrintSyntaxError(
-  exception: WorkflowSyntaxError,
-  inp: Input,
-): void {
-  console.error(errorDisplay(inp, exception.location))
+function prettyPrintSyntaxError(exception: WorkflowSyntaxError): void {
+  const filename =
+    exception instanceof WorkflowSyntaxErrorWithText
+      ? exception.filename
+      : '???'
+  const errorLineText =
+    exception instanceof WorkflowSyntaxErrorWithText
+      ? exception.errorLine
+      : undefined
+
+  console.error(errorLocator(filename, exception.location, errorLineText))
   console.error(`${exception.message}`)
 }
 
-function errorDisplay(
-  inp: Input,
-  location: SourceCodeLocation | undefined,
+function errorLocator(
+  filename: string,
+  location: SourceCodeLocation,
+  errorLineText: string | undefined,
 ): string {
   const lines: string[] = []
-  const prettyFilename = inp.filename ?? '<stdin>'
-  if (
-    typeof location?.start === 'undefined' ||
-    typeof location?.end === 'undefined' ||
-    isNaN(location?.start.line) ||
-    isNaN(location?.end.line)
-  ) {
+  const prettyFilename = filename ?? '<stdin>'
+  if (isNaN(location.start.line) || isNaN(location.end.line)) {
     lines.push(`File ${prettyFilename}:`)
   } else {
     lines.push(
@@ -216,45 +227,39 @@ function errorDisplay(
     )
   }
 
-  const highlightedLine = highlightedSourceCodeLine(
-    inp.read(),
-    location?.start?.line,
-    location?.start?.column,
-    location?.start?.line === location?.end?.line
-      ? location?.end?.column
-      : undefined,
-  )
-  if (highlightedLine.length > 0) {
-    lines.push(highlightedLine)
-    lines.push('')
+  if (errorLineText) {
+    const highlightedLine = highlightedSourceCodeLine(
+      errorLineText,
+      location.start.column,
+      location.start.line === location.end.line
+        ? location.end.column
+        : undefined,
+    )
+    if (highlightedLine.length > 0) {
+      lines.push(highlightedLine)
+      lines.push('')
+    }
   }
 
   return lines.join('\n')
 }
 
 function highlightedSourceCodeLine(
-  sourceCode: string,
-  lineNumber?: number,
-  start?: number,
-  end?: number,
+  errorLineText: string,
+  start: number,
+  end: number | undefined,
 ): string {
-  if (
-    typeof lineNumber === 'undefined' ||
-    typeof start === 'undefined' ||
-    isNaN(start) ||
-    start < 0
-  ) {
+  if (isNaN(start) || start < 0) {
     return ''
   }
 
-  const lines = sourceCode.split('\n')
-  const sourceLine = lines[lineNumber - 1]
+  const sourceLine = errorLineText.split('\n')[0]
   if (typeof sourceLine === 'undefined') {
     return ''
   }
 
   let markerLength
-  if (typeof end === 'undefined' || end < 0) {
+  if (end === undefined || isNaN(end) || end < 0) {
     markerLength = sourceLine.length - start
   } else {
     markerLength = Math.min(end - start + 1, sourceLine.length - start)

@@ -8,6 +8,7 @@ New features:
 
 Fixes:
 
+- Print the correct source code line on error messages
 - Type annotation fixes in workflowslib
 
 ## Version 0.14.0 - 2025-11-19
