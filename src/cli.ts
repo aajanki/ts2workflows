@@ -19,11 +19,6 @@ interface CLIOptions {
   generatedFileComment: boolean
 }
 
-interface Input {
-  filename?: string
-  read: () => string
-}
-
 function parseArgs() {
   program
     .name('ts2workflow')
@@ -81,11 +76,10 @@ function cliMain() {
   }
 
   files.forEach((inputFile) => {
-    const input = readSourceCode(inputFile)
-
     try {
       const transpiled = generateTranspiledText(
-        input,
+        inputFile,
+        readSourceCode(inputFile),
         args.generatedFileComment,
         args.link,
         args.project,
@@ -119,20 +113,19 @@ function cliMain() {
 }
 
 function generateTranspiledText(
-  input: Input,
+  filename: string | undefined,
+  sourceCode: string,
   addGeneratedFileComment: boolean,
   linkSubworkflows: boolean,
   project?: string,
 ): string {
-  if (input.filename === undefined) {
-    return transpileText(input.read())
+  if (filename === undefined) {
+    return transpileText(sourceCode)
   } else {
-    const header = addGeneratedFileComment
-      ? generatedFileComment(input.filename)
-      : ''
+    const header = addGeneratedFileComment ? generatedFileComment(filename) : ''
     const transpiled = transpile(
-      input.filename,
-      input.read(),
+      filename,
+      sourceCode,
       project,
       linkSubworkflows,
     )
@@ -140,24 +133,10 @@ function generateTranspiledText(
   }
 }
 
-function readSourceCode(filename: string): Input {
-  const readCode = crateMemorizedReader(
-    filename === '-' ? process.stdin.fd : filename,
-  )
+function readSourceCode(filename: string): string {
+  const filenameOrFd = filename === '-' ? process.stdin.fd : filename
 
-  return {
-    filename: filename === '-' ? undefined : filename,
-    read: () => readCode(),
-  }
-}
-
-function crateMemorizedReader(filenameOrFd: string | number): () => string {
-  let cached: string | undefined
-
-  return () => {
-    cached ??= fs.readFileSync(filenameOrFd, 'utf8')
-    return cached
-  }
+  return fs.readFileSync(filenameOrFd, 'utf8')
 }
 
 function writeOutput(
