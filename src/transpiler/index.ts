@@ -43,7 +43,12 @@ export function transpile(
     sourceCode,
   )
 
-  if (linkSubworkflows && tsconfigPath && services.program && filename) {
+  if (
+    linkSubworkflows &&
+    tsconfigPath &&
+    services.program != null &&
+    filename
+  ) {
     const canonicalInput = path.join(process.cwd(), filename)
     workflowCache.set(canonicalInput, inputWorkflow)
 

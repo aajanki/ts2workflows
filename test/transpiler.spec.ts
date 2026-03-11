@@ -414,8 +414,8 @@ describe('Sample source files', () => {
   it('transpiles sample files with transpileText', () => {
     fs.readdirSync(samplesdir).forEach((file) => {
       if (file.endsWith('.ts')) {
-        const fullPath = `${samplesdir}/${file}`
-        const code = fs.readFileSync(fullPath, { encoding: 'utf-8' })
+        const mainPath = `${samplesdir}/${file}`
+        const code = fs.readFileSync(mainPath, 'utf-8')
 
         expect(() => transpileText(code)).not.to.throw()
       }
@@ -425,11 +425,12 @@ describe('Sample source files', () => {
   it('transpiles sample files with a project', () => {
     fs.readdirSync(samplesdir).forEach((file) => {
       if (file.endsWith('.ts')) {
-        const fullPath = `${samplesdir}/${file}`
-        const sourceCode = fs.readFileSync(fullPath, 'utf-8')
+        const mainPath = `${samplesdir}/${file}`
+        const configPath = `${samplesdir}/tsconfig.json`
+        const sourceCode = fs.readFileSync(mainPath, 'utf-8')
 
         expect(() =>
-          transpile(fullPath, sourceCode, 'samples/tsconfig.json', false),
+          transpile(mainPath, sourceCode, configPath, false),
         ).not.to.throw()
       }
     })
@@ -438,20 +439,21 @@ describe('Sample source files', () => {
   it('transpiles sample files without a project', () => {
     fs.readdirSync(samplesdir).forEach((file) => {
       if (file.endsWith('.ts')) {
-        const fullPath = `${samplesdir}/${file}`
-        const sourceCode = fs.readFileSync(fullPath, 'utf-8')
+        const mainPath = `${samplesdir}/${file}`
+        const sourceCode = fs.readFileSync(mainPath, 'utf-8')
 
         expect(() =>
-          transpile(fullPath, sourceCode, undefined, false),
+          transpile(mainPath, sourceCode, undefined, false),
         ).not.to.throw()
       }
     })
   })
 
   it('generates linked output', () => {
-    const fullPath = `${samplesdir}/sample2.ts`
-    const sourceCode = fs.readFileSync(fullPath, 'utf-8')
-    const yaml = transpile(fullPath, sourceCode, 'samples/tsconfig.json', true)
+    const mainPath = `${samplesdir}/sample2.ts`
+    const configPath = `${samplesdir}/tsconfig.json`
+    const sourceCode = fs.readFileSync(mainPath, 'utf-8')
+    const yaml = transpile(mainPath, sourceCode, configPath, true)
     const observed = YAML.parse(yaml) as Record<string, unknown>
 
     // main comes from sample2.ts
