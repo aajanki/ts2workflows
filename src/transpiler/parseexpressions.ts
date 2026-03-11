@@ -482,7 +482,7 @@ function convertTemplateLiteralToExpression(
 ): Expression {
   const stringTerms = node.quasis
     .map((x) => x.value.cooked)
-    .map((x) => stringEx(x))
+    .map((x) => stringEx(x ?? ''))
   const templateTerms = node.expressions
     .map(convertExpression)
     .map((ex) => functionInvocationEx('default', [ex, stringEx('null')]))
