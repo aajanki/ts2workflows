@@ -5,7 +5,7 @@ import * as path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { program } from 'commander'
 import { transpile, transpileText } from './transpiler/index.js'
-import { WorkflowSyntaxError } from './errors.js'
+import { IOError, WorkflowSyntaxError } from './errors.js'
 import { TSError } from '@typescript-eslint/typescript-estree'
 import { prettifySyntaxError } from './diagnostics.js'
 
@@ -86,10 +86,10 @@ function cliMain() {
     } catch (err) {
       if (isIoError(err)) {
         let message: string
-        if ('code' in err && err.code === 'EAGAIN' && inputFile === '-') {
+        if (err.code === 'EAGAIN' && inputFile === '-') {
           // Reading from stdin if there's no input causes error. This is a bug in node
           message = 'Error: Failed to read from stdin'
-        } else if ('code' in err && err.code === 'EISDIR') {
+        } else if (err.code === 'EISDIR') {
           message = `Error: "${inputFile}" is a directory`
         } else {
           message = err.message
@@ -170,7 +170,7 @@ function generatedFileComment(inputFile: string): string {
   )
 }
 
-function isIoError(err: unknown): err is Error {
+function isIoError(err: unknown): err is IOError {
   return err instanceof Error && 'code' in err
 }
 
