@@ -85,7 +85,7 @@ npm run test
 Run tests and print the test coverage:
 
 ```sh
-npm run test-coverage
+npm run test:coverage
 ```
 
 ### Architecture
