@@ -150,8 +150,6 @@ function generateLinkedOutput(
     .getSourceFiles()
     .find((x) => x.fileName === canonicalInputName)
 
-  console.debug(`mainSourceFile = ${mainSourceFile?.fileName}`)
-
   if (mainSourceFile === undefined) {
     throw new InternalTranspilingError(
       `Typescript SourceFile object not found for ${canonicalInputName}`,
@@ -160,10 +158,6 @@ function generateLinkedOutput(
 
   const typeChecker = program.getTypeChecker()
   const functions = findCalledFunctionDeclarations(typeChecker, mainSourceFile)
-
-  console.debug(
-    `functions: ${functions.map((x) => x.name?.getText() + ' is ambient? ' + isAmbientFunctionDeclaration(x).toString()).join('\n  ')}`,
-  )
 
   const subworkflows = functions
     .filter((f) => !isAmbientFunctionDeclaration(f))
@@ -224,10 +218,6 @@ function tsFunctionToSubworkflow(
   const wfname = decl.name.getText()
   const workflow = getCachedWorkflow(filename, tsconfigPath)
   const subworkflow = workflow.getSubworkflowByName(wfname)
-
-  console.debug(
-    `tsFunctionToSubworkflow: wfname = ${wfname}, subworkflow.name = ${subworkflow?.name}, filename = ${filename}`,
-  )
 
   if (!subworkflow) {
     throw new InternalTranspilingError(

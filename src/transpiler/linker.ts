@@ -8,6 +8,10 @@ export function findCalledFunctionDeclarations(
   // First add top level function declarations
   const declarations = rootNode.statements.filter(ts.isFunctionDeclaration)
 
+  console.debug(
+    `root declarations: ${declarations.map((x) => x.name?.getText().toString()).join(', ')}`,
+  )
+
   // Next, find nested function calls recursively
   findFunctionsRecursively(declarations, typeChecker, rootNode)
 
@@ -74,6 +78,10 @@ function functionDeclarationsForIdentifier(
   const isAliased = symbol && symbol.flags & ts.SymbolFlags.Alias
   const symbol2 = isAliased ? typeChecker.getAliasedSymbol(symbol) : symbol
   const declarations = symbol2?.getDeclarations() ?? []
+
+  console.debug(
+    `${node.getText()} - ${symbol2?.name}: kind = ${declarations.map((x) => x.kind.toString()).join(', ')}`,
+  )
 
   return declarations.filter(ts.isFunctionDeclaration)
 }
