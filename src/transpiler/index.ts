@@ -43,10 +43,15 @@ export function transpile(
     sourceCode,
   )
 
+  console.debug(
+    `transpile: linkSubworkflows = ${linkSubworkflows}, tsconfigPath = ${tsconfigPath}, ` +
+      `filename = ${filename}, program !== null? ${services.program !== null}`,
+  )
+
   if (
     linkSubworkflows &&
     tsconfigPath &&
-    services.program != null &&
+    services.program !== null &&
     filename
   ) {
     const canonicalInput = path.join(process.cwd(), filename)

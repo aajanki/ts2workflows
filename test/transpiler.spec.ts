@@ -454,7 +454,7 @@ describe('Sample source files', () => {
     const configPath = `${samplesdir}/tsconfig.json`
     const sourceCode = fs.readFileSync(mainPath, 'utf-8')
     const yaml = transpile(mainPath, sourceCode, configPath, true)
-    const observed = YAML.parse(yaml) as Record<string, unknown>
+    const observed = YAML.parse(yaml) as object
 
     // main comes from sample2.ts
     // get_url comes from imported file http_helpers.ts
