@@ -1,6 +1,6 @@
 # ts2workflows changelog
 
-## unreleased
+## Version 0.15.0 - 2026-03-18
 
 New features:
 
