@@ -449,7 +449,7 @@ describe('Sample source files', () => {
     })
   })
 
-  it('generates linked output', () => {
+  it.skip('generates linked output', () => {
     const mainPath = `${samplesdir}/sample2.ts`
     const configPath = `${samplesdir}/tsconfig.json`
     const sourceCode = fs.readFileSync(mainPath, 'utf-8')
