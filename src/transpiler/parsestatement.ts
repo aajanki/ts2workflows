@@ -635,7 +635,7 @@ function assignmentExpressionToStatement(
   node: TSESTree.AssignmentExpression,
   ctx: ParsingContext,
 ): WorkflowStatement[] {
-  let compoundOperator: BinaryOperator | undefined = undefined
+  let compoundOperator: BinaryOperator | undefined
   switch (node.operator) {
     case '=':
       compoundOperator = undefined

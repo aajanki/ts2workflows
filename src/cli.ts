@@ -64,13 +64,7 @@ function parseArgs() {
 
 function cliMain() {
   const args = parseArgs()
-
-  let files = []
-  if (args.sourceFiles.length === 0) {
-    files = ['-']
-  } else {
-    files = args.sourceFiles
-  }
+  const files = args.sourceFiles.length > 0 ? args.sourceFiles : ['-']
 
   files.forEach((inputFile) => {
     try {
