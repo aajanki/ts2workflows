@@ -35,21 +35,21 @@ import {
 } from './statements.js'
 import { Subworkflow, SubworkflowStatements } from './workflows.js'
 
-export type StepName = Brand<string, 'stepName'>
-export const StepName = make<StepName>()
+export type Label = Brand<string, 'label'>
+export const Label = make<Label>()
 
 // https://cloud.google.com/workflows/docs/reference/syntax/variables#assign-step
 interface AssignStep {
   tag: 'assign'
-  label: StepName
+  label: Label
   assignments: VariableAssignment[]
-  next?: StepName
+  next?: Label
 }
 
 // https://cloud.google.com/workflows/docs/reference/syntax/calls
 interface CallStep {
   tag: 'call'
-  label: StepName
+  label: Label
   call: string
   args?: WorkflowParameters
   result?: VariableName
@@ -58,7 +58,7 @@ interface CallStep {
 // https://cloud.google.com/workflows/docs/reference/syntax/iteration
 interface ForStep {
   tag: 'for'
-  label: StepName
+  label: Label
   steps: WorkflowStep[]
   loopVariableName: VariableName
   listExpression?: Expression
@@ -70,14 +70,14 @@ interface ForStep {
 // https://cloud.google.com/workflows/docs/reference/syntax/jumps
 interface NextStep {
   tag: 'next'
-  label: StepName
-  next: StepName
+  label: Label
+  next: Label
 }
 
 // https://cloud.google.com/workflows/docs/reference/syntax/parallel-steps
 interface ParallelStep {
   tag: 'parallel'
-  label: StepName
+  label: Label
   branches: ParallelBranch[]
   shared?: VariableName[]
   concurrencyLimit?: number
@@ -85,14 +85,14 @@ interface ParallelStep {
 }
 
 interface ParallelBranch {
-  readonly name: StepName
+  readonly name: Label
   readonly steps: WorkflowStep[]
 }
 
 // https://cloud.google.com/workflows/docs/reference/syntax/parallel-steps#parallel-iteration
 interface ParallelIterationStep {
   tag: 'parallel-for'
-  label: StepName
+  label: Label
   forStep: ForStep
   shared?: VariableName[]
   concurrencyLimit?: number
@@ -102,35 +102,35 @@ interface ParallelIterationStep {
 // https://cloud.google.com/workflows/docs/reference/syntax/raising-errors
 interface RaiseStep {
   tag: 'raise'
-  label: StepName
+  label: Label
   value: Expression
 }
 
 // https://cloud.google.com/workflows/docs/reference/syntax/completing
 interface ReturnStep {
   tag: 'return'
-  label: StepName
+  label: Label
   value: Expression | undefined
 }
 
 // https://cloud.google.com/workflows/docs/reference/syntax/conditions
 interface SwitchStep {
   tag: 'switch'
-  label: StepName
+  label: Label
   branches: SwitchBranch[]
-  next?: StepName
+  next?: Label
 }
 
 interface SwitchBranch {
   readonly condition: Expression
   readonly steps?: WorkflowStep[]
-  readonly next?: StepName
+  readonly next?: Label
 }
 
 // https://cloud.google.com/workflows/docs/reference/syntax/catching-errors
 interface TryStep {
   tag: 'try'
-  label: StepName
+  label: Label
   trySteps: WorkflowStep[]
   exceptSteps?: WorkflowStep[]
   retryPolicy?: string | CustomRetryPolicy
@@ -142,7 +142,7 @@ interface TryStep {
 // JumpTargetSteps are removed before transpiling to workflows YAML.
 interface JumpTargetStep {
   tag: 'jump-target'
-  label: StepName
+  label: Label
 }
 
 export type WorkflowStep =
@@ -160,14 +160,14 @@ export type WorkflowStep =
 
 interface StepContext {
   // breakTarget is a jump target for an unlabeled break statement
-  readonly breakTarget?: StepName
+  readonly breakTarget?: Label
   // continueTarget is a jump target for an unlabeled continue statement
-  readonly continueTarget?: StepName
+  readonly continueTarget?: Label
   // finalizerTargets is an array of jump targets for return statements. Used
   // for delaying a return until a finally block. Array of nested try-finally
   // blocks, the inner most block is last. This also used as a flag to indicate
   // that we are in a try or catch block that has a related finally block.
-  finalizerTargets?: StepName[]
+  finalizerTargets?: Label[]
 }
 
 interface JumpStackElement {
@@ -432,7 +432,7 @@ function renderTryStep(step: TryStep): Record<string, unknown> {
  */
 export function toStepSubworkflow(
   ast: SubworkflowStatements,
-  generateLabel: (prefix: string) => StepName,
+  generateLabel: (prefix: string) => Label,
 ): Subworkflow {
   const steps = fixJumpLabels(
     statementListToSteps(generateLabel, {}, ast.statements),
@@ -442,7 +442,7 @@ export function toStepSubworkflow(
 }
 
 const statementListToSteps = R.curry(function (
-  generateLabel: (prefix: string) => StepName,
+  generateLabel: (prefix: string) => Label,
   ctx: StepContext,
   statements: WorkflowStatement[],
 ): WorkflowStep[] {
@@ -452,7 +452,7 @@ const statementListToSteps = R.curry(function (
 })
 
 function statementToSteps(
-  generateLabel: (prefix: string) => StepName,
+  generateLabel: (prefix: string) => Label,
   ctx: StepContext,
   statement: WorkflowStatement,
 ): WorkflowStep[] {
@@ -520,7 +520,7 @@ function statementToSteps(
 }
 
 function callStep(
-  generateLabel: (prefix: string) => StepName,
+  generateLabel: (prefix: string) => Label,
   statement: FunctionInvocationStatement,
 ): CallStep {
   const labelPrefix =
@@ -536,7 +536,7 @@ function callStep(
 }
 
 function breakStep(
-  generateLabel: (prefix: string) => StepName,
+  generateLabel: (prefix: string) => Label,
   ctx: StepContext,
   statement: BreakStatement,
 ): NextStep {
@@ -551,12 +551,12 @@ function breakStep(
   return {
     tag: 'next',
     label: generateLabel('next'),
-    next: statement.label ?? ctx.breakTarget ?? StepName('break'),
+    next: statement.label ?? ctx.breakTarget ?? Label('break'),
   }
 }
 
 function continueStep(
-  generateLabel: (prefix: string) => StepName,
+  generateLabel: (prefix: string) => Label,
   ctx: StepContext,
   statement: ContinueStatement,
 ): NextStep {
@@ -571,12 +571,12 @@ function continueStep(
   return {
     tag: 'next',
     label: generateLabel('next'),
-    next: statement.label ?? ctx.continueTarget ?? StepName('continue'),
+    next: statement.label ?? ctx.continueTarget ?? Label('continue'),
   }
 }
 
 function doWhileSteps(
-  generateLabel: (prefix: string) => StepName,
+  generateLabel: (prefix: string) => Label,
   ctx: StepContext,
   statement: DoWhileStatement,
 ): WorkflowStep[] {
@@ -613,7 +613,7 @@ function doWhileSteps(
 }
 
 function whileSteps(
-  generateLabel: (prefix: string) => StepName,
+  generateLabel: (prefix: string) => Label,
   ctx: StepContext,
   statement: WhileStatement,
 ): WorkflowStep[] {
@@ -648,7 +648,7 @@ function whileSteps(
 }
 
 function forStep(
-  generateLabel: (prefix: string) => StepName,
+  generateLabel: (prefix: string) => Label,
   ctx: StepContext,
   statement: ForStatement,
 ): ForStep {
@@ -669,7 +669,7 @@ function forStep(
 }
 
 function forRangeStep(
-  generateLabel: (prefix: string) => StepName,
+  generateLabel: (prefix: string) => Label,
   ctx: StepContext,
   statement: ForRangeStatement,
 ): ForStep {
@@ -691,7 +691,7 @@ function forRangeStep(
 }
 
 function ifStep(
-  generateLabel: (prefix: string) => StepName,
+  generateLabel: (prefix: string) => Label,
   ctx: StepContext,
   statement: IfStatement,
 ): SwitchStep {
@@ -735,7 +735,7 @@ function ifStep(
 }
 
 function labelledSteps(
-  generateLabel: (prefix: string) => StepName,
+  generateLabel: (prefix: string) => Label,
   ctx: StepContext,
   statement: LabelledStatement,
 ): WorkflowStep[] {
@@ -751,7 +751,7 @@ function labelledSteps(
 }
 
 function parallelStep(
-  generateLabel: (prefix: string) => StepName,
+  generateLabel: (prefix: string) => Label,
   ctx: StepContext,
   statement: ParallelStatement,
 ): ParallelStep {
@@ -773,7 +773,7 @@ function parallelStep(
 }
 
 function parallelIterationStep(
-  generateLabel: (prefix: string) => StepName,
+  generateLabel: (prefix: string) => Label,
   ctx: StepContext,
   statement: ParallelForStatement,
 ): ParallelIterationStep {
@@ -794,7 +794,7 @@ function parallelIterationStep(
 }
 
 function returnStep(
-  generateLabel: (prefix: string) => StepName,
+  generateLabel: (prefix: string) => Label,
   ctx: StepContext,
   statement: ReturnStatement,
 ): ReturnStep | AssignStep {
@@ -812,7 +812,7 @@ function returnStep(
 }
 
 function delayedReturnAndJumpToFinalizer(
-  generateLabel: (prefix: string) => StepName,
+  generateLabel: (prefix: string) => Label,
   ctx: StepContext,
   value: Expression | undefined,
 ): AssignStep {
@@ -840,7 +840,7 @@ function delayedReturnAndJumpToFinalizer(
 }
 
 function switchSteps(
-  generateLabel: (prefix: string) => StepName,
+  generateLabel: (prefix: string) => Label,
   ctx: StepContext,
   statement: SwitchStatement,
 ): WorkflowStep[] {
@@ -882,7 +882,7 @@ function switchSteps(
 }
 
 function trySteps(
-  generateLabel: (prefix: string) => StepName,
+  generateLabel: (prefix: string) => Label,
   ctx: StepContext,
   statement: TryStatement,
 ): WorkflowStep[] {
@@ -953,7 +953,7 @@ function trySteps(
 }
 
 function tryCatchRetrySteps(
-  generateLabel: (prefix: string) => StepName,
+  generateLabel: (prefix: string) => Label,
   ctx: StepContext,
   statement: TryStatement,
 ): TryStep {
@@ -986,7 +986,7 @@ function finalizerVariables(ctx: StepContext): [VariableName, VariableName] {
  * The shared header for try-finally for initializing the temp variables
  */
 function finalizerInitializer(
-  generateLabel: (prefix: string) => StepName,
+  generateLabel: (prefix: string) => Label,
   conditionVariable: VariableName,
   valueVariable: VariableName,
 ): AssignStep {
@@ -1019,7 +1019,7 @@ function finalizerInitializer(
  * }
  */
 function finalizerFooter(
-  generateLabel: (prefix: string) => StepName,
+  generateLabel: (prefix: string) => Label,
   conditionVariable: VariableName,
   valueVariable: VariableName,
 ): SwitchStep {
@@ -1045,7 +1045,7 @@ function finalizerFooter(
 }
 
 function finalizerDelayedException(
-  generateLabel: (prefix: string) => StepName,
+  generateLabel: (prefix: string) => Label,
   exceptionVariableName: VariableName,
   conditionVariableName: VariableName,
   valueVariableName: VariableName,
@@ -1068,10 +1068,8 @@ function finalizerDelayedException(
   ]
 }
 
-function generatePlaceholderLabel(): StepName {
-  return StepName(
-    `jumptarget_${Math.floor(Math.random() * 2 ** 32).toString(16)}`,
-  )
+function generatePlaceholderLabel(): Label {
+  return Label(`jumptarget_${Math.floor(Math.random() * 2 ** 32).toString(16)}`)
 }
 
 /**
@@ -1109,9 +1107,9 @@ function mergeNextStep(steps: WorkflowStep[]): WorkflowStep[] {
 }
 
 function appendNextStep(
-  generateLabel: (prefix: string) => StepName,
+  generateLabel: (prefix: string) => Label,
   steps: WorkflowStep[],
-  nextLabel: StepName,
+  nextLabel: Label,
 ): WorkflowStep[] {
   const last = steps.at(-1)
   if (last?.tag === 'assign') {
@@ -1146,10 +1144,8 @@ function fixJumpLabels(steps: WorkflowStep[]): WorkflowStep[] {
  * next node that is not a JumpTargetAST, save its name as the real jump taget
  * name.
  */
-function collectActualJumpTargets(
-  steps: WorkflowStep[],
-): Map<StepName, StepName> {
-  const replacements = new Map<StepName, StepName>()
+function collectActualJumpTargets(steps: WorkflowStep[]): Map<Label, Label> {
+  const replacements = new Map<Label, Label>()
 
   // The processing is done iteratively with an explicit stack because
   // nextNonJumpTargetNode() needs the stack. Note the order of steps on the
@@ -1164,7 +1160,7 @@ function collectActualJumpTargets(
     if (step.tag === 'jump-target') {
       const currentLabel = step.label
       const target = nextNonJumpTargetNode(stack)
-      const targetName = target ? target.label : StepName('end')
+      const targetName = target ? target.label : Label('end')
       replacements.set(currentLabel, targetName)
     }
 
@@ -1360,14 +1356,14 @@ function removeJumpTargetTry(step: TryStep): TryStep {
 
 function relabelNextLabels(
   steps: WorkflowStep[],
-  replacements: Map<StepName, StepName>,
+  replacements: Map<Label, Label>,
 ): WorkflowStep[] {
   return steps.map((step) => renameJumpTargets(step, replacements))
 }
 
 function renameJumpTargets(
   step: WorkflowStep,
-  replaceLabels: Map<StepName, StepName>,
+  replaceLabels: Map<Label, Label>,
 ): WorkflowStep {
   switch (step.tag) {
     case 'call':
@@ -1401,7 +1397,7 @@ function renameJumpTargets(
 
 function renameJumpTargetsAssign(
   step: AssignStep,
-  replaceLabels: Map<StepName, StepName>,
+  replaceLabels: Map<Label, Label>,
 ): AssignStep {
   if (step.next) {
     const newLabel = replaceLabels.get(step.next)
@@ -1416,7 +1412,7 @@ function renameJumpTargetsAssign(
 
 function renameJumpTargetsFor(
   step: ForStep,
-  replaceLabels: Map<StepName, StepName>,
+  replaceLabels: Map<Label, Label>,
 ): ForStep {
   const transformedSteps = step.steps.map((s) =>
     renameJumpTargets(s, replaceLabels),
@@ -1427,7 +1423,7 @@ function renameJumpTargetsFor(
 
 function renameJumpTargetsNext(
   step: NextStep,
-  replaceLabels: Map<StepName, StepName>,
+  replaceLabels: Map<Label, Label>,
 ): NextStep {
   const newLabel = replaceLabels.get(step.next) ?? step.next
   return { ...step, next: newLabel }
@@ -1435,7 +1431,7 @@ function renameJumpTargetsNext(
 
 function renameJumpTargetsParallel(
   step: ParallelStep,
-  replaceLabels: Map<StepName, StepName>,
+  replaceLabels: Map<Label, Label>,
 ): ParallelStep {
   const branches = step.branches.map(({ name, steps }) => ({
     name,
@@ -1447,14 +1443,14 @@ function renameJumpTargetsParallel(
 
 function renameJumpTargetsParallelIteration(
   step: ParallelIterationStep,
-  replaceLabels: Map<StepName, StepName>,
+  replaceLabels: Map<Label, Label>,
 ): ParallelIterationStep {
   return { ...step, forStep: renameJumpTargetsFor(step.forStep, replaceLabels) }
 }
 
 function renameJumpTargetsSwitch(
   step: SwitchStep,
-  replaceLabels: Map<StepName, StepName>,
+  replaceLabels: Map<Label, Label>,
 ): SwitchStep {
   const updatedNext = step.next
     ? (replaceLabels.get(step.next) ?? step.next)
@@ -1486,7 +1482,7 @@ function renameJumpTargetsSwitch(
 
 function renameJumpTargetsTry(
   step: TryStep,
-  replaceLabels: Map<StepName, StepName>,
+  replaceLabels: Map<Label, Label>,
 ): TryStep {
   const transformedTrySteps = step.trySteps.map((nested) =>
     renameJumpTargets(nested, replaceLabels),

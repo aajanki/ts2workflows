@@ -4,7 +4,7 @@ import {
   VariableName,
   VariableReferenceExpression,
 } from './expressions.js'
-import { StepName } from './steps.js'
+import { Label } from './steps.js'
 
 export type WorkflowParameters = Record<VariableName, Expression>
 
@@ -38,13 +38,13 @@ export class AssignStatement {
 export class BreakStatement {
   readonly tag = 'break'
 
-  constructor(public readonly label?: StepName) {}
+  constructor(public readonly label?: Label) {}
 }
 
 export class ContinueStatement {
   readonly tag = 'continue'
 
-  constructor(public readonly label?: StepName) {}
+  constructor(public readonly label?: Label) {}
 }
 
 export class ForStatement {
@@ -86,7 +86,7 @@ export interface IfBranch {
 
 export interface IfNextBranch {
   readonly condition: Expression
-  readonly next: StepName
+  readonly next: Label
 }
 
 export class IfStatement {
@@ -96,7 +96,7 @@ export class IfStatement {
 }
 
 export interface ParallelBranch {
-  readonly name: StepName
+  readonly name: Label
   readonly body: WorkflowStatement[]
 }
 
@@ -174,7 +174,7 @@ export class LabelledStatement {
   readonly tag = 'label'
 
   constructor(
-    public readonly label: StepName,
+    public readonly label: Label,
     public readonly statements: WorkflowStatement[],
   ) {}
 }
