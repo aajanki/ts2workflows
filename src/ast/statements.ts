@@ -38,13 +38,13 @@ export class AssignStatement {
 export class BreakStatement {
   readonly tag = 'break'
 
-  constructor(public readonly label?: string) {}
+  constructor(public readonly label?: StepName) {}
 }
 
 export class ContinueStatement {
   readonly tag = 'continue'
 
-  constructor(public readonly label?: string) {}
+  constructor(public readonly label?: StepName) {}
 }
 
 export class ForStatement {
@@ -96,7 +96,7 @@ export class IfStatement {
 }
 
 export interface ParallelBranch {
-  readonly name: string
+  readonly name: StepName
   readonly body: WorkflowStatement[]
 }
 
@@ -174,7 +174,7 @@ export class LabelledStatement {
   readonly tag = 'label'
 
   constructor(
-    public readonly label: string,
+    public readonly label: StepName,
     public readonly statements: WorkflowStatement[],
   ) {}
 }

@@ -1,14 +1,14 @@
-import { toStepSubworkflow } from '../ast/steps.js'
+import { toStepSubworkflow, StepName } from '../ast/steps.js'
 import { SubworkflowStatements, WorkflowApp } from '../ast/workflows.js'
 
 function createStepNameGenerator() {
   const counters = new Map<string, number>()
 
-  return (prefix: string) => {
+  return (prefix: string): StepName => {
     const i = counters.get(prefix) ?? 1
     counters.set(prefix, i + 1)
 
-    return `${prefix}${i}`
+    return StepName(`${prefix}${i}`)
   }
 }
 

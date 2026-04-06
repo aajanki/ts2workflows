@@ -54,6 +54,7 @@ import {
   convertAssignmentTarget,
 } from './parseexpressions.js'
 import { blockingFunctions } from './generated/functionMetadata.js'
+import { StepName } from '../ast/steps.js'
 
 export interface ParsingContext {
   // parallelNestingLevel is the current nesting level of parallel statements.
@@ -1084,7 +1085,7 @@ function parseParallelBranches(
   })
 
   return branches.map((statements, i) => ({
-    name: `branch${i + 1}`,
+    name: StepName(`branch${i + 1}`),
     body: statements,
   }))
 }
@@ -1304,13 +1305,15 @@ function createDoWhileStatement(
 }
 
 function createBreakStatement(node: TSESTree.BreakStatement): BreakStatement {
-  return new BreakStatement(node.label?.name)
+  const label = node.label ? StepName(node.label.name) : undefined
+  return new BreakStatement(label)
 }
 
 function createContinueStatement(
   node: TSESTree.ContinueStatement,
 ): ContinueStatement {
-  return new ContinueStatement(node.label?.name)
+  const label = node.label ? StepName(node.label.name) : undefined
+  return new ContinueStatement(label)
 }
 
 function createTryStatement(
@@ -1445,7 +1448,10 @@ function createLabeledStatement(
   node: TSESTree.LabeledStatement,
   ctx: ParsingContext,
 ): LabelledStatement {
-  return new LabelledStatement(node.label.name, parseStatement(node.body, ctx))
+  return new LabelledStatement(
+    StepName(node.label.name),
+    parseStatement(node.body, ctx),
+  )
 }
 
 function tempName(ctx: ParsingContext, postFix = ''): VariableName {
