@@ -7,6 +7,7 @@ import {
   ListExpression,
   MapExpression,
   MemberExpression,
+  VariableName,
   VariableReferenceExpression,
   binaryEx,
   booleanEx,
@@ -54,7 +55,7 @@ export function convertExpression(instance: TSESTree.Expression): Expression {
       if (instance.name === 'undefined') {
         return nullEx
       } else {
-        return variableReferenceEx(instance.name)
+        return variableReferenceEx(VariableName(instance.name))
       }
 
     case AST_NODE_TYPES.UnaryExpression:

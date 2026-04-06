@@ -17,6 +17,7 @@ import {
   unaryEx,
   UnaryExpression,
   variableReferenceEx,
+  VariableName,
 } from '../ast/expressions.js'
 import {
   applyNested,
@@ -309,13 +310,13 @@ function expandWhile(
   return res
 }
 
-function createTempVariableGenerator(): () => string {
+function createTempVariableGenerator(): () => VariableName {
   let i = 0
-  return () => `__temp${i++}`
+  return () => VariableName(`__temp${i++}`)
 }
 
 function replaceBlockingCalls(
-  generateName: () => string,
+  generateName: () => VariableName,
   expression: Expression,
 ): [FunctionInvocationStatement[], Expression] {
   function replaceBlockingFunctionInvocations(ex: Expression): Expression {
@@ -385,7 +386,7 @@ function isDefinedArgument(
  *     return: ${__temp0}
  * ```
  */
-function blockingCallsAsFunctionCalls(generateTempName: () => string) {
+function blockingCallsAsFunctionCalls(generateTempName: () => VariableName) {
   return (statement: WorkflowStatement): WorkflowStatement[] => {
     return expandExpressionToStatements(
       (ex) => replaceBlockingCalls(generateTempName, ex),
@@ -466,7 +467,7 @@ function transformExpression(
  *     return: ${__temp0.value}
  * ```
  */
-function mapLiteralsAsAssigns(generateTempName: () => string) {
+function mapLiteralsAsAssigns(generateTempName: () => VariableName) {
   return (statement: WorkflowStatement): WorkflowStatement[] => {
     return expandExpressionToStatements(
       (ex) => transformNestedMaps(generateTempName, ex),
@@ -476,7 +477,7 @@ function mapLiteralsAsAssigns(generateTempName: () => string) {
 }
 
 function transformNestedMaps(
-  generateTempName: () => string,
+  generateTempName: () => VariableName,
   ex: Expression,
 ): [AssignStatement[], Expression] {
   const { transformedExpression, tempVariables } = extractNestedMaps(
@@ -492,7 +493,7 @@ function transformNestedMaps(
 
 function extractNestedMaps(
   ex: Expression,
-  generateName: () => string,
+  generateName: () => VariableName,
   nestingLevel: number,
 ): { transformedExpression: Expression; tempVariables: VariableAssignment[] } {
   switch (ex.tag) {
@@ -525,7 +526,7 @@ function extractNestedMaps(
 
 function extractMapsInList(
   list: ListExpression,
-  generateName: () => string,
+  generateName: () => VariableName,
   nestingLevel: number,
 ) {
   const tempVariables: VariableAssignment[] = []
@@ -550,7 +551,7 @@ function extractMapsInList(
 
 function extractMapsInMap(
   map: MapExpression,
-  generateName: () => string,
+  generateName: () => VariableName,
   nestingLevel: number,
 ) {
   const { tempVariables, properties } = Object.entries(map.value).reduce(
@@ -590,7 +591,7 @@ function extractMapsInMap(
 
 function extractNestedMapFunctionInvocation(
   ex: FunctionInvocationExpression,
-  generateName: () => string,
+  generateName: () => VariableName,
   nestingLevel: number,
 ) {
   const { expressions, temps } = ex.arguments.reduce(
@@ -623,7 +624,7 @@ function extractNestedMapFunctionInvocation(
 
 function extractNestedMapBinary(
   ex: BinaryExpression,
-  generateName: () => string,
+  generateName: () => VariableName,
   nestingLevel: number,
 ) {
   const left = extractNestedMaps(ex.left, generateName, nestingLevel + 1)
@@ -641,7 +642,7 @@ function extractNestedMapBinary(
 
 function extractNestedMapMember(
   ex: MemberExpression,
-  generateName: () => string,
+  generateName: () => VariableName,
   nestingLevel: number,
 ) {
   const obj = extractNestedMaps(ex.object, generateName, nestingLevel + 1)
@@ -659,7 +660,7 @@ function extractNestedMapMember(
 
 function extractNestedMapUnary(
   ex: UnaryExpression,
-  generateName: () => string,
+  generateName: () => VariableName,
   nestingLevel: number,
 ) {
   const { transformedExpression, tempVariables } = extractNestedMaps(

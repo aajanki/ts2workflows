@@ -915,17 +915,18 @@ function trySteps(
     const outerLabel = generateLabel('try')
     const innerTry = tryCatchRetrySteps(generateLabel, ctx, statement)
 
+    const errorVariable = VariableName('__fin_exc')
     const outerTry = {
       tag: 'try' as const,
       label: outerLabel,
       trySteps: [innerTry],
       exceptSteps: finalizerDelayedException(
         generateLabel,
-        '__fin_exc',
+        errorVariable,
         conditionVariable,
         valueVariable,
       ),
-      errorMap: '__fin_exc',
+      errorMap: errorVariable,
     }
 
     // Reset ctx before parsing the finally block because we don't want to
@@ -968,11 +969,13 @@ function tryCatchRetrySteps(
   }
 }
 
-function finalizerVariables(ctx: StepContext): [string, string] {
+function finalizerVariables(ctx: StepContext): [VariableName, VariableName] {
   const targets = ctx.finalizerTargets ?? []
   const nestingLevel = targets.length > 0 ? `${targets.length}` : ''
-  const conditionVariable = `__t2w_finally_condition${nestingLevel}`
-  const valueVariable = `__t2w_finally_value${nestingLevel}`
+  const conditionVariable = VariableName(
+    `__t2w_finally_condition${nestingLevel}`,
+  )
+  const valueVariable = VariableName(`__t2w_finally_value${nestingLevel}`)
 
   return [conditionVariable, valueVariable]
 }
@@ -982,8 +985,8 @@ function finalizerVariables(ctx: StepContext): [string, string] {
  */
 function finalizerInitializer(
   generateLabel: (prefix: string) => string,
-  conditionVariable: string,
-  valueVariable: string,
+  conditionVariable: VariableName,
+  valueVariable: VariableName,
 ): AssignStep {
   return {
     tag: 'assign',
@@ -1015,8 +1018,8 @@ function finalizerInitializer(
  */
 function finalizerFooter(
   generateLabel: (prefix: string) => string,
-  conditionVariable: string,
-  valueVariable: string,
+  conditionVariable: VariableName,
+  valueVariable: VariableName,
 ): SwitchStep {
   const variable = variableReferenceEx(conditionVariable)
   const val = variableReferenceEx(valueVariable)
@@ -1041,9 +1044,9 @@ function finalizerFooter(
 
 function finalizerDelayedException(
   generateLabel: (prefix: string) => string,
-  exceptionVariableName: string,
-  conditionVariableName: string,
-  valueVariableName: string,
+  exceptionVariableName: VariableName,
+  conditionVariableName: VariableName,
+  valueVariableName: VariableName,
 ): AssignStep[] {
   return [
     {

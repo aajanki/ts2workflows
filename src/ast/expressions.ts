@@ -1,6 +1,9 @@
 import * as R from 'ramda'
+import { Brand, make } from 'ts-brand'
 
-export type VariableName = string
+export type VariableName = Brand<string, 'variableName'>
+export const VariableName = make<VariableName>()
+
 export type BinaryOperator =
   | '+'
   | '-'

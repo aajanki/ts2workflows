@@ -24,7 +24,7 @@ import {
 import { parseStatement } from './parsestatement.js'
 import { transformAST } from './transformations.js'
 import { findCalledFunctionDeclarations } from './linker.js'
-import { isPrimitive, nullEx } from '../ast/expressions.js'
+import { isPrimitive, nullEx, VariableName } from '../ast/expressions.js'
 import { convertExpression } from './parseexpressions.js'
 import { generateStepNames } from './stepnames.js'
 
@@ -338,9 +338,9 @@ function parseWorkflowParams(
     switch (param.type) {
       case AST_NODE_TYPES.Identifier:
         if (param.optional) {
-          return { name: param.name, default: nullEx }
+          return { name: VariableName(param.name), default: nullEx }
         } else {
-          return { name: param.name }
+          return { name: VariableName(param.name) }
         }
 
       case AST_NODE_TYPES.AssignmentPattern:
@@ -378,7 +378,7 @@ function parseSubworkflowDefaultArgument(param: TSESTree.AssignmentPattern) {
   }
 
   return {
-    name: param.left.name,
+    name: VariableName(param.left.name),
     default: defaultValue,
   }
 }

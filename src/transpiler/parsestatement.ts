@@ -165,13 +165,13 @@ function convertVariableDeclarations(
       return convertObjectDestructuring(decl.id, decl.init, ctx)
     } else {
       // decl.id.type === AST_NODE_TYPES.Identifier
-      return convertInitializer(decl.id.name, decl.init, ctx)
+      return convertInitializer(VariableName(decl.id.name), decl.init, ctx)
     }
   })
 }
 
 function convertInitializer(
-  targetVariableName: string,
+  targetVariableName: VariableName,
   initializer: TSESTree.Expression | null,
   ctx: ParsingContext,
 ): WorkflowStatement[] {
@@ -236,7 +236,7 @@ function arrayDestructuringStatements(
     return []
   }
 
-  const __temp_len = variableReferenceEx(`${tempName(ctx)}_len`)
+  const __temp_len = variableReferenceEx(tempName(ctx, '_len'))
   const initializeVariables: VariableAssignment[] = [
     {
       name: __temp_len,
@@ -309,7 +309,7 @@ function arrayElementsDestructuringStatements(
           )
         }
 
-        const name = variableReferenceEx(pat.left.name)
+        const name = variableReferenceEx(VariableName(pat.left.name))
         return [new AssignStatement([{ name, value: iElement }])]
       }
 
@@ -357,13 +357,15 @@ function extractDefaultAssignmentsFromDestructuringPattern(
 
       return [
         {
-          name: variableReferenceEx(pat.left.name),
+          name: variableReferenceEx(VariableName(pat.left.name)),
           value: convertExpression(pat.right),
         },
       ]
 
     case AST_NODE_TYPES.Identifier:
-      return [{ name: variableReferenceEx(pat.name), value: nullEx }]
+      return [
+        { name: variableReferenceEx(VariableName(pat.name)), value: nullEx },
+      ]
 
     case AST_NODE_TYPES.MemberExpression:
       return [{ name: convertAssignmentTarget(pat), value: nullEx }]
@@ -375,7 +377,12 @@ function extractDefaultAssignmentsFromDestructuringPattern(
             throw new WorkflowSyntaxError('Identifier expected', p.argument.loc)
           }
 
-          return [{ name: variableReferenceEx(p.argument.name), value: nullEx }]
+          return [
+            {
+              name: variableReferenceEx(VariableName(p.argument.name)),
+              value: nullEx,
+            },
+          ]
         } else if (
           p.value.type === AST_NODE_TYPES.ArrayPattern ||
           p.value.type === AST_NODE_TYPES.AssignmentPattern ||
@@ -399,7 +406,7 @@ function extractDefaultAssignmentsFromDestructuringPattern(
 
       return [
         {
-          name: variableReferenceEx(pat.argument.name),
+          name: variableReferenceEx(VariableName(pat.argument.name)),
           value: listEx([]),
         },
       ]
@@ -432,9 +439,9 @@ function arrayRestDestructuringStatements(
     throw new WorkflowSyntaxError('Identifier expected', rest.argument.loc)
   }
 
-  const restName = variableReferenceEx(rest.argument.name)
-  const __temp_len = variableReferenceEx(`${tempName(ctx)}_len`)
-  const __temp_index = `${tempName(ctx)}_index`
+  const restName = variableReferenceEx(VariableName(rest.argument.name))
+  const __temp_len = variableReferenceEx(tempName(ctx, '_len'))
+  const __temp_index = tempName(ctx, '_index')
   const one = numberEx(1)
   const emptyArray = listEx([])
   const copyLoop = new ForRangeStatement(
@@ -516,7 +523,7 @@ function objectDestructuringStatements(
 
     const keyExpression = memberEx(
       initializerExpression,
-      variableReferenceEx(prop.key.name),
+      variableReferenceEx(VariableName(prop.key.name)),
       false,
     )
 
@@ -541,7 +548,7 @@ function objectDestructuringStatements(
       return [
         new AssignStatement([
           {
-            name: variableReferenceEx(prop.value.name),
+            name: variableReferenceEx(VariableName(prop.value.name)),
             value: safeKeyExpression,
           },
         ]),
@@ -575,7 +582,7 @@ function objectAssignmentPatternStatements(
 
   // Using an if statement instead of default() because pat.right must be
   // evaluated only in the default value branch (in case it has side effects)
-  const name = variableReferenceEx(pat.left.name)
+  const name = variableReferenceEx(VariableName(pat.left.name))
   return [
     new IfStatement([
       {
@@ -620,7 +627,7 @@ function objectDestructuringRestStatements(
       return k.name
     })
 
-  const name = variableReferenceEx(rest.argument.name)
+  const name = variableReferenceEx(VariableName(rest.argument.name))
   const value = nonRestKeys.reduce(
     (acc, propertyName) =>
       // map.delete returns a copy of the object and removes the specified property
@@ -814,7 +821,7 @@ function extractSideEffectsFromMemberExpression(
       objectAssignments = []
     }
 
-    const tmp = variableReferenceEx(`${tempPrefix}${tempIndex}`)
+    const tmp = variableReferenceEx(VariableName(`${tempPrefix}${tempIndex}`))
     const transformed = memberEx(transformedObject, tmp, true)
     const assignments = objectAssignments
     assignments.push({
@@ -865,7 +872,7 @@ function convertAssignmentExpressionIntrinsicRHS(
 
 function callExpressionToStatement(
   node: TSESTree.CallExpression,
-  resultVariable: string | undefined,
+  resultVariable: VariableName | undefined,
   ctx: ParsingContext,
 ): WorkflowStatement[] {
   const calleeExpression = convertExpression(node.callee)
@@ -977,7 +984,7 @@ function blockingFunctionStatement(
   functionName: string,
   argumentNames: string[],
   argumentsNode: TSESTree.CallExpressionArgument[],
-  resultName?: string,
+  resultName?: VariableName,
 ): FunctionInvocationStatement {
   const argumentExpressions =
     throwIfSpread(argumentsNode).map(convertExpression)
@@ -1155,7 +1162,7 @@ function parseParallelOptions(
   }
 
   return {
-    shared: shared?.map((x) => x.value),
+    shared: shared?.map((x) => VariableName(x.value)),
     concurrencyLimit: concurrencyLimitExpression?.value,
     exceptionPolicy: exceptionPolicyExpression?.value,
   }
@@ -1249,9 +1256,9 @@ function createForOfStatement(
   })
   const statements = parseStatement(node.body, bodyCtx)
 
-  let loopVariableName: string
+  let loopVariableName: VariableName
   if (node.left.type === AST_NODE_TYPES.Identifier) {
-    loopVariableName = node.left.name
+    loopVariableName = VariableName(node.left.name)
   } else if (
     node.left.type === AST_NODE_TYPES.VariableDeclaration &&
     node.left.declarations.length >= 1
@@ -1264,7 +1271,7 @@ function createForOfStatement(
       )
     }
 
-    loopVariableName = declaration.id.name
+    loopVariableName = VariableName(declaration.id.name)
   } else {
     throw new WorkflowSyntaxError('Unsupported initializer', node.left.loc)
   }
@@ -1314,7 +1321,7 @@ function createTryStatement(
   const tryBody = parseStatement(node.block, ctx)
 
   let exceptBody: WorkflowStatement[] | undefined = undefined
-  let errorVariable: string | undefined = undefined
+  let errorVariable: VariableName | undefined = undefined
   if (node.handler) {
     exceptBody = parseStatement(node.handler.body, ctx)
     errorVariable = extractErrorVariableName(node.handler.param)
@@ -1419,7 +1426,7 @@ function predicateFromRetryParams(
 
 function extractErrorVariableName(
   param: TSESTree.BindingName | null,
-): string | undefined {
+): VariableName | undefined {
   if (!param) {
     return undefined
   }
@@ -1431,7 +1438,7 @@ function extractErrorVariableName(
     )
   }
 
-  return param.name
+  return VariableName(param.name)
 }
 
 function createLabeledStatement(
@@ -1441,14 +1448,14 @@ function createLabeledStatement(
   return new LabelledStatement(node.label.name, parseStatement(node.body, ctx))
 }
 
-function tempName(ctx: ParsingContext): VariableName {
+function tempName(ctx: ParsingContext, postFix = ''): VariableName {
   if (ctx.parallelNestingLevel !== undefined) {
     // Temporary variable inside a parallel step can not be the same as temporary
     // variables on the outside. Sharing the variable name would cause deployment
     // error, if the variable is not marked as shared by including it in the
     // "shared" array.
-    return `__temp_parallel${ctx.parallelNestingLevel}`
+    return VariableName(`__temp_parallel${ctx.parallelNestingLevel}${postFix}`)
   } else {
-    return '__temp'
+    return VariableName(`__temp${postFix}`)
   }
 }
