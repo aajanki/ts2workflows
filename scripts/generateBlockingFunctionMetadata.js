@@ -9,27 +9,14 @@
 
 import * as fs from 'node:fs'
 import path from 'node:path'
-import {
-  parse,
-  TSESTree,
-  AST_NODE_TYPES,
-} from '@typescript-eslint/typescript-estree'
+import { parse, AST_NODE_TYPES } from '@typescript-eslint/typescript-estree'
 
 const inputFile = 'types/workflowslib.d.ts'
 const outputFile = 'src/transpiler/generated/functionMetadata.ts'
 
-interface FunctionMetadata {
-  functionName: string
-  argumentNames: string[]
-}
-
-interface ParsingContext {
-  namespace?: string
-}
-
 function main() {
   const parserOptions = {
-    loggerFn: false as const,
+    loggerFn: false,
   }
 
   const sourceCode = fs.readFileSync(inputFile, 'utf8')
@@ -47,7 +34,7 @@ function main() {
   fs.writeFileSync(outputFile, generated)
 }
 
-function generateCode(functions: FunctionMetadata[]) {
+function generateCode(functions) {
   const rawFunctions = functions.map((metadata) => {
     return [metadata.functionName, metadata.argumentNames]
   })
@@ -59,7 +46,7 @@ export const blockingFunctions = new Map(${JSON.stringify(rawFunctions, null, 2)
 `
 }
 
-function isBlockingFunction(functionName: string): boolean {
+function isBlockingFunction(functionName) {
   return (
     [
       'sys.log',
@@ -73,10 +60,7 @@ function isBlockingFunction(functionName: string): boolean {
   )
 }
 
-function extractFunctionDefinitions(
-  node: TSESTree.ProgramStatement,
-  ctx: ParsingContext,
-): FunctionMetadata[] {
+function extractFunctionDefinitions(node, ctx) {
   switch (node.type) {
     case AST_NODE_TYPES.ExportNamedDeclaration:
       if (node.declaration === null) {
@@ -133,7 +117,7 @@ function extractFunctionDefinitions(
   }
 }
 
-function extractNamespace(id: TSESTree.EntityName): string {
+function extractNamespace(id) {
   switch (id.type) {
     case AST_NODE_TYPES.Identifier:
       return id.name
@@ -144,10 +128,7 @@ function extractNamespace(id: TSESTree.EntityName): string {
   }
 }
 
-function parseFunctionName(
-  name: string,
-  namespace: string | undefined,
-): string {
+function parseFunctionName(name, namespace) {
   const namespacePrefix = namespace ? `${namespace}.` : ''
 
   // Revert the convention of using underscore prefix for functions names
@@ -157,7 +138,7 @@ function parseFunctionName(
   return `${namespacePrefix}${fixedName}`
 }
 
-function parseFunctionParamNames(params: TSESTree.Parameter[]): string[] {
+function parseFunctionParamNames(params) {
   return params.map((param) => {
     if (param.type !== AST_NODE_TYPES.Identifier) {
       throw new Error(`Identifier expected, got ${param.type}`)

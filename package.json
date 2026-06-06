@@ -15,8 +15,8 @@
     "node": ">=20"
   },
   "scripts": {
-    "build": "rimraf dist && npm run build:functionmetadata && tsc",
-    "build:functionmetadata": "tsx scripts/generateBlockingFunctionMetadata.ts",
+    "build": "npm run build:functionmetadata && tsc --build",
+    "build:functionmetadata": "node scripts/generateBlockingFunctionMetadata.js",
     "lint": "eslint src test scripts",
     "format": "prettier . --write",
     "test": "mocha",
@@ -70,6 +70,7 @@
     "@typescript-eslint/parser": "8.57.2",
     "chai": "6.2.2",
     "eslint": "10.1.0",
+    "globals": "17.6.0",
     "husky": "9.1.7",
     "lint-staged": "16.4.0",
     "mocha": "11.7.5",

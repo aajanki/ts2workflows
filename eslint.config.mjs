@@ -1,10 +1,18 @@
 // @ts-check
 
-import eslint from '@eslint/js'
+import globals from 'globals'
+import js from '@eslint/js'
 import tseslint from 'typescript-eslint'
+import { defineConfig } from 'eslint/config'
 
-export default tseslint.config(
+export default defineConfig(
   {
+    files: ['**/*.ts'],
+    extends: [
+      js.configs.recommended,
+      tseslint.configs.recommendedTypeChecked,
+      tseslint.configs.stylisticTypeChecked,
+    ],
     languageOptions: {
       parserOptions: {
         project: 'tsconfig.eslint.json',
@@ -12,10 +20,20 @@ export default tseslint.config(
       },
     },
   },
-  eslint.configs.recommended,
-  ...tseslint.configs.recommendedTypeChecked,
-  ...tseslint.configs.stylisticTypeChecked,
   {
-    ignores: ['dist/', 'samples/', 'test/fixtures', 'eslint.config.mjs'],
+    files: ['**/*.js'],
+    extends: [js.configs.recommended],
+    languageOptions: {
+      globals: { ...globals.node },
+    },
+  },
+  {
+    ignores: [
+      'dist/',
+      'samples/',
+      'test/fixtures',
+      'types',
+      'eslint.config.mjs',
+    ],
   },
 )
