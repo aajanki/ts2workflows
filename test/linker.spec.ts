@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unnecessary-type-assertion */
-
 import { expect } from 'chai'
 import ts from 'typescript'
 import { findCalledFunctionDeclarations } from '../src/transpiler/linker'
@@ -136,9 +134,13 @@ function listFunctions(
   const compilerHost = ts.createCompilerHost(compilerOptions)
   const allSources = [mainFileName].concat(otherSourceFiles)
   const program = ts.createProgram(allSources, compilerOptions, compilerHost)
-  const mainSourceFile = program.getSourceFile(mainFileName)!
+  const mainSourceFile = program.getSourceFile(mainFileName)
   const typeChecker = program.getTypeChecker()
   const diagnostics = ts.getPreEmitDiagnostics(program)
+
+  if (!mainSourceFile) {
+    throw new Error('mainSourceFile undefined')
+  }
 
   expect(diagnostics).to.deep.equal([])
 
@@ -155,7 +157,7 @@ function qualifiedName(decl: ts.FunctionDeclaration): string {
       ts.isModuleBlock(node.parent) &&
       ts.isModuleDeclaration(node.parent.parent)
     ) {
-      node = node.parent.parent as ts.ModuleDeclaration
+      node = node.parent.parent
 
       name = node.name.getText() + '.' + name
     }

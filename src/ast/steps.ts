@@ -906,16 +906,22 @@ function trySteps(
 
     const targets = ctx.finalizerTargets ?? []
     targets.push(startOfFinalizer.label)
-    ctx = Object.assign({}, ctx, { finalizerTargets: targets })
+    const ctx2: StepContext & { finalizerTarget?: Label[] } = Object.assign(
+      {},
+      ctx,
+      {
+        finalizerTargets: targets,
+      },
+    )
 
-    const [conditionVariable, valueVariable] = finalizerVariables(ctx)
+    const [conditionVariable, valueVariable] = finalizerVariables(ctx2)
     const initStatement = finalizerInitializer(
       generateLabel,
       conditionVariable,
       valueVariable,
     )
     const outerLabel = generateLabel('try')
-    const innerTry = tryCatchRetrySteps(generateLabel, ctx, statement)
+    const innerTry = tryCatchRetrySteps(generateLabel, ctx2, statement)
 
     const errorVariable = VariableName('__fin_exc')
     const outerTry = {
@@ -933,13 +939,13 @@ function trySteps(
 
     // Reset ctx before parsing the finally block because we don't want to
     // transform returns in finally block in to delayed returns
-    if (ctx.finalizerTargets && ctx.finalizerTargets.length <= 1) {
-      delete ctx.finalizerTargets
+    if (ctx2.finalizerTargets && ctx2.finalizerTargets.length <= 1) {
+      delete ctx2.finalizerTargets
     } else {
-      ctx.finalizerTargets?.pop()
+      ctx2.finalizerTargets?.pop()
     }
 
-    const toSteps = statementListToSteps(generateLabel, ctx)
+    const toSteps = statementListToSteps(generateLabel, ctx2)
     const finallyBlock = toSteps(statement.finalizerBody)
 
     return [
@@ -1305,9 +1311,9 @@ function removeJumpTargetsFor(step: ForStep): ForStep {
 }
 
 function removeJumpTargetsParallel(step: ParallelStep): ParallelStep {
-  const branches = step.branches.map(({ name, steps: nestedSteps }) => ({
+  const branches = step.branches.map(({ name, steps: nested }) => ({
     name,
-    steps: removeJumpTargetSteps(nestedSteps),
+    steps: removeJumpTargetSteps(nested),
   }))
 
   return {

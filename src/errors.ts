@@ -6,7 +6,7 @@ export interface SourceCodeLocation {
 // WorkflowSyntaxError is thrown when the input contains a syntax error.
 // The error is in user's input.
 export class WorkflowSyntaxError extends Error {
-  constructor(
+  public constructor(
     message: string,
     public readonly location: SourceCodeLocation,
   ) {
@@ -17,7 +17,7 @@ export class WorkflowSyntaxError extends Error {
 // WorkflowSyntaxError enriched with the source code filename and the text of
 // the line where the error occurred.
 export class WorkflowSyntaxErrorWithText extends WorkflowSyntaxError {
-  constructor(
+  public constructor(
     message: string,
     public readonly location: SourceCodeLocation,
     public readonly filename: string,
@@ -47,14 +47,14 @@ export function syntaxErrorWithText(
 // InternalTranspilingError is thrown when ts2workflow ends up in an unexpected state.
 // This is a bug in ts2workflow.
 export class InternalTranspilingError extends Error {
-  constructor(message: string) {
+  public constructor(message: string) {
     super(`Internal error: ${message}`)
   }
 }
 
 // An IO error with an error code string, similar to Node's SystemError
 export class IOError extends Error {
-  constructor(
+  public constructor(
     message: string,
     public readonly code: string,
   ) {

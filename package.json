@@ -17,7 +17,7 @@
   "scripts": {
     "build": "npm run build:functionmetadata && tsc --build",
     "build:functionmetadata": "node scripts/generateBlockingFunctionMetadata.js",
-    "lint": "eslint src test scripts",
+    "lint": "oxlint src test scripts",
     "format": "prettier . --write",
     "test": "mocha",
     "test:coverage": "nyc --reporter=text --reporter=html mocha",
@@ -26,15 +26,15 @@
   "lint-staged": {
     "src/**/*.ts": [
       "prettier --write",
-      "eslint"
+      "oxlint"
     ],
     "test/**/*.ts": [
       "prettier --write",
-      "eslint"
+      "oxlint"
     ],
     "scripts/**/*.ts": [
       "prettier --write",
-      "eslint"
+      "oxlint"
     ],
     "*.md": [
       "prettier --write"
@@ -60,21 +60,19 @@
     "transpiler"
   ],
   "devDependencies": {
-    "@eslint/js": "10.0.1",
     "@istanbuljs/nyc-config-typescript": "1.0.2",
     "@types/chai": "5.2.3",
     "@types/mocha": "10.0.10",
     "@types/node": "^20",
     "@types/ramda": "0.31.1",
-    "@typescript-eslint/eslint-plugin": "8.57.2",
-    "@typescript-eslint/parser": "8.57.2",
     "chai": "6.2.2",
-    "eslint": "10.4.1",
     "globals": "17.6.0",
     "husky": "9.1.7",
     "lint-staged": "16.4.0",
     "mocha": "11.7.6",
     "nyc": "18.0.0",
+    "oxlint": "1.76.0",
+    "oxlint-tsgolint": "7.0.2001",
     "prettier": "3.8.3",
     "rimraf": "6.1.3",
     "source-map-support": "0.5.21",

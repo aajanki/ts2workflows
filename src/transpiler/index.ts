@@ -64,7 +64,7 @@ export function transpile(
   }
 }
 
-export function transpileText(sourceCode: string) {
+export function transpileText(sourceCode: string): string {
   const parserOptions = eslintParserOptions()
   const { ast } = parseAndGenerateServices(sourceCode, parserOptions)
   const workflow = esProgramToWorkflowAppEnrichErrors(

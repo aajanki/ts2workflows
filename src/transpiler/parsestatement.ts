@@ -68,7 +68,7 @@ export function parseStatement(
 ): WorkflowStatement[] {
   switch (node.type) {
     case AST_NODE_TYPES.BlockStatement:
-      return node.body.flatMap((node) => parseStatement(node, ctx))
+      return node.body.flatMap((n) => parseStatement(n, ctx))
 
     case AST_NODE_TYPES.VariableDeclaration:
       return convertVariableDeclarations(node, ctx)
@@ -422,6 +422,7 @@ function throwIfInvalidRestElement(
   if (i >= 0 && i !== patterns.length - 1) {
     throw new WorkflowSyntaxError(
       'A rest element must be last in a destructuring pattern',
+      // oxlint-disable-next-line no-non-null-assertion
       patterns[i]!.loc,
     )
   }

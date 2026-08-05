@@ -50,15 +50,15 @@ function findNestedFunctions(
 ): ts.FunctionDeclaration[] {
   const functionDeclarations: ts.FunctionDeclaration[] = []
 
-  function visit(node: ts.Node) {
+  function visit(n: ts.Node) {
     // isImportOrExportSpecifier() check ignores foo in "import { foo } from ..."
-    if (ts.isIdentifier(node) && !ts.isImportOrExportSpecifier(node.parent)) {
+    if (ts.isIdentifier(n) && !ts.isImportOrExportSpecifier(n.parent)) {
       functionDeclarations.push(
-        ...functionDeclarationsForIdentifier(typeChecker, node),
+        ...functionDeclarationsForIdentifier(typeChecker, n),
       )
     }
 
-    ts.forEachChild(node, visit)
+    ts.forEachChild(n, visit)
   }
 
   visit(node)

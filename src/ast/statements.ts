@@ -30,27 +30,27 @@ export interface CustomRetryPolicy {
 }
 
 export class AssignStatement {
-  readonly tag = 'assign'
+  public readonly tag = 'assign'
 
-  constructor(public readonly assignments: VariableAssignment[]) {}
+  public constructor(public readonly assignments: VariableAssignment[]) {}
 }
 
 export class BreakStatement {
-  readonly tag = 'break'
+  public readonly tag = 'break'
 
-  constructor(public readonly label?: Label) {}
+  public constructor(public readonly label?: Label) {}
 }
 
 export class ContinueStatement {
-  readonly tag = 'continue'
+  public readonly tag = 'continue'
 
-  constructor(public readonly label?: Label) {}
+  public constructor(public readonly label?: Label) {}
 }
 
 export class ForStatement {
-  readonly tag = 'for'
+  public readonly tag = 'for'
 
-  constructor(
+  public constructor(
     public readonly body: WorkflowStatement[],
     public readonly loopVariableName: VariableName,
     public readonly listExpression: Expression,
@@ -59,9 +59,9 @@ export class ForStatement {
 }
 
 export class ForRangeStatement {
-  readonly tag = 'for-range'
+  public readonly tag = 'for-range'
 
-  constructor(
+  public constructor(
     public readonly body: WorkflowStatement[],
     public readonly loopVariableName: VariableName,
     public readonly rangeStart: number | Expression,
@@ -70,9 +70,9 @@ export class ForRangeStatement {
 }
 
 export class FunctionInvocationStatement {
-  readonly tag = 'function-invocation'
+  public readonly tag = 'function-invocation'
 
-  constructor(
+  public constructor(
     public readonly callee: string,
     public readonly args?: WorkflowParameters,
     public readonly result?: VariableName,
@@ -90,9 +90,9 @@ export interface IfNextBranch {
 }
 
 export class IfStatement {
-  readonly tag = 'if'
+  public readonly tag = 'if'
 
-  constructor(public readonly branches: (IfBranch | IfNextBranch)[]) {}
+  public constructor(public readonly branches: (IfBranch | IfNextBranch)[]) {}
 }
 
 export interface ParallelBranch {
@@ -101,9 +101,9 @@ export interface ParallelBranch {
 }
 
 export class ParallelStatement {
-  readonly tag = 'parallel'
+  public readonly tag = 'parallel'
 
-  constructor(
+  public constructor(
     public readonly branches: ParallelBranch[],
     public readonly shared?: VariableName[],
     public readonly concurrencyLimit?: number,
@@ -112,9 +112,9 @@ export class ParallelStatement {
 }
 
 export class ParallelForStatement {
-  readonly tag = 'parallel-for'
+  public readonly tag = 'parallel-for'
 
-  constructor(
+  public constructor(
     public readonly forStep: ForStatement | ForRangeStatement,
     public readonly shared?: VariableName[],
     public readonly concurrencyLimit?: number,
@@ -123,27 +123,27 @@ export class ParallelForStatement {
 }
 
 export class RaiseStatement {
-  readonly tag = 'raise'
+  public readonly tag = 'raise'
 
-  constructor(public readonly value: Expression) {}
+  public constructor(public readonly value: Expression) {}
 }
 
 export class ReturnStatement {
-  readonly tag = 'return'
+  public readonly tag = 'return'
 
-  constructor(public readonly value: Expression | undefined) {}
+  public constructor(public readonly value: Expression | undefined) {}
 }
 
 export class SwitchStatement {
-  readonly tag = 'switch'
+  public readonly tag = 'switch'
 
-  constructor(public readonly branches: IfBranch[]) {}
+  public constructor(public readonly branches: IfBranch[]) {}
 }
 
 export class TryStatement {
-  readonly tag = 'try'
+  public readonly tag = 'try'
 
-  constructor(
+  public constructor(
     public readonly tryBody: WorkflowStatement[],
     public readonly exceptBody?: WorkflowStatement[],
     public readonly retryPolicy?: string | CustomRetryPolicy,
@@ -153,27 +153,27 @@ export class TryStatement {
 }
 
 export class WhileStatement {
-  readonly tag = 'while'
+  public readonly tag = 'while'
 
-  constructor(
+  public constructor(
     public readonly condition: Expression,
     public readonly body: WorkflowStatement[],
   ) {}
 }
 
 export class DoWhileStatement {
-  readonly tag = 'do-while'
+  public readonly tag = 'do-while'
 
-  constructor(
+  public constructor(
     public readonly condition: Expression,
     public readonly body: WorkflowStatement[],
   ) {}
 }
 
 export class LabelledStatement {
-  readonly tag = 'label'
+  public readonly tag = 'label'
 
-  constructor(
+  public constructor(
     public readonly label: Label,
     public readonly statements: WorkflowStatement[],
   ) {}

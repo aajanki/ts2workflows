@@ -22,17 +22,17 @@ export interface WorkflowParameter {
  * This is the main container class that brings together all subworkflows in a program
  */
 export class WorkflowApp {
-  readonly subworkflows: Subworkflow[]
+  private readonly subworkflows: Subworkflow[]
 
-  constructor(subworkflows: Subworkflow[]) {
+  public constructor(subworkflows: Subworkflow[]) {
     this.subworkflows = subworkflows
   }
 
-  getSubworkflowByName(name: string): Subworkflow | undefined {
+  public getSubworkflowByName(name: string): Subworkflow | undefined {
     return this.subworkflows.find((w) => w.name === name)
   }
 
-  render(): Record<string, unknown> {
+  public render(): Record<string, unknown> {
     return Object.fromEntries(
       new Map(this.subworkflows.map((wf) => [wf.name, wf.renderBody()])),
     )
@@ -40,7 +40,7 @@ export class WorkflowApp {
 }
 
 export class SubworkflowStatements {
-  constructor(
+  public constructor(
     public readonly name: string,
     public readonly statements: WorkflowStatement[],
     public readonly params?: WorkflowParameter[],
@@ -49,11 +49,11 @@ export class SubworkflowStatements {
 
 // https://cloud.google.com/workflows/docs/reference/syntax/subworkflows
 export class Subworkflow {
-  readonly name: string
-  readonly steps: WorkflowStep[]
-  readonly params?: WorkflowParameter[]
+  public readonly name: string
+  private readonly steps: WorkflowStep[]
+  private readonly params?: WorkflowParameter[]
 
-  constructor(
+  public constructor(
     name: string,
     steps: WorkflowStep[],
     params?: WorkflowParameter[],
@@ -63,7 +63,7 @@ export class Subworkflow {
     this.params = params
   }
 
-  renderBody(): Record<string, unknown> {
+  public renderBody(): Record<string, unknown> {
     const body = {}
     if (this.params && this.params.length > 0) {
       Object.assign(body, {

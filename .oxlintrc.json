@@ -1,0 +1,51 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": [
+    "typescript"
+  ],
+  "categories": {
+    "correctness": "error",
+    "restriction": "error",
+    "suspicious": "error",
+    "perf": "warn",
+  },
+  "rules": {
+    "complexity": [
+      "warn",
+      {
+        "max": 25
+      }
+    ],
+    "consistent-return": "off",
+    "default-case": "off",
+    "explicit-function-return-type": "off",
+    "no-bitwise": "off",
+    "no-console": "off",
+    "no-plusplus": "off",
+    "no-undefined": "off",
+    "no-use-before-define": "off",
+    "no-misused-spread": "off",
+    "no-underscore-dangle": "off",
+    "no-unsafe-type-assertion": "off",
+    "func-style": [
+      "error",
+      "declaration",
+      {
+        "allowArrowFunctions": true
+      }
+    ],
+  },
+  "options": {
+    "typeAware": true
+  },
+  "env": {
+    "builtin": true
+  },
+  "ignorePatterns": [
+    "dist/",
+    "samples/",
+    "test/fixtures",
+    "types",
+    "eslint.config.mjs"
+  ],
+}

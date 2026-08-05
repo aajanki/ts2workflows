@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call */
-
 import { expect } from 'chai'
 import { prettifySyntaxError } from '../src/diagnostics'
 import { WorkflowSyntaxError, WorkflowSyntaxErrorWithText } from '../src/errors'

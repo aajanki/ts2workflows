@@ -16,7 +16,7 @@ export function prettifySyntaxError(exception: WorkflowSyntaxError): string {
 
   return (
     `${errorLocator(filename, exception.location, errorLineText)}\n` +
-    `${exception.message}`
+    exception.message
   )
 }
 

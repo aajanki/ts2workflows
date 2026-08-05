@@ -568,6 +568,7 @@ function extractMapsInMap(
     },
     {
       tempVariables: [] as VariableAssignment[],
+      // oxlint-disable-next-line no-unnecessary-type-assertion
       properties: {} as Record<string, Expression>,
     },
   )

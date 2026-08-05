@@ -166,7 +166,7 @@ function convertBinaryExpression(
     case '<':
     case '<=':
     case 'in':
-      op = instance.operator as BinaryOperator
+      op = instance.operator
       break
 
     case '===':
