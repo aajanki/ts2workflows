@@ -514,10 +514,7 @@ function convertTemplateLiteralToExpression(
 
 export function throwIfSpread<
   T extends
-    | TSESTree.Expression
-    | TSESTree.Property
-    | TSESTree.SpreadElement
-    | null,
+    TSESTree.Expression | TSESTree.Property | TSESTree.SpreadElement | null,
 >(nodes: T[]): Exclude<T, TSESTree.SpreadElement>[] {
   const unsupported = nodes.find(
     (x) => x?.type === AST_NODE_TYPES.SpreadElement,

@@ -7,7 +7,7 @@
     "correctness": "error",
     "restriction": "error",
     "suspicious": "error",
-    "perf": "warn",
+    "perf": "warn"
   },
   "rules": {
     "complexity": [
@@ -33,7 +33,7 @@
       {
         "allowArrowFunctions": true
       }
-    ],
+    ]
   },
   "options": {
     "typeAware": true
@@ -47,5 +47,5 @@
     "test/fixtures",
     "types",
     "eslint.config.mjs"
-  ],
+  ]
 }

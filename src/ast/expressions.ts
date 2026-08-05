@@ -343,10 +343,7 @@ export function isQualifiedName(ex: Expression): boolean {
 export function isPrimitive(
   ex: Expression,
 ): ex is
-  | StringExpression
-  | NumberExpression
-  | BooleanExpression
-  | NullExpression {
+  StringExpression | NumberExpression | BooleanExpression | NullExpression {
   return (
     ex.tag === 'string' ||
     ex.tag === 'number' ||

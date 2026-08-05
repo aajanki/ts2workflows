@@ -444,9 +444,7 @@ export declare namespace googleapis {
         fields: GoogleFirestoreAdminV1IndexField[]
         name?: string
         queryScope:
-          | 'QUERY_SCOPE_UNSPECIFIED'
-          | 'COLLECTION'
-          | 'COLLECTION_GROUP'
+          'QUERY_SCOPE_UNSPECIFIED' | 'COLLECTION' | 'COLLECTION_GROUP'
         state?: 'STATE_UNSPECIFIED' | 'CREATING' | 'READY' | 'NEEDS_REPAIR'
       }
       interface GoogleFirestoreAdminV1IndexConfig {

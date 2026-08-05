@@ -235,8 +235,8 @@ function renderAssignStep(step: AssignStep): Record<string, unknown> {
 
 function renderCallStep(step: CallStep): Record<string, unknown> {
   let args:
-    | Record<string, null | string | number | boolean | object>
-    | undefined = undefined
+    Record<string, null | string | number | boolean | object> | undefined =
+    undefined
   if (step.args) {
     args = R.map(expressionToLiteralValueOrLiteralExpression, step.args)
   }

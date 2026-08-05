@@ -12,10 +12,7 @@ import { WorkflowStep, renderStep } from './steps.js'
 export interface WorkflowParameter {
   name: VariableName
   default?:
-    | StringExpression
-    | NumberExpression
-    | BooleanExpression
-    | NullExpression
+    StringExpression | NumberExpression | BooleanExpression | NullExpression
 }
 
 /**
