@@ -526,6 +526,7 @@ export function throwIfSpread<
     )
   }
 
+  // oxlint-disable-next-line no-unsafe-type-assertion
   const argumentExpressions = nodes.filter(
     (x) => x?.type !== AST_NODE_TYPES.SpreadElement,
   ) as Exclude<T, TSESTree.SpreadElement>[]

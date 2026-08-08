@@ -24,9 +24,7 @@
     "no-plusplus": "off",
     "no-undefined": "off",
     "no-use-before-define": "off",
-    "no-misused-spread": "off",
     "no-underscore-dangle": "off",
-    "no-unsafe-type-assertion": "off",
     "func-style": [
       "error",
       "declaration",

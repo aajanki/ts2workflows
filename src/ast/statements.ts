@@ -56,6 +56,15 @@ export class ForStatement {
     public readonly listExpression: Expression,
     public readonly indexVariableName?: VariableName,
   ) {}
+
+  public withListExpression(ex: Expression): ForStatement {
+    return new ForStatement(
+      this.body,
+      this.loopVariableName,
+      ex,
+      this.indexVariableName,
+    )
+  }
 }
 
 export class ForRangeStatement {
@@ -67,6 +76,13 @@ export class ForRangeStatement {
     public readonly rangeStart: number | Expression,
     public readonly rangeEnd: number | Expression,
   ) {}
+
+  public withRange(
+    start: number | Expression,
+    end: number | Expression,
+  ): ForRangeStatement {
+    return new ForRangeStatement(this.body, this.loopVariableName, start, end)
+  }
 }
 
 export class FunctionInvocationStatement {
@@ -77,6 +93,12 @@ export class FunctionInvocationStatement {
     public readonly args?: WorkflowParameters,
     public readonly result?: VariableName,
   ) {}
+
+  public withArguments(
+    newArgs: WorkflowParameters,
+  ): FunctionInvocationStatement {
+    return new FunctionInvocationStatement(this.callee, newArgs, this.result)
+  }
 }
 
 export interface IfBranch {
@@ -159,6 +181,10 @@ export class WhileStatement {
     public readonly condition: Expression,
     public readonly body: WorkflowStatement[],
   ) {}
+
+  public withCondition(newCondition: Expression): WhileStatement {
+    return new WhileStatement(newCondition, this.body)
+  }
 }
 
 export class DoWhileStatement {
@@ -168,6 +194,10 @@ export class DoWhileStatement {
     public readonly condition: Expression,
     public readonly body: WorkflowStatement[],
   ) {}
+
+  public withCondition(newCondition: Expression): DoWhileStatement {
+    return new DoWhileStatement(newCondition, this.body)
+  }
 }
 
 export class LabelledStatement {
@@ -246,6 +276,7 @@ export function applyNested(
 
     case 'parallel-for':
       return new ParallelForStatement(
+        // oxlint-disable-next-line no-unsafe-type-assertion
         applyNested(fn, s.forStep) as ForStatement | ForRangeStatement, // FIXME typing
         s.shared,
         s.concurrencyLimit,

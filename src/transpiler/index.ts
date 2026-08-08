@@ -290,12 +290,9 @@ function parseTopLevelStatement(
       // "export" keyword is ignored, but a possible function declaration is transpiled.
       if (
         node.declaration?.type === AST_NODE_TYPES.FunctionDeclaration &&
-        node.declaration.id?.type === AST_NODE_TYPES.Identifier
+        isFunctionDeclarationWithName(node.declaration)
       ) {
-        // Why is "as" needed here?
-        return parseTopLevelStatement(
-          node.declaration as TSESTree.FunctionDeclarationWithName,
-        )
+        return parseTopLevelStatement(node.declaration)
       } else {
         return []
       }
@@ -313,6 +310,14 @@ function parseTopLevelStatement(
         node.loc,
       )
   }
+}
+
+function isFunctionDeclarationWithName(
+  node:
+    | TSESTree.FunctionDeclarationWithOptionalName
+    | TSESTree.FunctionDeclarationWithName,
+): node is TSESTree.FunctionDeclarationWithName {
+  return node.id?.type === AST_NODE_TYPES.Identifier
 }
 
 function parseSubworkflows(

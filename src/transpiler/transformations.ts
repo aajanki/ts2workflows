@@ -179,7 +179,7 @@ function expandAssign(
 
     return { name: transformedKey, value: transformedValue }
   })
-  newStatements.push({ ...statement, assignments: newAssignments })
+  newStatements.push(new AssignStatement(newAssignments))
   return newStatements
 }
 
@@ -194,7 +194,8 @@ function expandFunctionInvocation(
       newStatements.push(...st2)
       return ex2
     }, statement.args)
-    newStatements.push({ ...statement, args: newArgs })
+    newStatements.push(statement.withArguments(newArgs))
+
     return newStatements
   } else {
     return [statement]
@@ -206,7 +207,7 @@ function expandFor(
   statement: ForStatement,
 ): WorkflowStatement[] {
   const [res, newListExpression] = transform(statement.listExpression)
-  res.push({ ...statement, listExpression: newListExpression })
+  res.push(statement.withListExpression(newListExpression))
   return res
 }
 
@@ -234,7 +235,7 @@ function expandForRange(
     newRangeEnd = ex2
   }
 
-  res.push({ ...statement, rangeStart: newRangeStart, rangeEnd: newRangeEnd })
+  res.push(statement.withRange(newRangeStart, newRangeEnd))
 
   return res
 }
@@ -265,7 +266,7 @@ function expandRaise(
   statement: RaiseStatement,
 ): WorkflowStatement[] {
   const [res, newEx] = transform(statement.value)
-  res.push({ ...statement, value: newEx })
+  res.push(new RaiseStatement(newEx))
   return res
 }
 
@@ -275,7 +276,7 @@ function expanrdReturn(
 ): WorkflowStatement[] {
   if (statement.value) {
     const [newStatements, newEx] = transform(statement.value)
-    newStatements.push({ ...statement, value: newEx })
+    newStatements.push(new ReturnStatement(newEx))
     return newStatements
   } else {
     return [statement]
@@ -296,7 +297,7 @@ function expandSwitch(
       body: branch.body,
     }
   })
-  res.push({ ...statement, branches: newBranches })
+  res.push(new SwitchStatement(newBranches))
   return res
 }
 
@@ -305,7 +306,7 @@ function expandWhile(
   statement: WhileStatement | DoWhileStatement,
 ): WorkflowStatement[] {
   const [res, newCond] = transform(statement.condition)
-  res.push({ ...statement, condition: newCond })
+  res.push(statement.withCondition(newCond))
 
   return res
 }

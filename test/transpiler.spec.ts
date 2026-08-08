@@ -454,7 +454,13 @@ describe('Sample source files', () => {
     const configPath = `${samplesdir}/tsconfig.json`
     const sourceCode = fs.readFileSync(mainPath, 'utf-8')
     const yaml = transpile(mainPath, sourceCode, configPath, true)
-    const observed = YAML.parse(yaml) as object
+    const observed = YAML.parse(yaml) as unknown
+
+    if (!(typeof observed === 'object' && observed !== null)) {
+      throw new Error(
+        `transpiler returned an unexpected type: ${typeof observed}`,
+      )
+    }
 
     // main comes from sample2.ts
     // get_url comes from imported file http_helpers.ts

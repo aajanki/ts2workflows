@@ -172,9 +172,7 @@ function versionFromPackageJson(): string {
   const currentFile = fileURLToPath(import.meta.url)
   const currentDir = path.dirname(currentFile)
   const packagePath = path.join(currentDir, '..', 'package.json')
-  const pjson = JSON.parse(fs.readFileSync(packagePath, 'utf-8')) as {
-    version?: string
-  }
+  const pjson = JSON.parse(fs.readFileSync(packagePath, 'utf-8'))
   return pjson.version ?? '???'
 }
 
