@@ -7,22 +7,24 @@ import {
   numberEx,
   stringEx,
   trueEx,
+  VariableName,
   variableReferenceEx,
+  VariableReferenceExpression,
 } from '../src/ast/expressions.js'
-import { renderStep, WorkflowStep } from '../src/ast/steps.js'
+import { Label, renderStep, WorkflowStep } from '../src/ast/steps.js'
 
 describe('workflow steps', () => {
   it('renders an assign step', () => {
     const step = {
       tag: 'assign' as const,
-      label: 'test1',
+      label: Label('test1'),
       assignments: [
         {
-          name: variableReferenceEx('city'),
+          name: variableReferenceExFromString('city'),
           value: stringEx('New New York'),
         },
         {
-          name: variableReferenceEx('value'),
+          name: variableReferenceExFromString('value'),
           value: parseExpression('1 + 2'),
         },
       ],
@@ -41,10 +43,10 @@ describe('workflow steps', () => {
   it('assigns variables with index notation', () => {
     const step = {
       tag: 'assign' as const,
-      label: 'test1',
+      label: Label('test1'),
       assignments: [
         {
-          name: variableReferenceEx('my_list'),
+          name: variableReferenceExFromString('my_list'),
           value: listEx([
             numberEx(0),
             numberEx(1),
@@ -54,19 +56,19 @@ describe('workflow steps', () => {
           ]),
         },
         {
-          name: variableReferenceEx('idx'),
+          name: variableReferenceExFromString('idx'),
           value: numberEx(0),
         },
         {
-          name: variableReferenceEx('my_list[0]'),
+          name: variableReferenceExFromString('my_list[0]'),
           value: stringEx('Value0'),
         },
         {
-          name: variableReferenceEx('my_list[idx + 1]'),
+          name: variableReferenceExFromString('my_list[idx + 1]'),
           value: stringEx('Value1'),
         },
         {
-          name: variableReferenceEx('my_list[len(my_list) - 1]'),
+          name: variableReferenceExFromString('my_list[len(my_list) - 1]'),
           value: stringEx('LastValue'),
         },
       ],
@@ -88,7 +90,7 @@ describe('workflow steps', () => {
   it('renders a simple call step', () => {
     const step = {
       tag: 'call' as const,
-      label: 'test1',
+      label: Label('test1'),
       call: 'destination_step',
     }
 
@@ -102,13 +104,13 @@ describe('workflow steps', () => {
   it('renders a call step with arguments and result', () => {
     const step = {
       tag: 'call' as const,
-      label: 'test1',
+      label: Label('test1'),
       call: 'deliver_package',
       args: {
         destination: stringEx('Atlanta'),
         deliveryCompany: stringEx('Planet Express'),
       },
-      result: 'deliveryResult',
+      result: VariableName('deliveryResult'),
     }
 
     const expected = `
@@ -126,7 +128,7 @@ describe('workflow steps', () => {
   it('renders a call step with an expression as an argument', () => {
     const step = {
       tag: 'call' as const,
-      label: 'test1',
+      label: Label('test1'),
       call: 'deliver_package',
       args: {
         destination: parseExpression('destinations[i]'),
@@ -146,34 +148,34 @@ describe('workflow steps', () => {
   it('renders a switch step', () => {
     const assign1 = {
       tag: 'assign' as const,
-      label: 'increase_counter',
+      label: Label('increase_counter'),
       assignments: [
         {
-          name: variableReferenceEx('a'),
+          name: variableReferenceExFromString('a'),
           value: parseExpression('mars_counter + 1'),
         },
       ],
     }
     const return1 = {
       tag: 'return' as const,
-      label: 'return_counter',
+      label: Label('return_counter'),
       value: parseExpression('a'),
     }
     const step = {
       tag: 'switch' as const,
-      label: 'switch1',
+      label: Label('switch1'),
       branches: [
         {
           condition: parseExpression('city == "New New York"'),
           steps: [],
-          next: 'destination_new_new_york',
+          next: Label('destination_new_new_york'),
         },
         {
           condition: parseExpression('city == "Mars Vegas"'),
           steps: [assign1, return1],
         },
       ],
-      next: 'end',
+      next: Label('end'),
     }
 
     const expected = `
@@ -197,23 +199,23 @@ describe('workflow steps', () => {
   it('renders a try step', () => {
     const potentiallyFailingStep = {
       tag: 'call' as const,
-      label: 'http_step',
+      label: Label('http_step'),
       call: 'http.get',
       args: {
         url: stringEx('https://maybe.failing.test/'),
       },
-      result: 'response',
+      result: VariableName('response'),
     }
     const knownErrors = {
       tag: 'switch' as const,
-      label: 'known_errors',
+      label: Label('known_errors'),
       branches: [
         {
           condition: parseExpression('e.code == 404'),
           steps: [
             {
               tag: 'return' as const,
-              label: 'return_error',
+              label: Label('return_error'),
               value: stringEx('Not found'),
             },
           ],
@@ -222,15 +224,15 @@ describe('workflow steps', () => {
     }
     const unknownErrors = {
       tag: 'raise' as const,
-      label: 'unknown_errors',
+      label: Label('unknown_errors'),
       value: parseExpression('e'),
     }
     const step = {
       tag: 'try' as const,
-      label: 'try1',
+      label: Label('try1'),
       trySteps: [potentiallyFailingStep],
       exceptSteps: [knownErrors, unknownErrors],
-      errorMap: 'e',
+      errorMap: VariableName('e'),
     }
 
     const expected = `
@@ -261,23 +263,23 @@ describe('workflow steps', () => {
   it('renders a try step with a default retry policy', () => {
     const potentiallyFailingStep = {
       tag: 'call' as const,
-      label: 'http_step',
+      label: Label('http_step'),
       call: 'http.get',
       args: {
         url: stringEx('https://maybe.failing.test/'),
       },
-      result: 'response',
+      result: VariableName('response'),
     }
     const knownErrors = {
       tag: 'switch' as const,
-      label: 'known_errors',
+      label: Label('known_errors'),
       branches: [
         {
           condition: parseExpression('e.code == 404'),
           steps: [
             {
               tag: 'return' as const,
-              label: 'return_error',
+              label: Label('return_error'),
               value: stringEx('Not found'),
             },
           ],
@@ -286,16 +288,16 @@ describe('workflow steps', () => {
     }
     const unknownErrors = {
       tag: 'raise' as const,
-      label: 'unknown_errors',
+      label: Label('unknown_errors'),
       value: parseExpression('e'),
     }
     const step = {
       tag: 'try' as const,
-      label: 'try1',
+      label: Label('try1'),
       trySteps: [potentiallyFailingStep],
       exceptSteps: [knownErrors, unknownErrors],
       retryPolicy: 'http.default_retry',
-      errorMap: 'e',
+      errorMap: VariableName('e'),
     }
 
     const expected = `
@@ -327,23 +329,23 @@ describe('workflow steps', () => {
   it('renders a try step with a custom retry policy', () => {
     const potentiallyFailingStep = {
       tag: 'call' as const,
-      label: 'http_step',
+      label: Label('http_step'),
       call: 'http.get',
       args: {
         url: stringEx('https://maybe.failing.test/'),
       },
-      result: 'response',
+      result: VariableName('response'),
     }
     const knownErrors = {
       tag: 'switch' as const,
-      label: 'known_errors',
+      label: Label('known_errors'),
       branches: [
         {
           condition: parseExpression('e.code == 404'),
           steps: [
             {
               tag: 'return' as const,
-              label: 'return_error',
+              label: Label('return_error'),
               value: stringEx('Not found'),
             },
           ],
@@ -352,12 +354,12 @@ describe('workflow steps', () => {
     }
     const unknownErrors = {
       tag: 'raise' as const,
-      label: 'unknown_errors',
+      label: Label('unknown_errors'),
       value: parseExpression('e'),
     }
     const step = {
       tag: 'try' as const,
-      label: 'try1',
+      label: Label('try1'),
       trySteps: [potentiallyFailingStep],
       exceptSteps: [knownErrors, unknownErrors],
       retryPolicy: {
@@ -366,10 +368,10 @@ describe('workflow steps', () => {
         backoff: {
           initialDelay: numberEx(0.5),
           maxDelay: numberEx(60),
-          multiplier: variableReferenceEx('multiplier'),
+          multiplier: variableReferenceExFromString('multiplier'),
         },
       },
-      errorMap: 'e',
+      errorMap: VariableName('e'),
     }
 
     const expected = `
@@ -407,29 +409,29 @@ describe('workflow steps', () => {
   it('renders a try step with a subworkflow as a retry predicate', () => {
     const predicateSubworkflow = new Subworkflow(
       'my_retry_predicate',
-      [{ tag: 'return' as const, label: 'always_retry', value: trueEx }],
-      [{ name: 'e' }],
+      [{ tag: 'return' as const, label: Label('always_retry'), value: trueEx }],
+      [{ name: VariableName('e') }],
     )
     const potentiallyFailingStep = {
       tag: 'call' as const,
-      label: 'http_step',
+      label: Label('http_step'),
 
       call: 'http.get',
       args: {
         url: stringEx('https://maybe.failing.test/'),
       },
-      result: 'response',
+      result: VariableName('response'),
     }
     const knownErrors = {
       tag: 'switch' as const,
-      label: 'known_errors',
+      label: Label('known_errors'),
       branches: [
         {
           condition: parseExpression('e.code == 404'),
           steps: [
             {
               tag: 'return' as const,
-              label: 'return_error',
+              label: Label('return_error'),
               value: stringEx('Not found'),
             },
           ],
@@ -438,12 +440,12 @@ describe('workflow steps', () => {
     }
     const unknownErrors = {
       tag: 'raise' as const,
-      label: 'unknown_errors',
+      label: Label('unknown_errors'),
       value: parseExpression('e'),
     }
     const step = {
       tag: 'try' as const,
-      label: 'try1',
+      label: Label('try1'),
       trySteps: [potentiallyFailingStep],
       exceptSteps: [knownErrors, unknownErrors],
       retryPolicy: {
@@ -455,7 +457,7 @@ describe('workflow steps', () => {
           multiplier: numberEx(4),
         },
       },
-      errorMap: 'e',
+      errorMap: VariableName('e'),
     }
 
     const expected = `
@@ -493,20 +495,20 @@ describe('workflow steps', () => {
   it('renders a for step', () => {
     const step = {
       tag: 'for' as const,
-      label: 'test1',
+      label: Label('test1'),
       steps: [
         {
           tag: 'assign' as const,
-          label: 'addStep',
+          label: Label('addStep'),
           assignments: [
             {
-              name: variableReferenceEx('sum'),
+              name: variableReferenceExFromString('sum'),
               value: parseExpression('sum + v'),
             },
           ],
         },
       ],
-      loopVariableName: 'v',
+      loopVariableName: VariableName('v'),
       listExpression: listEx([numberEx(1), numberEx(2), numberEx(3)]),
     }
 
@@ -527,22 +529,22 @@ describe('workflow steps', () => {
   it('renders an index-based for step', () => {
     const step = {
       tag: 'for' as const,
-      label: 'test1',
+      label: Label('test1'),
       steps: [
         {
           tag: 'assign' as const,
-          label: 'addStep',
+          label: Label('addStep'),
           assignments: [
             {
-              name: variableReferenceEx('sum'),
+              name: variableReferenceExFromString('sum'),
               value: parseExpression('sum + i*v'),
             },
           ],
         },
       ],
-      loopVariableName: 'v',
+      loopVariableName: VariableName('v'),
       listExpression: listEx([numberEx(10), numberEx(20), numberEx(30)]),
-      indexVariableName: 'i',
+      indexVariableName: VariableName('i'),
     }
 
     const expected = `
@@ -563,20 +565,20 @@ describe('workflow steps', () => {
   it('renders a for-range step', () => {
     const step = {
       tag: 'for' as const,
-      label: 'test1',
+      label: Label('test1'),
       steps: [
         {
           tag: 'assign' as const,
-          label: 'addStep',
+          label: Label('addStep'),
           assignments: [
             {
-              name: variableReferenceEx('sum'),
+              name: variableReferenceExFromString('sum'),
               value: parseExpression('sum + v'),
             },
           ],
         },
       ],
-      loopVariableName: 'v',
+      loopVariableName: VariableName('v'),
       rangeStart: 1,
       rangeEnd: 9,
     }
@@ -598,20 +600,20 @@ describe('workflow steps', () => {
   it('renders a for-range step without rangeEnd', () => {
     const step = {
       tag: 'for' as const,
-      label: 'test1',
+      label: Label('test1'),
       steps: [
         {
           tag: 'assign' as const,
-          label: 'addStep',
+          label: Label('addStep'),
           assignments: [
             {
-              name: variableReferenceEx('sum'),
+              name: variableReferenceExFromString('sum'),
               value: parseExpression('sum + v'),
             },
           ],
         },
       ],
-      loopVariableName: 'v',
+      loopVariableName: VariableName('v'),
       rangeStart: 1,
     }
 
@@ -632,14 +634,14 @@ describe('workflow steps', () => {
   it('renders parallel branches', () => {
     const step = {
       tag: 'parallel' as const,
-      label: 'test1',
+      label: Label('test1'),
       branches: [
         {
-          name: 'branch1',
+          name: Label('branch1'),
           steps: [
             {
               tag: 'call' as const,
-              label: 'say_hello_1',
+              label: Label('say_hello_1'),
               call: 'sys.log',
               args: {
                 text: stringEx('Hello from branch 1'),
@@ -648,11 +650,11 @@ describe('workflow steps', () => {
           ],
         },
         {
-          name: 'branch2',
+          name: Label('branch2'),
           steps: [
             {
               tag: 'call' as const,
-              label: 'say_hello_2',
+              label: Label('say_hello_2'),
               call: 'sys.log',
               args: {
                 text: stringEx('Hello from branch 2'),
@@ -687,17 +689,17 @@ describe('workflow steps', () => {
   it('renders parallel branches with shared variables and concurrency limit', () => {
     const step = {
       tag: 'parallel' as const,
-      label: 'test1',
+      label: Label('test1'),
       branches: [
         {
-          name: 'branch1',
+          name: Label('branch1'),
           steps: [
             {
               tag: 'assign' as const,
-              label: 'assign_1',
+              label: Label('assign_1'),
               assignments: [
                 {
-                  name: variableReferenceEx('myVariable[0]'),
+                  name: variableReferenceExFromString('myVariable[0]'),
                   value: stringEx('Set in branch 1'),
                 },
               ],
@@ -705,14 +707,14 @@ describe('workflow steps', () => {
           ],
         },
         {
-          name: 'branch2',
+          name: Label('branch2'),
           steps: [
             {
               tag: 'assign' as const,
-              label: 'assign_2',
+              label: Label('assign_2'),
               assignments: [
                 {
-                  name: variableReferenceEx('myVariable[1]'),
+                  name: variableReferenceExFromString('myVariable[1]'),
                   value: stringEx('Set in branch 2'),
                 },
               ],
@@ -720,7 +722,7 @@ describe('workflow steps', () => {
           ],
         },
       ],
-      shared: ['myVariable'],
+      shared: [VariableName('myVariable')],
       concurrencyLimit: 2,
     }
 
@@ -748,32 +750,32 @@ describe('workflow steps', () => {
   it('renders a parallel for step', () => {
     const step = {
       tag: 'parallel-for' as const,
-      label: 'test1',
+      label: Label('test1'),
       forStep: {
         tag: 'for' as const,
-        label: 'for1',
+        label: Label('for1'),
         steps: [
           {
             tag: 'call' as const,
-            label: 'getBalance',
+            label: Label('getBalance'),
             call: 'http.get',
             args: {
               url: parseExpression('"https://example.com/balance/" + userId'),
             },
-            result: 'balance',
+            result: VariableName('balance'),
           },
           {
             tag: 'assign' as const,
-            label: 'add',
+            label: Label('add'),
             assignments: [
               {
-                name: variableReferenceEx('total'),
+                name: variableReferenceExFromString('total'),
                 value: parseExpression('total + balance'),
               },
             ],
           },
         ],
-        loopVariableName: 'userId',
+        loopVariableName: VariableName('userId'),
         listExpression: listEx([
           stringEx('11'),
           stringEx('12'),
@@ -781,7 +783,7 @@ describe('workflow steps', () => {
           stringEx('14'),
         ]),
       },
-      shared: ['total'],
+      shared: [VariableName('total')],
     }
 
     const expected = `
@@ -808,32 +810,32 @@ describe('workflow steps', () => {
   it('renders a parallel for step with optional parameters', () => {
     const step = {
       tag: 'parallel-for' as const,
-      label: 'test1',
+      label: Label('test1'),
       forStep: {
         tag: 'for' as const,
-        label: 'for1',
+        label: Label('for1'),
         steps: [
           {
             tag: 'call' as const,
-            label: 'getBalance',
+            label: Label('getBalance'),
             call: 'http.get',
             args: {
               url: parseExpression('"https://example.com/balance/" + userId'),
             },
-            result: 'balance',
+            result: VariableName('balance'),
           },
           {
             tag: 'assign' as const,
-            label: 'add',
+            label: Label('add'),
             assignments: [
               {
-                name: variableReferenceEx('total'),
+                name: variableReferenceExFromString('total'),
                 value: parseExpression('total + balance'),
               },
             ],
           },
         ],
-        loopVariableName: 'userId',
+        loopVariableName: VariableName('userId'),
         listExpression: listEx([
           stringEx('11'),
           stringEx('12'),
@@ -841,7 +843,7 @@ describe('workflow steps', () => {
           stringEx('14'),
         ]),
       },
-      shared: ['total'],
+      shared: [VariableName('total')],
       concurrencyLimit: 2,
       exceptionPolicy: 'continueAll',
     }
@@ -872,4 +874,8 @@ describe('workflow steps', () => {
 
 function assertRenderStep(step: WorkflowStep, expected: string): void {
   expect(renderStep(step)).to.deep.equal(YAML.parse(expected))
+}
+
+function variableReferenceExFromString(s: string): VariableReferenceExpression {
+  return variableReferenceEx(VariableName(s))
 }

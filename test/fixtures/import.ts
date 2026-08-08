@@ -1,4 +1,4 @@
-import { compute } from './computation'
+import { compute } from './computation.js'
 
 function main() {
   return compute()

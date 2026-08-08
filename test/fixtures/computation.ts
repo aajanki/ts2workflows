@@ -1,4 +1,4 @@
-import { getFirstNumber, getSecondNumber } from './numbers'
+import { getFirstNumber, getSecondNumber } from './numbers.js'
 
 export function compute() {
   const x = getFirstNumber()

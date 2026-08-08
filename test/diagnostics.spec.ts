@@ -1,6 +1,9 @@
 import { expect } from 'chai'
-import { prettifySyntaxError } from '../src/diagnostics'
-import { WorkflowSyntaxError, WorkflowSyntaxErrorWithText } from '../src/errors'
+import { prettifySyntaxError } from '../src/diagnostics.js'
+import {
+  WorkflowSyntaxError,
+  WorkflowSyntaxErrorWithText,
+} from '../src/errors.js'
 
 describe('error diagnostics', () => {
   it('prints pretty errors', () => {

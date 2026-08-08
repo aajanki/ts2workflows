@@ -6,7 +6,7 @@
     "rootDir": "src",
     "outDir": "dist",
     "moduleResolution": "node16",
-    "types": ["node", "mocha"],
+    "types": ["node"],
     "composite": true,
     "declaration": true,
     "declarationMap": true,

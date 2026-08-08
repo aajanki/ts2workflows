@@ -1,4 +1,4 @@
-import { compute as doIt } from './computation'
+import { compute as doIt } from './computation.js'
 
 function main() {
   return doIt()

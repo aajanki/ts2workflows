@@ -1,6 +1,6 @@
 import { expect } from 'chai'
 import ts from 'typescript'
-import { findCalledFunctionDeclarations } from '../src/transpiler/linker'
+import { findCalledFunctionDeclarations } from '../src/transpiler/linker.js'
 
 describe('function listing', () => {
   it('finds nested function calls', () => {
