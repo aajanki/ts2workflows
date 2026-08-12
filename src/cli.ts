@@ -178,7 +178,7 @@ function versionFromPackageJson(): string {
 
 if (
   import.meta.url.endsWith(process.argv[1]) ||
-  process.argv[1].endsWith('/ts2workflows')
+  process.argv[1].endsWith('ts2workflows')
 ) {
   cliMain()
 }
