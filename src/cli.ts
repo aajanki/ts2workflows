@@ -8,6 +8,9 @@ import { transpile, transpileText } from './transpiler/index.js'
 import { IOError, WorkflowSyntaxError } from './errors.js'
 import { TSError } from '@typescript-eslint/typescript-estree'
 import { prettifySyntaxError } from './diagnostics.js'
+import { default as initializeDebug } from 'debug'
+
+const debug = initializeDebug('ts2workflows')
 
 interface CLIOptions {
   project?: string
@@ -104,15 +107,17 @@ function cliMain() {
 }
 
 function generateTranspiledText(
-  filename: string | undefined,
+  filename: string,
   sourceCode: string,
   addGeneratedFileComment: boolean,
   linkSubworkflows: boolean,
   project?: string,
 ): string {
-  if (filename === undefined) {
+  if (filename === '-') {
     return transpileText(sourceCode)
   } else {
+    debug(`Transpiling ${filename}`)
+
     const header = addGeneratedFileComment ? generatedFileComment(filename) : ''
     const transpiled = transpile(
       filename,
@@ -141,6 +146,8 @@ function writeOutput(
     }
 
     const outputFile = createOutputFilename(inputFile, outdir)
+
+    debug(`Writing transpiled text to ${outputFile}`)
     fs.writeFileSync(outputFile, transpiled)
   } else {
     process.stdout.write(transpiled)

@@ -41,6 +41,12 @@ When developing ts2workflows, you can run the transpiler directly from the sourc
 npx tsx src/cli.ts samples/sample1.ts
 ```
 
+Define environment variable `DEBUG=ts2workflows` to get debug output:
+
+```sh
+DEBUG=ts2workflows npx ts2workflows --link --project samples/tsconfig.json --outdir workflowsfiles samples/sample*.ts
+```
+
 ### Command arguments
 
 - `--project`: Path to TSConfig for the Typescript sources files

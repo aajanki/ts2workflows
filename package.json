@@ -62,6 +62,7 @@
   "devDependencies": {
     "@istanbuljs/nyc-config-typescript": "1.0.2",
     "@types/chai": "5.2.3",
+    "@types/debug": "4.1.13",
     "@types/mocha": "10.0.10",
     "@types/node": "^20",
     "@types/ramda": "0.32.0",
@@ -85,6 +86,7 @@
   "dependencies": {
     "@typescript-eslint/typescript-estree": "8.65.0",
     "commander": "15.0.0",
+    "debug": "4.4.3",
     "ramda": "0.32.0",
     "ts-brand": "0.2.0",
     "yaml": "2.9.0"
