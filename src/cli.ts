@@ -111,12 +111,12 @@ function generateTranspiledText(
   sourceCode: string,
   addGeneratedFileComment: boolean,
   linkSubworkflows: boolean,
-  project?: string,
+  project: string | undefined,
 ): string {
   if (filename === '-') {
     return transpileText(sourceCode)
   } else {
-    debug(`Transpiling ${filename}`)
+    debug(`Transpiling ${filename}${project ? ` in project ${project}` : ''}`)
 
     const header = addGeneratedFileComment ? generatedFileComment(filename) : ''
     const transpiled = transpile(
@@ -147,7 +147,7 @@ function writeOutput(
 
     const outputFile = createOutputFilename(inputFile, outdir)
 
-    debug(`Writing transpiled text to ${outputFile}`)
+    debug(`Writing transpiled code to ${outputFile}`)
     fs.writeFileSync(outputFile, transpiled)
   } else {
     process.stdout.write(transpiled)

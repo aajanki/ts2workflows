@@ -1017,10 +1017,8 @@ function createParallelStatement(
     args[1],
   )
 
-  const ctx2: ParsingContext = Object.assign({}, ctx, {
-    parallelNestingLevel: ctx.parallelNestingLevel
-      ? ctx.parallelNestingLevel + 1
-      : 1,
+  const ctx2 = Object.assign(structuredClone(ctx), {
+    parallelNestingLevel: (ctx.parallelNestingLevel ?? 0) + 1,
   })
 
   switch (args[0]?.type) {
