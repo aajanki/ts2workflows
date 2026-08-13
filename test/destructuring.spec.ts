@@ -15,21 +15,21 @@ describe('Destructing', () => {
       steps:
         - assign1:
             assign:
-              - __temp: \${getValues()}
-              - __temp_len: \${len(__temp)}
+              - __temp_init: \${getValues()}
+              - __temp_len: \${len(__temp_init)}
         - switch1:
             switch:
               - condition: \${__temp_len >= 2}
                 steps:
                   - assign2:
                       assign:
-                        - a: \${__temp[0]}
-                        - b: \${__temp[1]}
+                        - a: \${__temp_init[0]}
+                        - b: \${__temp_init[1]}
               - condition: \${__temp_len >= 1}
                 steps:
                   - assign3:
                       assign:
-                        - a: \${__temp[0]}
+                        - a: \${__temp_init[0]}
                         - b: null
               - condition: true
                 steps:
@@ -53,15 +53,15 @@ describe('Destructing', () => {
       steps:
         - assign1:
             assign:
-              - __temp: \${getValues()}
-              - __temp_len: \${len(__temp)}
+              - __temp_init: \${getValues()}
+              - __temp_len: \${len(__temp_init)}
         - switch1:
             switch:
               - condition: \${__temp_len >= 1}
                 steps:
                   - assign2:
                       assign:
-                        - head: \${__temp[0]}
+                        - head: \${__temp_init[0]}
               - condition: true
                 steps:
                   - assign3:
@@ -89,17 +89,17 @@ describe('Destructing', () => {
             call: test_array
             args:
               id: 1
-            result: __temp
+            result: __temp_init
         - assign1:
             assign:
-              - __temp_len: \${len(__temp)}
+              - __temp_len: \${len(__temp_init)}
         - switch1:
             switch:
               - condition: \${__temp_len >= 1}
                 steps:
                   - assign2:
                       assign:
-                        - head: \${__temp[0]}
+                        - head: \${__temp_init[0]}
               - condition: true
                 steps:
                   - assign3:
@@ -249,23 +249,23 @@ describe('Destructing', () => {
             assign:
               - a: 1
               - b: 2
-              - __temp:
+              - __temp_init:
                   - \${b}
                   - \${a}
-              - __temp_len: \${len(__temp)}
+              - __temp_len: \${len(__temp_init)}
         - switch1:
             switch:
               - condition: \${__temp_len >= 2}
                 steps:
                   - assign2:
                       assign:
-                        - a: \${__temp[0]}
-                        - b: \${__temp[1]}
+                        - a: \${__temp_init[0]}
+                        - b: \${__temp_init[1]}
               - condition: \${__temp_len >= 1}
                 steps:
                   - assign3:
                       assign:
-                        - a: \${__temp[0]}
+                        - a: \${__temp_init[0]}
                         - b: null
               - condition: true
                 steps:
@@ -291,23 +291,23 @@ describe('Destructing', () => {
         - assign1:
             assign:
               - arr: [1, 2, 3]
-              - __temp:
+              - __temp_init:
                   - \${arr[1]}
                   - \${arr[2]}
-              - __temp_len: \${len(__temp)}
+              - __temp_len: \${len(__temp_init)}
         - switch1:
             switch:
               - condition: \${__temp_len >= 2}
                 steps:
                   - assign2:
                       assign:
-                        - arr[2]: \${__temp[0]}
-                        - arr[1]: \${__temp[1]}
+                        - arr[2]: \${__temp_init[0]}
+                        - arr[1]: \${__temp_init[1]}
               - condition: \${__temp_len >= 1}
                 steps:
                   - assign3:
                       assign:
-                        - arr[2]: \${__temp[0]}
+                        - arr[2]: \${__temp_init[0]}
                         - arr[1]: null
               - condition: true
                 steps:
@@ -467,16 +467,16 @@ describe('Destructing', () => {
       steps:
         - assign1:
             assign:
-              - __temp: \${getValues()}
-              - __temp_len: \${len(__temp)}
+              - __temp_init: \${getValues()}
+              - __temp_len: \${len(__temp_init)}
         - switch1:
             switch:
               - condition: \${__temp_len >= 3}
                 steps:
                   - assign2:
                       assign:
-                        - a: \${__temp[0]}
-                        - b: \${__temp[1]}
+                        - a: \${__temp_init[0]}
+                        - b: \${__temp_init[1]}
                         - rest: []
                   - for1:
                       for:
@@ -487,19 +487,19 @@ describe('Destructing', () => {
                         steps:
                           - assign3:
                               assign:
-                                - rest: \${list.concat(rest, __temp[__temp_index])}
+                                - rest: \${list.concat(rest, __temp_init[__temp_index])}
               - condition: \${__temp_len >= 2}
                 steps:
                   - assign4:
                       assign:
-                        - a: \${__temp[0]}
-                        - b: \${__temp[1]}
+                        - a: \${__temp_init[0]}
+                        - b: \${__temp_init[1]}
                         - rest: []
               - condition: \${__temp_len >= 1}
                 steps:
                   - assign5:
                       assign:
-                        - a: \${__temp[0]}
+                        - a: \${__temp_init[0]}
                         - b: null
                         - rest: []
               - condition: true
@@ -525,8 +525,8 @@ describe('Destructing', () => {
       steps:
         - assign1:
             assign:
-              - __temp: \${getValues()}
-              - __temp_len: \${len(__temp)}
+              - __temp_init: \${getValues()}
+              - __temp_len: \${len(__temp_init)}
         - switch1:
             switch:
               - condition: \${__temp_len >= 1}
@@ -543,7 +543,7 @@ describe('Destructing', () => {
                         steps:
                           - assign3:
                               assign:
-                                - values: \${list.concat(values, __temp[__temp_index])}
+                                - values: \${list.concat(values, __temp_init[__temp_index])}
               - condition: true
                 steps:
                   - assign4:
@@ -565,16 +565,16 @@ describe('Destructing', () => {
       steps:
         - assign1:
             assign:
-              - __temp: \${getValues()}
-              - __temp_len: \${len(__temp)}
+              - __temp_init: \${getValues()}
+              - __temp_len: \${len(__temp_init)}
         - switch1:
             switch:
               - condition: \${__temp_len >= 6}
                 steps:
                   - assign2:
                       assign:
-                        - a: \${__temp[0]}
-                        - b: \${__temp[3]}
+                        - a: \${__temp_init[0]}
+                        - b: \${__temp_init[3]}
                         - rest: []
                   - for1:
                       for:
@@ -585,19 +585,19 @@ describe('Destructing', () => {
                         steps:
                           - assign3:
                               assign:
-                                - rest: \${list.concat(rest, __temp[__temp_index])}
+                                - rest: \${list.concat(rest, __temp_init[__temp_index])}
               - condition: \${__temp_len >= 4}
                 steps:
                   - assign4:
                       assign:
-                        - a: \${__temp[0]}
-                        - b: \${__temp[3]}
+                        - a: \${__temp_init[0]}
+                        - b: \${__temp_init[3]}
                         - rest: []
               - condition: \${__temp_len >= 1}
                 steps:
                   - assign5:
                       assign:
-                        - a: \${__temp[0]}
+                        - a: \${__temp_init[0]}
                         - b: null
                         - rest: []
               - condition: true
@@ -953,10 +953,10 @@ describe('Destructing', () => {
       steps:
         - assign1:
             assign:
-              - __temp: \${getPerson()}
-              - name: \${map.get(__temp, "name")}
-              - age: \${map.get(__temp, "age")}
-              - address: \${map.get(__temp, "address")}
+              - __temp_init: \${getPerson()}
+              - name: \${map.get(__temp_init, "name")}
+              - age: \${map.get(__temp_init, "age")}
+              - address: \${map.get(__temp_init, "address")}
     `
 
     assertTranspiled(code, expected)
@@ -1015,9 +1015,9 @@ describe('Destructing', () => {
       steps:
         - assign1:
             assign:
-              - __temp: \${getData().person}
-              - name: \${map.get(__temp, "name")}
-              - age: \${map.get(__temp, "age")}
+              - __temp_init: \${getData().person}
+              - name: \${map.get(__temp_init, "name")}
+              - age: \${map.get(__temp_init, "age")}
     `
 
     assertTranspiled(code, expected)
@@ -1034,10 +1034,10 @@ describe('Destructing', () => {
       steps:
         - assign1:
             assign:
-              - __temp: \${getPerson()}
-              - name: \${map.get(__temp, "name")}
-              - countryName: \${map.get(__temp.address.country, "name")}
-              - code: \${map.get(__temp.address.country, "code")}
+              - __temp_init: \${getPerson()}
+              - name: \${map.get(__temp_init, "name")}
+              - countryName: \${map.get(__temp_init.address.country, "name")}
+              - code: \${map.get(__temp_init.address.country, "code")}
     `
 
     assertTranspiled(code, expected)
@@ -1063,10 +1063,10 @@ describe('Destructing', () => {
             call: test_object
             args:
               id: 1
-            result: __temp
+            result: __temp_init
         - assign1:
             assign:
-              - name: \${map.get(__temp, "name")}
+              - name: \${map.get(__temp_init, "name")}
     test_object:
       params:
         - id
@@ -1090,9 +1090,9 @@ describe('Destructing', () => {
       steps:
         - assign1:
             assign:
-              - __temp: \${getPerson()}
-              - myName: \${map.get(__temp, "name")}
-              - myCity: \${map.get(__temp.address, "city")}
+              - __temp_init: \${getPerson()}
+              - myName: \${map.get(__temp_init, "name")}
+              - myCity: \${map.get(__temp_init.address, "city")}
     `
 
     assertTranspiled(code, expected)
@@ -1109,24 +1109,24 @@ describe('Destructing', () => {
       steps:
         - assign1:
             assign:
-              - __temp: \${getPersons()}
-              - __temp_len: \${len(__temp)}
+              - __temp_init: \${getPersons()}
+              - __temp_len: \${len(__temp_init)}
         - switch1:
             switch:
               - condition: \${__temp_len >= 2}
                 steps:
                   - assign2:
                       assign:
-                        - name1: \${map.get(__temp[0], "name")}
-                        - age1: \${map.get(__temp[0], "age")}
-                        - name2: \${map.get(__temp[1], "name")}
-                        - age2: \${map.get(__temp[1], "age")}
+                        - name1: \${map.get(__temp_init[0], "name")}
+                        - age1: \${map.get(__temp_init[0], "age")}
+                        - name2: \${map.get(__temp_init[1], "name")}
+                        - age2: \${map.get(__temp_init[1], "age")}
               - condition: \${__temp_len >= 1}
                 steps:
                   - assign3:
                       assign:
-                        - name1: \${map.get(__temp[0], "name")}
-                        - age1: \${map.get(__temp[0], "age")}
+                        - name1: \${map.get(__temp_init[0], "name")}
+                        - age1: \${map.get(__temp_init[0], "age")}
                         - name2: null
                         - age2: null
               - condition: true
@@ -1156,29 +1156,29 @@ describe('Destructing', () => {
       steps:
         - assign1:
             assign:
-              - __temp: \${getPerson()}
-              - __temp_len: \${len(__temp.names)}
+              - __temp_init: \${getPerson()}
+              - __temp_len: \${len(__temp_init.names)}
         - switch1:
             switch:
               - condition: \${__temp_len >= 3}
                 steps:
                   - assign2:
                       assign:
-                        - first: \${__temp.names[0]}
-                        - middle: \${__temp.names[1]}
-                        - last: \${__temp.names[2]}
+                        - first: \${__temp_init.names[0]}
+                        - middle: \${__temp_init.names[1]}
+                        - last: \${__temp_init.names[2]}
               - condition: \${__temp_len >= 2}
                 steps:
                   - assign3:
                       assign:
-                        - first: \${__temp.names[0]}
-                        - middle: \${__temp.names[1]}
+                        - first: \${__temp_init.names[0]}
+                        - middle: \${__temp_init.names[1]}
                         - last: null
               - condition: \${__temp_len >= 1}
                 steps:
                   - assign4:
                       assign:
-                        - first: \${__temp.names[0]}
+                        - first: \${__temp_init.names[0]}
                         - middle: null
                         - last: null
               - condition: true
@@ -1190,14 +1190,14 @@ describe('Destructing', () => {
                         - last: null
         - assign6:
             assign:
-              - __temp_len: \${len(__temp.professions)}
+              - __temp_len: \${len(__temp_init.professions)}
         - switch2:
             switch:
               - condition: \${__temp_len >= 1}
                 steps:
                   - assign7:
                       assign:
-                        - firstProfession: \${__temp.professions[0]}
+                        - firstProfession: \${__temp_init.professions[0]}
               - condition: true
                 steps:
                   - assign8:

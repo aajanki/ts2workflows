@@ -56,7 +56,7 @@ describe('Function invocation statement', () => {
       steps:
         - assign1:
             assign:
-              - __temp: \${writeLog("Everything going OK!")}
+              - __temp_res: \${writeLog("Everything going OK!")}
     `
 
     assertTranspiled(code, expected)
@@ -569,7 +569,7 @@ describe('Function invocation statement', () => {
             result: __temp0
         - assign1:
             assign:
-              - __temp: \${handle(__temp0)}
+              - __temp_res: \${handle(__temp0)}
     `
 
     assertTranspiled(code, expected)
@@ -671,10 +671,10 @@ describe('Function invocation statement', () => {
               url: https://visit.dreamland.test/
               body:
                 user: bean
-            result: __temp
+            result: __temp_res
         - assign2:
             assign:
-              - data.response: \${__temp}
+              - data.response: \${__temp_res}
     `
 
     assertTranspiled(code, expected)

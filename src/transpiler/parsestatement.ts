@@ -216,7 +216,7 @@ function convertArrayDestructuring(
     initExpression = convertExpression(initializer)
   } else {
     // Otherwise, assign the expression to a temporary variable first.
-    const initName = tempName(ctx)
+    const initName = tempName(ctx, 'init')
     statements.push(...convertInitializer(initName, initializer, ctx))
     initExpression = variableReferenceEx(initName)
   }
@@ -237,7 +237,7 @@ function arrayDestructuringStatements(
     return []
   }
 
-  const __temp_len = variableReferenceEx(tempName(ctx, '_len'))
+  const __temp_len = variableReferenceEx(tempName(ctx, 'len'))
   const initializeVariables: VariableAssignment[] = [
     {
       name: __temp_len,
@@ -442,8 +442,8 @@ function arrayRestDestructuringStatements(
   }
 
   const restName = variableReferenceEx(VariableName(rest.argument.name))
-  const __temp_len = variableReferenceEx(tempName(ctx, '_len'))
-  const __temp_index = tempName(ctx, '_index')
+  const __temp_len = variableReferenceEx(tempName(ctx, 'len'))
+  const __temp_index = tempName(ctx, 'index')
   const one = numberEx(1)
   const emptyArray = listEx([])
   const copyLoop = new ForRangeStatement(
@@ -489,7 +489,7 @@ function convertObjectDestructuring(
     initExpression = convertExpression(initializer)
   } else {
     // Otherwise, assign the expression to a temporary variable first.
-    const initName = tempName(ctx)
+    const initName = tempName(ctx, 'init')
     statements.push(...convertInitializer(initName, initializer, ctx))
     initExpression = variableReferenceEx(initName)
   }
@@ -780,7 +780,7 @@ function convertCompoundAssignmentLeftHandSide(
   const leftEx = convertAssignmentTarget(left)
   const { transformed, assignments } = extractSideEffectsFromMemberExpression(
     leftEx,
-    tempName(ctx),
+    tempName(ctx, 'init'),
     0,
   )
 
@@ -864,7 +864,7 @@ function convertAssignmentExpressionIntrinsicRHS(
     )
   }
 
-  const resultVariable = tempName(ctx)
+  const resultVariable = tempName(ctx, 'res')
 
   return {
     statements: callExpressionToStatement(callEx, resultVariable, ctx),
@@ -900,7 +900,7 @@ function callExpressionToStatement(
         ),
       ]
     } else {
-      const resultVariable2 = resultVariable ?? tempName(ctx)
+      const resultVariable2 = resultVariable ?? tempName(ctx, 'res')
 
       return [
         callExpressionAssignment(calleeName, node.arguments, resultVariable2),
@@ -1174,7 +1174,7 @@ function generalExpressionToAssignment(
 ): AssignStatement {
   return new AssignStatement([
     {
-      name: variableReferenceEx(tempName(ctx)),
+      name: variableReferenceEx(tempName(ctx, 'res')),
       value: convertExpression(node),
     },
   ])
@@ -1453,14 +1453,14 @@ function createLabeledStatement(
   )
 }
 
-function tempName(ctx: ParsingContext, postFix = ''): VariableName {
+function tempName(ctx: ParsingContext, postFix: string): VariableName {
   if (ctx.parallelNestingLevel !== undefined) {
     // Temporary variable inside a parallel step can not be the same as temporary
     // variables on the outside. Sharing the variable name would cause deployment
     // error, if the variable is not marked as shared by including it in the
     // "shared" array.
-    return VariableName(`__temp_parallel${ctx.parallelNestingLevel}${postFix}`)
+    return VariableName(`__temp_par${ctx.parallelNestingLevel}_${postFix}`)
   } else {
-    return VariableName(`__temp${postFix}`)
+    return VariableName(`__temp_${postFix}`)
   }
 }

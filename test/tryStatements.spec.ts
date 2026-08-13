@@ -73,7 +73,7 @@ describe('Try-catch-finally statement', () => {
                 steps:
                   - assign1:
                       assign:
-                        - __temp: \${log("Error!")}
+                        - __temp_res: \${log("Error!")}
     `
 
     assertTranspiled(code, expected)
@@ -98,7 +98,7 @@ describe('Try-catch-finally statement', () => {
                 steps:
                   - assign1:
                       assign:
-                        - __temp: \${log("Error!")}
+                        - __temp_res: \${log("Error!")}
     `
 
     assertTranspiled(code, expected)
@@ -156,7 +156,7 @@ describe('Try-catch-finally statement', () => {
                         steps:
                           - assign2:
                               assign:
-                                - __temp: \${writeData(data)}
+                                - __temp_res: \${writeData(data)}
                       except:
                         as: err
                         steps:
@@ -173,7 +173,7 @@ describe('Try-catch-finally statement', () => {
                         - __t2w_finally_value1: \${__fin_exc}
           - assign4:
               assign:
-                - __temp: \${closeConnection()}
+                - __temp_res: \${closeConnection()}
           - switch1:
               switch:
                 - condition: \${__t2w_finally_condition1 == "return"}
@@ -219,7 +219,7 @@ describe('Try-catch-finally statement', () => {
                         steps:
                           - assign2:
                               assign:
-                                - __temp: \${writeData(data)}
+                                - __temp_res: \${writeData(data)}
                           - assign3:
                               assign:
                                 - __t2w_finally_condition1: return
@@ -241,7 +241,7 @@ describe('Try-catch-finally statement', () => {
                         - __t2w_finally_value1: \${__fin_exc}
           - assign5:
               assign:
-                - __temp: \${closeConnection()}
+                - __temp_res: \${closeConnection()}
           - switch1:
               switch:
                 - condition: \${__t2w_finally_condition1 == "return"}
@@ -287,7 +287,7 @@ describe('Try-catch-finally statement', () => {
                         steps:
                           - assign2:
                               assign:
-                                - __temp: \${writeData(data)}
+                                - __temp_res: \${writeData(data)}
                       except:
                         as: err
                         steps:
@@ -309,7 +309,7 @@ describe('Try-catch-finally statement', () => {
                         - __t2w_finally_value1: \${__fin_exc}
           - assign5:
               assign:
-                - __temp: \${closeConnection()}
+                - __temp_res: \${closeConnection()}
           - switch1:
               switch:
                 - condition: \${__t2w_finally_condition1 == "return"}
@@ -355,7 +355,7 @@ describe('Try-catch-finally statement', () => {
                         steps:
                           - assign2:
                               assign:
-                                - __temp: \${writeData(data)}
+                                - __temp_res: \${writeData(data)}
                       except:
                         as: err
                         steps:
@@ -372,7 +372,7 @@ describe('Try-catch-finally statement', () => {
                         - __t2w_finally_value1: \${__fin_exc}
           - assign4:
               assign:
-                - __temp: \${closeConnection()}
+                - __temp_res: \${closeConnection()}
           - return1:
               return: 0
           - switch1:
@@ -418,7 +418,7 @@ describe('Try-catch-finally statement', () => {
                         steps:
                           - assign2:
                               assign:
-                                - __temp: \${writeData(data)}
+                                - __temp_res: \${writeData(data)}
                       except:
                         as: err
                         steps:
@@ -479,7 +479,7 @@ describe('Try-catch-finally statement', () => {
                 steps:
                   - assign1:
                       assign:
-                        - __temp: \${log("Error!")}
+                        - __temp_res: \${log("Error!")}
     `
 
     assertTranspiled(code, expected)
@@ -528,7 +528,7 @@ describe('Try-catch-finally statement', () => {
                         steps:
                           - assign3:
                               assign:
-                                - __temp: \${log("Error!")}
+                                - __temp_res: \${log("Error!")}
               except:
                 as: __fin_exc
                 steps:
@@ -538,7 +538,7 @@ describe('Try-catch-finally statement', () => {
                         - __t2w_finally_value1: \${__fin_exc}
           - assign5:
               assign:
-                - __temp: \${closeConnection()}
+                - __temp_res: \${closeConnection()}
           - switch1:
               switch:
                 - condition: \${__t2w_finally_condition1 == "return"}
@@ -600,7 +600,7 @@ describe('Try-catch-finally statement', () => {
                         - __t2w_finally_value1: \${__fin_exc}
           - assign4:
               assign:
-                - __temp: \${closeConnection()}
+                - __temp_res: \${closeConnection()}
           - switch1:
               switch:
                 - condition: \${__t2w_finally_condition1 == "return"}
@@ -671,7 +671,7 @@ describe('Try-catch-finally statement', () => {
                                 - __t2w_finally_value1: \${__fin_exc}
                   - assign4:
                       assign:
-                        - __temp: \${cleanup()}
+                        - __temp_res: \${cleanup()}
                   - switch1:
                       switch:
                         - condition: \${__t2w_finally_condition1 == "return"}
@@ -763,7 +763,7 @@ describe('Try-catch-finally statement', () => {
                         - __t2w_finally_value1: \${__fin_exc}
           - assign5:
               assign:
-                - __temp: \${cleanup()}
+                - __temp_res: \${cleanup()}
           - switch1:
               switch:
                 - condition: \${__t2w_finally_condition1 == "return"}
@@ -843,7 +843,7 @@ describe('Try-catch-finally statement', () => {
                                         - __t2w_finally_value2: \${__fin_exc}
                           - assign5:
                               assign:
-                                - __temp: \${cleanup1()}
+                                - __temp_res: \${cleanup1()}
                           - switch1:
                               switch:
                                 - condition: \${__t2w_finally_condition2 == "return"}
@@ -875,7 +875,7 @@ describe('Try-catch-finally statement', () => {
                         - __t2w_finally_value1: \${__fin_exc}
           - assign8:
               assign:
-                - __temp: \${cleanup2()}
+                - __temp_res: \${cleanup2()}
           - switch2:
               switch:
                 - condition: \${__t2w_finally_condition1 == "return"}
@@ -932,7 +932,7 @@ describe('Try-catch-finally statement', () => {
                 steps:
                   - assign1:
                       assign:
-                        - __temp: \${log("Error!")}
+                        - __temp_res: \${log("Error!")}
     `
 
     assertTranspiled(code, expected)
@@ -1042,7 +1042,7 @@ describe('Try-catch-finally statement', () => {
                 steps:
                   - assign1:
                       assign:
-                        - __temp: \${log("Error!")}
+                        - __temp_res: \${log("Error!")}
       custom_predicate:
         params:
           - e
@@ -1095,7 +1095,7 @@ describe('Try-catch-finally statement', () => {
                 steps:
                   - assign1:
                       assign:
-                        - __temp: \${log("Error!")}
+                        - __temp_res: \${log("Error!")}
     `
 
     assertTranspiled(code, expected)
@@ -1147,7 +1147,7 @@ describe('Try-catch-finally statement', () => {
                 steps:
                   - assign2:
                       assign:
-                        - __temp: \${log("Error!")}
+                        - __temp_res: \${log("Error!")}
     `
 
     assertTranspiled(code, expected)
@@ -1194,7 +1194,7 @@ describe('Try-catch-finally statement', () => {
                 steps:
                   - assign1:
                       assign:
-                        - __temp: \${log("Error!")}
+                        - __temp_res: \${log("Error!")}
     `
 
     assertTranspiled(code, expected)
@@ -1240,7 +1240,7 @@ describe('Try-catch-finally statement', () => {
                 steps:
                   - assign1:
                       assign:
-                        - __temp: \${log("Error!")}
+                        - __temp_res: \${log("Error!")}
     `
 
     assertTranspiled(code, expected)
@@ -1287,7 +1287,7 @@ describe('Try-catch-finally statement', () => {
               steps:
                 - assign2:
                     assign:
-                      - __temp: \${log("Error!")}
+                      - __temp_res: \${log("Error!")}
   `
 
     assertTranspiled(code, expected)
@@ -1337,7 +1337,7 @@ describe('Try-catch-finally statement', () => {
               steps:
                 - assign2:
                     assign:
-                      - __temp: \${log("Error!")}
+                      - __temp_res: \${log("Error!")}
   `
 
     assertTranspiled(code, expected)
@@ -1402,7 +1402,7 @@ describe('Try-catch-finally statement', () => {
                 steps:
                   - assign1:
                       assign:
-                        - __temp: \${log("Error!")}
+                        - __temp_res: \${log("Error!")}
     `
 
     assertTranspiled(code, expected)
@@ -1435,7 +1435,7 @@ describe('Try-catch-finally statement', () => {
                 steps:
                   - assign1:
                       assign:
-                        - __temp: \${log("Error!")}
+                        - __temp_res: \${log("Error!")}
     `
 
     assertTranspiled(code, expected)
