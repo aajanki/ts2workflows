@@ -276,8 +276,19 @@ export function applyNested(
 
     case 'parallel-for':
       return new ParallelForStatement(
-        // oxlint-disable-next-line no-unsafe-type-assertion
-        applyNested(fn, s.forStep) as ForStatement | ForRangeStatement, // FIXME typing
+        s.forStep instanceof ForStatement
+          ? new ForStatement(
+              fn(s.forStep.body),
+              s.forStep.loopVariableName,
+              s.forStep.listExpression,
+              s.forStep.indexVariableName,
+            )
+          : new ForRangeStatement(
+              fn(s.forStep.body),
+              s.forStep.loopVariableName,
+              s.forStep.rangeStart,
+              s.forStep.rangeEnd,
+            ),
         s.shared,
         s.concurrencyLimit,
         s.exceptionPolicy,
