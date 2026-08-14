@@ -623,7 +623,7 @@ describe('Expressions and operators', () => {
       steps:
         - assign1:
             assign:
-              - __temp_res: \${sideEffect()}
+              - __temp: \${sideEffect()}
     sideEffect:
       steps:
         - return1:

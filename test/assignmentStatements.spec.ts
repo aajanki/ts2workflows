@@ -668,8 +668,8 @@ describe('Assignment statement', () => {
         - assign1:
             assign:
               - i: 2
-              - __temp_init0: \${4 + i}
-              - people[__temp_init0].age: \${people[__temp_init0].age + 1}
+              - __temp0: \${4 + i}
+              - people[__temp0].age: \${people[__temp0].age + 1}
     `
 
     assertTranspiled(code, expected)
@@ -690,8 +690,8 @@ describe('Assignment statement', () => {
       steps:
         - assign1:
             assign:
-              - __temp_init0: \${-getIndex()}
-              - values[__temp_init0]: \${values[__temp_init0] - 1}
+              - __temp0: \${-getIndex()}
+              - values[__temp0]: \${values[__temp0] - 1}
     getIndex:
       steps:
         - return1:
@@ -714,8 +714,8 @@ describe('Assignment statement', () => {
             assign:
               - __temp0:
                   value: [1, 2, 3]
-              - __temp_init0: \${__temp0.value[0]}
-              - values[__temp_init0]: \${values[__temp_init0] - 1}
+              - __temp0: \${__temp0.value[0]}
+              - values[__temp0]: \${values[__temp0] - 1}
     `
 
     assertTranspiled(code, expected)
@@ -736,8 +736,8 @@ describe('Assignment statement', () => {
       steps:
         - assign1:
             assign:
-              - __temp_init0: \${getIndex() + 4}
-              - values[__temp_init0]: \${values[__temp_init0] - 1}
+              - __temp0: \${getIndex() + 4}
+              - values[__temp0]: \${values[__temp0] - 1}
     getIndex:
       steps:
         - return1:
@@ -766,9 +766,9 @@ describe('Assignment statement', () => {
       steps:
         - assign1:
             assign:
-              - __temp_init1: \${objectIndex()}
-              - __temp_init0: \${valueIndex()}
-              - data.objects[__temp_init1].values[__temp_init0]: \${data.objects[__temp_init1].values[__temp_init0] / 2}
+              - __temp1: \${objectIndex()}
+              - __temp0: \${valueIndex()}
+              - data.objects[__temp1].values[__temp0]: \${data.objects[__temp1].values[__temp0] / 2}
     objectIndex:
       steps:
         - return1:
@@ -802,10 +802,10 @@ describe('Assignment statement', () => {
             args:
               a: 10
               b: 11
-            result: __temp_res
+            result: __temp
         - assign1:
             assign:
-              - x: \${x % __temp_res}
+              - x: \${x % __temp}
     sum:
       params:
         - a

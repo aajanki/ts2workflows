@@ -690,7 +690,7 @@ describe('Labelled statement', () => {
       steps:
         - assign1:
             assign:
-              - __temp_res: \${log("Before parallel")}
+              - __temp: \${log("Before parallel")}
         - parallel1:
             parallel:
               branches:
@@ -703,17 +703,17 @@ describe('Labelled statement', () => {
                                   steps:
                                     - assign2:
                                         assign:
-                                          - __temp_par2_res: \${log("Hello from nested branch 1")}
+                                          - __temp_parallel2: \${log("Hello from nested branch 1")}
                               - branch2:
                                   steps:
                                     - assign3:
                                         assign:
-                                          - __temp_par2_res: \${log("Hello from nested branch 2")}
+                                          - __temp_parallel2: \${log("Hello from nested branch 2")}
                 - branch2:
                     steps:
                       - assign4:
                           assign:
-                            - __temp_par1_res: \${log("Hello from branch 3")}
+                            - __temp_parallel1: \${log("Hello from branch 3")}
     `
 
     assertTranspiled(code, expected)
