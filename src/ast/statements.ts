@@ -227,6 +227,15 @@ export type WorkflowStatement =
   | TryStatement
   | WhileStatement
 
+// Types for `x = 1` as similar statements.
+// Parallers are included because the parser considers `x = parallel()`
+// intrisic as a valid statement. FIXME?
+export type AssignmentLikeStatement =
+  | AssignStatement
+  | FunctionInvocationStatement
+  | ParallelStatement
+  | ParallelForStatement
+
 export function applyNested(
   fn: (x: WorkflowStatement[]) => WorkflowStatement[],
   s: WorkflowStatement,

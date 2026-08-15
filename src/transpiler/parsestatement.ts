@@ -42,6 +42,7 @@ import {
   BreakStatement,
   ContinueStatement,
   SwitchStatement,
+  AssignmentLikeStatement,
 } from '../ast/statements.js'
 import { WorkflowSyntaxError } from '../errors.js'
 import {
@@ -92,7 +93,7 @@ export function parseStatement(
       return [createIfStatement(node, ctx)]
 
     case AST_NODE_TYPES.SwitchStatement:
-      return createSwitchStatement(node, ctx)
+      return [createSwitchStatement(node, ctx)]
 
     case AST_NODE_TYPES.ForStatement:
       throw new WorkflowSyntaxError(
@@ -110,10 +111,10 @@ export function parseStatement(
       return [createForOfStatement(node, ctx)]
 
     case AST_NODE_TYPES.DoWhileStatement:
-      return createDoWhileStatement(node, ctx)
+      return [createDoWhileStatement(node, ctx)]
 
     case AST_NODE_TYPES.WhileStatement:
-      return createWhileStatement(node, ctx)
+      return [createWhileStatement(node, ctx)]
 
     case AST_NODE_TYPES.BreakStatement:
       return [createBreakStatement(node)]
@@ -122,7 +123,7 @@ export function parseStatement(
       return [createContinueStatement(node)]
 
     case AST_NODE_TYPES.TryStatement:
-      return createTryStatement(node, ctx)
+      return [createTryStatement(node, ctx)]
 
     case AST_NODE_TYPES.LabeledStatement:
       return [createLabeledStatement(node, ctx)]
@@ -175,7 +176,7 @@ function convertInitializer(
   targetVariableName: VariableName,
   initializer: TSESTree.Expression | null,
   ctx: ParsingContext,
-): WorkflowStatement[] {
+): AssignmentLikeStatement[] {
   if (initializer?.type === AST_NODE_TYPES.CallExpression) {
     const calleeName =
       initializer.callee.type === AST_NODE_TYPES.Identifier
@@ -726,10 +727,11 @@ function compoundAssignmentStatements(
   right: TSESTree.Expression,
   operator: BinaryOperator,
   ctx: ParsingContext,
-): WorkflowStatement[] {
+): AssignmentLikeStatement[] {
   let valueExpression: Expression
-  const { expression: targetExpression, statements } =
-    convertCompoundAssignmentLeftHandSide(left, ctx)
+  const lhs = convertCompoundAssignmentLeftHandSide(left, ctx)
+  const statements: AssignmentLikeStatement[] = lhs.statements
+  const targetExpression = lhs.expression
 
   if (
     right.type === AST_NODE_TYPES.CallExpression &&
@@ -761,7 +763,7 @@ function convertCompoundAssignmentLeftHandSide(
   ctx: ParsingContext,
 ): {
   expression: MemberExpression | VariableReferenceExpression
-  statements: WorkflowStatement[]
+  statements: AssignStatement[]
 } {
   const leftEx = convertAssignmentTarget(left)
   const { transformed, assignments } = extractSideEffectsFromMemberExpression(
@@ -840,7 +842,7 @@ function convertAssignmentExpressionIntrinsicRHS(
   calleeName: string,
   ctx: ParsingContext,
 ): {
-  statements: WorkflowStatement[]
+  statements: AssignmentLikeStatement[]
   tempVariable: VariableReferenceExpression
 } {
   if (isIntrinsicStatement(calleeName)) {
@@ -862,7 +864,7 @@ function callExpressionToStatement(
   node: TSESTree.CallExpression,
   resultVariable: VariableName | undefined,
   ctx: ParsingContext,
-): WorkflowStatement[] {
+): AssignmentLikeStatement[] {
   const calleeExpression = convertExpression(node.callee)
   if (isQualifiedName(calleeExpression)) {
     const calleeName = expressionToString(calleeExpression)
@@ -1213,7 +1215,7 @@ function flattenIfBranches(
 function createSwitchStatement(
   node: TSESTree.SwitchStatement,
   ctx: ParsingContext,
-): WorkflowStatement[] {
+): SwitchStatement {
   const discriminant = convertExpression(node.discriminant)
   const branches: IfBranch[] = node.cases.map((switchCase) => {
     let condition: Expression
@@ -1229,7 +1231,7 @@ function createSwitchStatement(
     return { condition, body }
   })
 
-  return [new SwitchStatement(branches)]
+  return new SwitchStatement(branches)
 }
 
 function createForOfStatement(
@@ -1270,19 +1272,19 @@ function createForOfStatement(
 function createWhileStatement(
   node: TSESTree.WhileStatement,
   ctx: ParsingContext,
-): WorkflowStatement[] {
+): WhileStatement {
   const condition = convertExpression(node.test)
   const body = parseStatement(node.body, ctx)
-  return [new WhileStatement(condition, body)]
+  return new WhileStatement(condition, body)
 }
 
 function createDoWhileStatement(
   node: TSESTree.DoWhileStatement,
   ctx: ParsingContext,
-): WorkflowStatement[] {
+): DoWhileStatement {
   const body = parseStatement(node.body, ctx)
   const condition = convertExpression(node.test)
-  return [new DoWhileStatement(condition, body)]
+  return new DoWhileStatement(condition, body)
 }
 
 function createBreakStatement(node: TSESTree.BreakStatement): BreakStatement {
@@ -1300,7 +1302,7 @@ function createContinueStatement(
 function createTryStatement(
   node: TSESTree.TryStatement,
   ctx: ParsingContext,
-): WorkflowStatement[] {
+): TryStatement {
   const retryPolicy = extractRetryPolicy(node.block)
   const tryBody = parseStatement(node.block, ctx)
 
@@ -1316,15 +1318,13 @@ function createTryStatement(
     finalizerBody = parseStatement(node.finalizer, ctx)
   }
 
-  return [
-    new TryStatement(
-      tryBody,
-      exceptBody,
-      retryPolicy,
-      errorVariable,
-      finalizerBody,
-    ),
-  ]
+  return new TryStatement(
+    tryBody,
+    exceptBody,
+    retryPolicy,
+    errorVariable,
+    finalizerBody,
+  )
 }
 
 function extractRetryPolicy(
