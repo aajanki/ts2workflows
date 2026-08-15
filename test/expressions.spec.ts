@@ -3,7 +3,7 @@ import {
   LiteralValueOrLiteralExpression,
   expressionToLiteralValueOrLiteralExpression,
 } from '../src/ast/expressions.js'
-import { assertTranspiled, parseExpression } from './testutils.js'
+import { transpileAndSnapshotTest, parseExpression } from './testutils.js'
 import { transpileText } from '../src/transpiler/index.js'
 import { WorkflowSyntaxError } from '../src/errors.js'
 import { TSError } from '@typescript-eslint/typescript-estree'
@@ -96,51 +96,24 @@ describe('Literals', () => {
     })
   })
 
-  it('parses maps with identifier as keys', () => {
-    const code = 'function test() { const x = {name: "Merkimer", race: "pig"} }'
-    const expected = `
-    test:
-      steps:
-        - assign1:
-            assign:
-              - x:
-                  name: Merkimer
-                  race: pig
-    `
+  it(
+    'parses maps with identifier as keys',
+    transpileAndSnapshotTest(
+      'function test() { const x = {name: "Merkimer", race: "pig"} }',
+    ),
+  )
 
-    assertTranspiled(code, expected)
-  })
+  it(
+    'parses maps with special characters in keys',
+    transpileAndSnapshotTest(
+      'function test() { const x = {"special!": 1, "\'quotes\\"in keys": 2, "...": 3} }',
+    ),
+  )
 
-  it('parses maps with special characters in keys', () => {
-    const code =
-      'function test() { const x = {"special!": 1, "\'quotes\\"in keys": 2, "...": 3} }'
-    const expected = `
-    test:
-      steps:
-        - assign1:
-            assign:
-              - x:
-                  "special!": 1
-                  "'quotes\\"in keys": 2
-                  ...: 3
-    `
-
-    assertTranspiled(code, expected)
-  })
-
-  it('parses maps with numbers as keys', () => {
-    const code = 'function test() { const x = {42: "answer"} }'
-    const expected = `
-    test:
-      steps:
-        - assign1:
-            assign:
-              - x:
-                  "42": answer
-    `
-
-    assertTranspiled(code, expected)
-  })
+  it(
+    'parses maps with numbers as keys',
+    transpileAndSnapshotTest('function test() { const x = {42: "answer"} }'),
+  )
 
   it('rejects rest elements in maps', () => {
     const code = 'function test(x) { return {...x} }'
@@ -319,94 +292,47 @@ describe('Expressions and operators', () => {
     assertExpression('["Bean" in {"Bean": 1}]', ['${"Bean" in {"Bean": 1}}'])
   })
 
-  it('parses expressions as map values', () => {
+  it(
+    'parses expressions as map values',
     // The transpiler fails to parse plain JSON objects with expressions as values. It works
     // only on assignments.
-    const code = 'function test() { const _ = {"name": name} }'
-    const expected = `
-    test:
-      steps:
-        - assign1:
-            assign:
-              - _:
-                  name: \${name}
-    `
+    transpileAndSnapshotTest('function test() { const _ = {"name": name} }'),
+  )
 
-    assertTranspiled(code, expected)
-  })
+  it(
+    'parses expressions as map values 2',
+    transpileAndSnapshotTest(
+      'function test() { const _ = {"age": thisYear - birthYear} }',
+    ),
+  )
 
-  it('parses expressions as map values 2', () => {
-    const code = 'function test() { const _ = {"age": thisYear - birthYear} }'
-    const expected = `
-    test:
-      steps:
-        - assign1:
-            assign:
-              - _:
-                  age: \${thisYear - birthYear}
-    `
+  it(
+    'parses expressions as map values 3',
+    transpileAndSnapshotTest(
+      'function test() { const _ = {"id": "ID-" + identifiers[2]} }',
+    ),
+  )
 
-    assertTranspiled(code, expected)
-  })
+  it(
+    'parses nested expression in map values',
+    transpileAndSnapshotTest(
+      'function test() { const _ = {"success": code in [200, 201]} }',
+    ),
+  )
 
-  it('parses expressions as map values 3', () => {
-    const code = 'function test() { const _ = {"id": "ID-" + identifiers[2]} }'
-    const expected = `
-    test:
-      steps:
-        - assign1:
-            assign:
-              - _:
-                  id: \${"ID-" + identifiers[2]}
-    `
+  it(
+    'parses nested expression in map values 2',
+    transpileAndSnapshotTest(
+      'function test() { const _ = {"isKnownLocation": location in {"Dreamland": 1, "Maru": 2}} }',
+    ),
+  )
 
-    assertTranspiled(code, expected)
-  })
-
-  it('parses nested expression in map values', () => {
-    const code = 'function test() { const _ = {"success": code in [200, 201]} }'
-    const expected = `
-    test:
-      steps:
-        - assign1:
-            assign:
-              - _:
-                  success: \${code in [200, 201]}
-    `
-    assertTranspiled(code, expected)
-  })
-
-  it('parses nested expression in map values 2', () => {
-    const code =
-      'function test() { const _ = {"isKnownLocation": location in {"Dreamland": 1, "Maru": 2}} }'
-    const expected = `
-    test:
-      steps:
-        - assign1:
-            assign:
-              - __temp0:
-                  Dreamland: 1
-                  Maru: 2
-              - _:
-                  isKnownLocation: '\${location in __temp0}'
-    `
-    assertTranspiled(code, expected)
-  })
-
-  it('parses nested expression in map values 3', () => {
-    const code = 'function test() { const _ = {"values": {"next": a + 1}} }'
-    const expected = `
-    test:
-      steps:
-        - assign1:
-            assign:
-              - _:
-                  values:
-                      next: \${a + 1}
-    `
-
-    assertTranspiled(code, expected)
-  })
+  it(
+    'parses nested expression in map values 3',
+    transpileAndSnapshotTest(
+      'function test() { const _ = {"values": {"next": a + 1}} }',
+    ),
+  )
 
   it('parses non-alphanumeric map keys', () => {
     assertExpression('{"important!key": "value"}', { 'important!key': 'value' })
@@ -445,136 +371,64 @@ describe('Expressions and operators', () => {
     assertExpression('(error as {code: number}).number', '${error.number}')
   })
 
-  it('transpiles optional chaining as map.get()', () => {
-    const code = `function test(data) {
+  it(
+    'transpiles optional chaining as map.get()',
+    transpileAndSnapshotTest(`function test(data) {
       return data?.name;
-    }`
-    const expected = `
-    test:
-      params:
-        - data
-      steps:
-        - return1:
-            return: \${map.get(data, "name")}
-    `
+    }`),
+  )
 
-    assertTranspiled(code, expected)
-  })
-
-  it('transpiles nested optional chains', () => {
-    const code = `function test(data) {
+  it(
+    'transpiles nested optional chains',
+    transpileAndSnapshotTest(`function test(data) {
       return data.person[3].address?.city?.id;
-    }`
-    const expected = `
-    test:
-      params:
-        - data
-      steps:
-        - return1:
-            return: \${map.get(data.person[3], ["address", "city", "id"])}
-    `
+    }`),
+  )
 
-    assertTranspiled(code, expected)
-  })
-
-  it('transpiles optional chains with alternativing optional and non-optional elements', () => {
-    const code = `function test(data) {
+  it(
+    'transpiles optional chains with alternativing optional and non-optional elements',
+    transpileAndSnapshotTest(`function test(data) {
       return data.person?.address.city?.id;
-    }`
-    const expected = `
-    test:
-      params:
-        - data
-      steps:
-        - return1:
-            return: \${map.get(data, ["person", "address", "city", "id"])}
-    `
+    }`),
+  )
 
-    assertTranspiled(code, expected)
-  })
-
-  it('transpiles (data?.a).b', () => {
-    const code = `function test(data) {
+  it(
+    'transpiles (data?.a).b',
+    transpileAndSnapshotTest(`function test(data) {
       return (data?.a).b;
-    }`
-    const expected = `
-    test:
-      params:
-        - data
-      steps:
-        - return1:
-            return: \${map.get(data, "a").b}
-    `
+    }`),
+  )
 
-    assertTranspiled(code, expected)
-  })
-
-  it('transpiles (data?.a)?.b', () => {
-    const code = `function test(data) {
+  it(
+    'transpiles (data?.a)?.b',
+    transpileAndSnapshotTest(`function test(data) {
       return (data?.a)?.b;
-    }`
-    const expected = `
-    test:
-      params:
-        - data
-      steps:
-        - return1:
-            return: \${map.get(map.get(data, "a"), "b")}
-    `
+    }`),
+  )
 
-    assertTranspiled(code, expected)
-  })
-
-  it('transpiles optional chaining with bracket notation', () => {
-    const code = `function test(data) {
+  it(
+    'transpiles optional chaining with bracket notation',
+    transpileAndSnapshotTest(`function test(data) {
       return data?.["na" + "me"];
-    }`
-    const expected = `
-    test:
-      params:
-        - data
-      steps:
-        - return1:
-            return: \${map.get(data, "na" + "me")}
-    `
+    }`),
+  )
 
-    assertTranspiled(code, expected)
-  })
-
-  it('transpiles type alias in optional chaining', () => {
-    const code = `
+  it(
+    'transpiles type alias in optional chaining',
+    transpileAndSnapshotTest(`
     interface Person { name?: string };
 
     function test(data) {
       return (data?.person as Person)?.name;
-    }`
-    const expected = `
-    test:
-      params:
-        - data
-      steps:
-        - return1:
-            return: \${map.get(map.get(data, "person"), "name")}
-    `
+    }`),
+  )
 
-    assertTranspiled(code, expected)
-  })
-
-  it('transpiles definite operator in optional chaining', () => {
-    const code = `function test(data) {
+  it(
+    'transpiles definite operator in optional chaining',
+    transpileAndSnapshotTest(`function test(data) {
       return data?.person!?.name;
-    }`
-    const expected = `
-    test:
-      params:
-        - data
-      steps:
-        - return1:
-            return: \${map.get(data, ["person", "name"])}
-    `
-
-    assertTranspiled(code, expected)
-  })
+    }`),
+  )
 
   it('call expressions are not supported as part of optional chaining', () => {
     const code = `function test(data) {
@@ -592,70 +446,35 @@ describe('Expressions and operators', () => {
     expect(() => transpileText(code)).to.throw(WorkflowSyntaxError)
   })
 
-  it('transpiles typeof', () => {
-    const code = `function typeof2(x) {
+  it(
+    'transpiles typeof',
+    transpileAndSnapshotTest(`function typeof2(x) {
       return typeof x;
-    }`
+    }`),
+  )
 
-    const expected = `
-    typeof2:
-      params:
-        - x
-      steps:
-        - return1:
-            return: \${text.replace_all_regex(text.replace_all_regex(get_type(x), "^(bytes|list|map|null)$", "object"), "^(double|integer)$", "number")}
-    `
-
-    assertTranspiled(code, expected)
-  })
-
-  it('transpiles void operator', () => {
-    const code = `function main(): void {
+  it(
+    'transpiles void operator',
+    transpileAndSnapshotTest(`function main(): void {
       void sideEffect();
     }
       
     function sideEffect(): number {
       return 1;
-    }`
+    }`),
+  )
 
-    const expected = `
-    main:
-      steps:
-        - assign1:
-            assign:
-              - __temp: \${sideEffect()}
-    sideEffect:
-      steps:
-        - return1:
-            return: 1
-    `
-
-    assertTranspiled(code, expected)
-  })
-
-  it('ignores satisfies operator', () => {
-    const code = `interface TrafficLight {
+  it(
+    'ignores satisfies operator',
+    transpileAndSnapshotTest(`interface TrafficLight {
       color: 'green' | 'yellow' | 'red'
     }
 
     function main(): void {
       const light = { color: 'green' } satisfies TrafficLight;
       return light.color;
-    }`
-
-    const expected = `
-    main:
-      steps:
-        - assign1:
-            assign:
-              - light:
-                  color: "green"
-        - return1:
-            return: \${light.color}
-    `
-
-    assertTranspiled(code, expected)
-  })
+    }`),
+  )
 
   it('comma operator is not supported', () => {
     const code = `function test(x: number) {

@@ -1,212 +1,84 @@
 import { expect } from 'chai'
 import { transpileText } from '../src/transpiler/index.js'
-import { assertTranspiled } from './testutils.js'
+import { transpileAndSnapshotTest } from './testutils.js'
 import { WorkflowSyntaxError } from '../src/errors.js'
 
 describe('Function invocation statement', () => {
-  it('assignment of a function call result', () => {
-    const code = 'function main() { const name = getName(); }'
+  it(
+    'assignment of a function call result',
+    transpileAndSnapshotTest('function main() { const name = getName(); }'),
+  )
 
-    const expected = `
-    main:
-      steps:
-        - assign1:
-            assign:
-              - name: \${getName()}
-    `
+  it(
+    'assignment of a function call result with anonymous parameters',
+    transpileAndSnapshotTest('function main() { const three = add(1, 2); }'),
+  )
 
-    assertTranspiled(code, expected)
-  })
-
-  it('assignment of a function call result with anonymous parameters', () => {
-    const code = 'function main() { const three = add(1, 2); }'
-
-    const expected = `
-    main:
-      steps:
-        - assign1:
-            assign:
-              - three: \${add(1, 2)}
-    `
-
-    assertTranspiled(code, expected)
-  })
-
-  it('assignment of a scoped function call result', () => {
-    const code = `function main() {
+  it(
+    'assignment of a scoped function call result',
+    transpileAndSnapshotTest(`function main() {
       const projectId = sys.get_env("GOOGLE_CLOUD_PROJECT_ID");
-    }`
+    }`),
+  )
 
-    const expected = `
-    main:
-      steps:
-        - assign1:
-            assign:
-              - projectId: \${sys.get_env("GOOGLE_CLOUD_PROJECT_ID")}
-    `
+  it(
+    'side effecting function call',
+    transpileAndSnapshotTest(
+      'function main() { writeLog("Everything going OK!"); }',
+    ),
+  )
 
-    assertTranspiled(code, expected)
-  })
-
-  it('side effecting function call', () => {
-    const code = 'function main() { writeLog("Everything going OK!"); }'
-
-    const expected = `
-    main:
-      steps:
-        - assign1:
-            assign:
-              - __temp: \${writeLog("Everything going OK!")}
-    `
-
-    assertTranspiled(code, expected)
-  })
-
-  it('transpiles blocking functions as call steps', () => {
-    const code = `function main() {
+  it(
+    'transpiles blocking functions as call steps',
+    transpileAndSnapshotTest(`function main() {
       sys.log(undefined, "ERROR", "Something bad happened");
-    }`
+    }`),
+  )
 
-    const expected = `
-    main:
-      steps:
-        - call_sys_log_1:
-            call: sys.log
-            args:
-              text: Something bad happened
-              severity: ERROR
-    `
-
-    assertTranspiled(code, expected)
-  })
-
-  it('assigns the return value of a blocking function call (variable declaration)', () => {
-    const code = `function main() {
+  it(
+    'assigns the return value of a blocking function call (variable declaration)',
+    transpileAndSnapshotTest(`function main() {
       const response = http.get("https://visit.dreamland.test/");
-    }`
+    }`),
+  )
 
-    const expected = `
-    main:
-      steps:
-        - call_http_get_1:
-            call: http.get
-            args:
-              url: https://visit.dreamland.test/
-            result: response
-    `
-
-    assertTranspiled(code, expected)
-  })
-
-  it('assigns the return value of a blocking function call (assignment)', () => {
-    const code = `function main() {
+  it(
+    'assigns the return value of a blocking function call (assignment)',
+    transpileAndSnapshotTest(`function main() {
       let response;
       response = http.get("https://visit.dreamland.test/");
-    }`
+    }`),
+  )
 
-    const expected = `
-    main:
-      steps:
-        - assign1:
-            assign:
-              - response:
-        - call_http_get_1:
-            call: http.get
-            args:
-              url: https://visit.dreamland.test/
-            result: __temp0
-        - assign2:
-            assign:
-              - response: \${__temp0}
-    `
-
-    assertTranspiled(code, expected)
-  })
-
-  it('a blocking function call and a map literal in the same expression', () => {
-    const code = `function main() {
+  it(
+    'a blocking function call and a map literal in the same expression',
+    transpileAndSnapshotTest(`function main() {
       const response = combine(http.get("https://visit.dreamland.test/"), {values: [1, 2]}.values[0]);
-    }`
+    }`),
+  )
 
-    const expected = `
-    main:
-      steps:
-        - assign1:
-            assign:
-              - __temp0:
-                  values: [1, 2]
-        - call_http_get_1:
-            call: http.get
-            args:
-              url: https://visit.dreamland.test/
-            result: __temp1
-        - assign2:
-            assign:
-              - response: \${combine(__temp1, __temp0.values[0])}
-    `
-
-    assertTranspiled(code, expected)
-  })
-
-  it('assigns the return value of a blocking function call to a complex variable', () => {
-    const code = `function main() {
+  it(
+    'assigns the return value of a blocking function call to a complex variable',
+    transpileAndSnapshotTest(`function main() {
       const results = {};
       results.response = http.get("https://visit.dreamland.test/");
-    }`
+    }`),
+  )
 
-    const expected = `
-    main:
-      steps:
-        - assign1:
-            assign:
-              - results: {}
-        - call_http_get_1:
-            call: http.get
-            args:
-              url: https://visit.dreamland.test/
-            result: __temp0
-        - assign2:
-            assign:
-              - results.response: \${__temp0}
-    `
-
-    assertTranspiled(code, expected)
-  })
-
-  it('creates call steps for blocking calls in a condition', () => {
-    const code = `function check_post_result() {
+  it(
+    'creates call steps for blocking calls in a condition',
+    transpileAndSnapshotTest(`function check_post_result() {
       if (http.post("https://visit.dreamland.test/").code === 200) {
         return "ok"
       } else {
         return "error"
       }
-    }`
+    }`),
+  )
 
-    const expected = `
-    check_post_result:
-      steps:
-        - call_http_post_1:
-            call: http.post
-            args:
-              url: https://visit.dreamland.test/
-            result: __temp0
-        - switch1:
-            switch:
-              - condition: \${__temp0.code == 200}
-                steps:
-                  - return1:
-                      return: ok
-              - condition: true
-                steps:
-                  - return2:
-                      return: error
-    `
-
-    assertTranspiled(code, expected)
-  })
-
-  it('creates call steps for blocking calls in a nested scopes', () => {
-    const code = `function scopes() {
+  it(
+    'creates call steps for blocking calls in a nested scopes',
+    transpileAndSnapshotTest(`function scopes() {
       result = {}
       result.outer = http.get("https://visit.dreamland.test/outer.html")
       if (result.outer.code === 200) {
@@ -218,152 +90,46 @@ describe('Function invocation statement', () => {
       } else {
         return "error"
       }
-    }`
+    }`),
+  )
 
-    const expected = `
-    scopes:
-      steps:
-        - assign1:
-            assign:
-            - result: {}
-        - call_http_get_1:
-            call: http.get
-            args:
-              url: https://visit.dreamland.test/outer.html
-            result: __temp0
-        - assign2:
-            assign:
-            - result.outer: \${__temp0}
-        - switch1:
-            switch:
-              - condition: \${result.outer.code == 200}
-                steps:
-                  - try1:
-                      try:
-                        steps:
-                          - call_http_get_2:
-                              call: http.get
-                              args:
-                                url: https://visit.dreamland.test/inner.html
-                              result: __temp0
-                          - return1:
-                              return: \${__temp0}
-                      except:
-                        as: e
-                        steps:
-                          - return2:
-                              return: exception
-              - condition: true
-                steps:
-                  - return3:
-                      return: error
-    `
-
-    assertTranspiled(code, expected)
-  })
-
-  it('creates call steps for blocking calls in for loops', () => {
-    const code = `function check_post_result() {
+  it(
+    'creates call steps for blocking calls in for loops',
+    transpileAndSnapshotTest(`function check_post_result() {
       for (const i of [1, 2, 3]) {
         const res = http.get(\`https://visit.dreamland.test/page-\${i}.html\`)
       }
-    }`
+    }`),
+  )
 
-    const expected = `
-    check_post_result:
-      steps:
-        - for1:
-            for:
-              value: i
-              in: [1, 2, 3]
-              steps:
-                - call_http_get_1:
-                    call: http.get
-                    args:
-                      url: \${"https://visit.dreamland.test/page-" + default(i, "null") + ".html"}
-                    result: res
-    `
-
-    assertTranspiled(code, expected)
-  })
-
-  it('creates call steps for blocking calls in return expressions', () => {
-    const code = `function download() {
+  it(
+    'creates call steps for blocking calls in return expressions',
+    transpileAndSnapshotTest(`function download() {
       return http.get("https://visit.dreamland.test/")
-    }`
+    }`),
+  )
 
-    const expected = `
-    download:
-      steps:
-        - call_http_get_1:
-            call: http.get
-            args:
-              url: https://visit.dreamland.test/
-            result: __temp0
-        - return1:
-            return: \${__temp0}
-    `
-
-    assertTranspiled(code, expected)
-  })
-
-  it('creates call steps for blocking calls in complex expressions', () => {
-    const code = `function location() {
+  it(
+    'creates call steps for blocking calls in complex expressions',
+    transpileAndSnapshotTest(`function location() {
       return "response:" + \
         map.get(http.get("https://visit.dreamland.test/elfo.html"), "body") + \
         http.get("https://visit.dreamland.test/luci.html").body
-    }`
+    }`),
+  )
 
-    const expected = `
-    location:
-      steps:
-        - call_http_get_1:
-            call: http.get
-            args:
-              url: https://visit.dreamland.test/elfo.html
-            result: __temp0
-        - call_http_get_2:
-            call: http.get
-            args:
-              url: https://visit.dreamland.test/luci.html
-            result: __temp1
-        - return1:
-            return: \${"response:" + map.get(__temp0, "body") + __temp1.body}
-    `
-
-    assertTranspiled(code, expected)
-  })
-
-  it('generates assign and call steps in correct order in expressions', () => {
-    const code = `function main() {
+  it(
+    'generates assign and call steps in correct order in expressions',
+    transpileAndSnapshotTest(`function main() {
       const url = "https://visit.dreamland.test/elfo.html";
       const message = "response:" + http.get(url).body;
       return message;
-    }`
+    }`),
+  )
 
-    const expected = `
-    main:
-      steps:
-        - assign1:
-            assign:
-              - url: https://visit.dreamland.test/elfo.html
-        - call_http_get_1:
-            call: http.get
-            args:
-              url: \${url}
-            result: __temp0
-        - assign2:
-            assign:
-              - message: \${"response:" + __temp0.body}
-        - return1:
-            return: \${message}
-    `
-
-    assertTranspiled(code, expected)
-  })
-
-  it('regression: parameter assignments and blocking call in correct order when the call result is type cast', () => {
-    const code = `
+  it(
+    'regression: parameter assignments and blocking call in correct order when the call result is type cast',
+    transpileAndSnapshotTest(`
     function main() {
       const parent = 'projects/test/databases/(default)/documents';
       const collectionId = 'chatrooms';
@@ -374,33 +140,12 @@ describe('Function invocation statement', () => {
 
       return result;
     }
-    `
+    `),
+  )
 
-    const expected = `
-    main:
-      steps:
-        - assign1:
-            assign:
-              - parent: projects/test/databases/(default)/documents
-              - collectionId: chatrooms
-        - call_googleapis_firestore_v1_projects_databases_documents_list_1:
-            call: googleapis.firestore.v1.projects.databases.documents.list
-            args:
-              collectionId: \${collectionId}
-              parent: \${parent}
-            result: __temp0
-        - assign2:
-            assign:
-              - result: \${__temp0}
-        - return1:
-            return: \${result}
-    `
-
-    assertTranspiled(code, expected)
-  })
-
-  it('does not output undefined arguments in blocking calls', () => {
-    const code = `function main() {
+  it(
+    'does not output undefined arguments in blocking calls',
+    transpileAndSnapshotTest(`function main() {
       const docname =
         'projects/test/databases/(default)/documents/tvshows/disenchantment';
       const updated = googleapis.firestore.v1.projects.databases.documents.patch(
@@ -412,35 +157,12 @@ describe('Function invocation statement', () => {
       );
 
       return updated;
-    }`
+    }`),
+  )
 
-    const expected = `
-    main:
-      steps:
-        - assign1:
-            assign:
-              - docname: projects/test/databases/(default)/documents/tvshows/disenchantment
-        - call_googleapis_firestore_v1_projects_databases_documents_patch_1:
-            call: googleapis.firestore.v1.projects.databases.documents.patch
-            args:
-              name: \${docname}
-              updateMask:
-                fieldPaths:
-                  - rating
-              body:
-                fields:
-                  rating:
-                    doubleValue: 9
-            result: updated
-        - return1:
-            return: \${updated}
-    `
-
-    assertTranspiled(code, expected)
-  })
-
-  it('does not output undefined arguments in blocking calls in expressions', () => {
-    const code = `function main() {
+  it(
+    'does not output undefined arguments in blocking calls in expressions',
+    transpileAndSnapshotTest(`function main() {
       const docname =
         'projects/test/databases/(default)/documents/tvshows/disenchantment';
       const updated = googleapis.firestore.v1.projects.databases.documents.patch(
@@ -452,204 +174,72 @@ describe('Function invocation statement', () => {
       ).updateTime;
 
       return updated;
-    }`
+    }`),
+  )
 
-    const expected = `
-    main:
-      steps:
-        - assign1:
-            assign:
-              - docname: projects/test/databases/(default)/documents/tvshows/disenchantment
-              - __temp0:
-                  fieldPaths:
-                    - rating
-              - __temp1:
-                  fields:
-                    rating:
-                      doubleValue: 9
-        - call_googleapis_firestore_v1_projects_databases_documents_patch_1:
-            call: googleapis.firestore.v1.projects.databases.documents.patch
-            args:
-              name: \${docname}
-              updateMask: \${__temp0}
-              body: \${__temp1}
-            result: __temp2
-        - assign2:
-            assign:
-              - updated: \${__temp2.updateTime}
-        - return1:
-            return: \${updated}
-    `
-
-    assertTranspiled(code, expected)
-  })
-
-  it('creates call steps for nested blocking calls', () => {
-    const code = `function nested() {
+  it(
+    'creates call steps for nested blocking calls',
+    transpileAndSnapshotTest(`function nested() {
       return http.get(http.get(http.get("https://example.com/redirected.json").body).body)
-    }`
+    }`),
+  )
 
-    const expected = `
-    nested:
-      steps:
-        - call_http_get_1:
-            call: http.get
-            args:
-              url: https://example.com/redirected.json
-            result: __temp0
-        - call_http_get_2:
-            call: http.get
-            args:
-              url: \${__temp0.body}
-            result: __temp1
-        - call_http_get_3:
-            call: http.get
-            args:
-              url: \${__temp1.body}
-            result: __temp2
-        - return1:
-            return: \${__temp2}
-    `
-
-    assertTranspiled(code, expected)
-  })
-
-  it('creates call steps for a nested blocking nested in non-blocking calls', () => {
-    const code = `function nested() {
+  it(
+    'creates call steps for a nested blocking nested in non-blocking calls',
+    transpileAndSnapshotTest(`function nested() {
       return map.get(map.get(http.get("https://example.com/redirected.json"), "body"), "value")
-    }`
+    }`),
+  )
 
-    const expected = `
-    nested:
-      steps:
-        - call_http_get_1:
-            call: http.get
-            args:
-              url: https://example.com/redirected.json
-            result: __temp0
-        - return1:
-            return: \${map.get(map.get(__temp0, "body"), "value")}
-    `
-
-    assertTranspiled(code, expected)
-  })
-
-  it('ignores extra arguments in a blocking function call', () => {
-    const code = `function main() {
+  it(
+    'ignores extra arguments in a blocking function call',
+    transpileAndSnapshotTest(`function main() {
       sys.sleep(1000, 2000, 3000)
-    }`
+    }`),
+  )
 
-    const expected = `
-    main:
-      steps:
-        - call_sys_sleep_1:
-            call: sys.sleep
-            args:
-              seconds: 1000
-    `
-
-    assertTranspiled(code, expected)
-  })
-
-  it('ignores extra arguments in a blocking function call in a nested expression', () => {
-    const code = `function main(callbackobj) {
+  it(
+    'ignores extra arguments in a blocking function call in a nested expression',
+    transpileAndSnapshotTest(`function main(callbackobj) {
       handle(events.await_callback(callbackobj, 1000, 'a', null, 89))
-    }`
+    }`),
+  )
 
-    const expected = `
-    main:
-      params:
-        - callbackobj
-      steps:
-        - call_events_await_callback_1:
-            call: events.await_callback
-            args:
-              callback: \${callbackobj}
-              timeout: 1000
-            result: __temp0
-        - assign1:
-            assign:
-              - __temp: \${handle(__temp0)}
-    `
-
-    assertTranspiled(code, expected)
-  })
-
-  it('call_step() outputs a call step', () => {
-    const code = `function main() {
+  it(
+    'call_step() outputs a call step',
+    transpileAndSnapshotTest(`function main() {
       call_step(sys.log, {
         json: {"message": "Meow. That's what cats say, right?"},
         severity: "DEBUG"
       })
-    }`
+    }`),
+  )
 
-    const expected = `
-    main:
-      steps:
-        - call_sys_log_1:
-            call: sys.log
-            args:
-              json:
-                message: Meow. That's what cats say, right?
-              severity: DEBUG
-    `
-
-    assertTranspiled(code, expected)
-  })
-
-  it('call_step() outputs a call step 2', () => {
-    const code = `function main() {
+  it(
+    'call_step() outputs a call step 2',
+    transpileAndSnapshotTest(`function main() {
       call_step(sys.log, {
         json: {data: {name: "Oona", occupations: ["queen", "pirate"]}},
         severity: "INFO"
       })
-    }`
+    }`),
+  )
 
-    const expected = `
-    main:
-      steps:
-        - call_sys_log_1:
-            call: sys.log
-            args:
-              json:
-                data:
-                  name: Oona
-                  occupations:
-                    - queen
-                    - pirate
-              severity: INFO
-    `
-
-    assertTranspiled(code, expected)
-  })
-
-  it('call_step() with a return value', () => {
-    const code = `function main() {
+  it(
+    'call_step() with a return value',
+    transpileAndSnapshotTest(`function main() {
       const response = call_step(http.post, {
         url: "https://visit.dreamland.test/",
         body: {
           "user": "bean"
         }
       })
-    }`
+    }`),
+  )
 
-    const expected = `
-    main:
-      steps:
-        - call_http_post_1:
-            call: http.post
-            args:
-              url: https://visit.dreamland.test/
-              body:
-                user: bean
-            result: response
-    `
-
-    assertTranspiled(code, expected)
-  })
-
-  it('call_step() with a return value assigned to a member variable', () => {
-    const code = `function main() {
+  it(
+    'call_step() with a return value assigned to a member variable',
+    transpileAndSnapshotTest(`function main() {
       const data = {}
       data.response = call_step(http.post, {
         url: "https://visit.dreamland.test/",
@@ -657,44 +247,15 @@ describe('Function invocation statement', () => {
           "user": "bean"
         }
       })
-    }`
+    }`),
+  )
 
-    const expected = `
-    main:
-      steps:
-        - assign1:
-            assign:
-              - data: {}
-        - call_http_post_1:
-            call: http.post
-            args:
-              url: https://visit.dreamland.test/
-              body:
-                user: bean
-            result: __temp
-        - assign2:
-            assign:
-              - data.response: \${__temp}
-    `
-
-    assertTranspiled(code, expected)
-  })
-
-  it('call_step() without function arguments', () => {
-    const code = `function main() {
+  it(
+    'call_step() without function arguments',
+    transpileAndSnapshotTest(`function main() {
       const timestamp = call_step(sys.now)
-    }`
-
-    const expected = `
-    main:
-      steps:
-        - call_sys_now_1:
-            call: sys.now
-            result: timestamp
-    `
-
-    assertTranspiled(code, expected)
-  })
+    }`),
+  )
 
   it('call_step() requires at least a function to be called', () => {
     const code = `function main() {

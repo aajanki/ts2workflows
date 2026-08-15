@@ -85,7 +85,13 @@ npm run build
 ### Run unit tests
 
 ```sh
-npm run test
+npm test
+```
+
+Update test snapshots:
+
+```sh
+SNAPSHOT_UPDATE=1 npm test
 ```
 
 Run tests and print the test coverage:

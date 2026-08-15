@@ -1,12 +1,12 @@
 /* istanbul ignore file @preserve */
 
-import { expect } from 'chai'
 import {
   parse,
   TSESTree,
   AST_NODE_TYPES,
 } from '@typescript-eslint/typescript-estree'
 import * as YAML from 'yaml'
+import snapshot from 'snap-shot-it'
 import { Expression } from '../src/ast/expressions.js'
 import { transpileText } from '../src/transpiler/index.js'
 import { convertExpression } from '../src/transpiler/parseexpressions.js'
@@ -56,10 +56,10 @@ function isJSONObject(val: string): boolean {
 }
 
 /**
- * Asserts that transpilation generates an expected output.
- *
- * Transpiles Typescript source in `code` and compares it to the YAML string `expected`.
+ * A test case that transpiles code and compares it to a saved snapshot.
  */
-export function assertTranspiled(code: string, expected: string): void {
-  expect(YAML.parse(transpileText(code))).to.deep.equal(YAML.parse(expected))
+export function transpileAndSnapshotTest(code: string): () => void {
+  return () => {
+    snapshot(YAML.parse(transpileText(code)))
+  }
 }
