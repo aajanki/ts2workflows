@@ -172,6 +172,32 @@ describe('Parallel statement', () => {
     ),
   )
 
+  it(
+    "doesn't reuse the same temp variable name outside and inside parallel statement",
+    // If the same temp variable name were used in both scopes, it would need
+    // to be included in the shared variables list
+    transpileAndSnapshotTest(
+      `function main() {
+        let x = 7
+        x += { b: 3 }.b
+
+        parallel(
+          [
+            () => {
+              x += { a: 5 }.a
+            },
+            () => {
+              x += 1
+            },
+          ],
+          { shared: ['x'] },
+        )
+
+        return x
+    }`,
+    ),
+  )
+
   it('throws if an arrow function contains something else in addition to a for loop', () => {
     const code = `
     function main() {

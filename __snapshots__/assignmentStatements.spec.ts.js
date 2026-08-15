@@ -382,7 +382,7 @@ exports['Assignment statement map literal in complex expression 1'] = {
                 "assign2": {
                   "assign": [
                     {
-                      "__temp0": {
+                      "__temp1": {
                         "value": 5
                       }
                     }
@@ -393,7 +393,7 @@ exports['Assignment statement map literal in complex expression 1'] = {
                 "switch1": {
                   "switch": [
                     {
-                      "condition": "${2 * (__temp0.value + 10) > 0}",
+                      "condition": "${2 * (__temp1.value + 10) > 0}",
                       "steps": [
                         {
                           "assign3": {

@@ -273,3 +273,78 @@ exports['Parallel statement outputs parallel iteration if called with a for..of 
     ]
   }
 }
+
+exports['Parallel statement doesn\'t reuse the same temp variable name outside and inside parallel statement 1'] = {
+  "main": {
+    "steps": [
+      {
+        "assign1": {
+          "assign": [
+            {
+              "x": 7
+            },
+            {
+              "__temp1": {
+                "b": 3
+              }
+            },
+            {
+              "x": "${x + __temp1.b}"
+            }
+          ]
+        }
+      },
+      {
+        "parallel1": {
+          "parallel": {
+            "branches": [
+              {
+                "branch1": {
+                  "steps": [
+                    {
+                      "assign2": {
+                        "assign": [
+                          {
+                            "__temp0": {
+                              "a": 5
+                            }
+                          },
+                          {
+                            "x": "${x + __temp0.a}"
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "branch2": {
+                  "steps": [
+                    {
+                      "assign3": {
+                        "assign": [
+                          {
+                            "x": "${x + 1}"
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              }
+            ],
+            "shared": [
+              "x"
+            ]
+          }
+        }
+      },
+      {
+        "return1": {
+          "return": "${x}"
+        }
+      }
+    ]
+  }
+}

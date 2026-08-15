@@ -324,7 +324,8 @@ function parseSubworkflows(
   node: TSESTree.FunctionDeclarationWithName,
 ): SubworkflowStatements {
   const workflowParams = parseWorkflowParams(node.params)
-  const steps = transformAST(parseStatement(node.body, {}))
+  const tempGen = createTempVariableGenerator()
+  const steps = transformAST(tempGen, parseStatement(node.body, {}))
 
   if (steps.length === 0) {
     throw new WorkflowSyntaxError(
@@ -334,6 +335,11 @@ function parseSubworkflows(
   }
 
   return new SubworkflowStatements(node.id.name, steps, workflowParams)
+}
+
+function createTempVariableGenerator(): () => VariableName {
+  let i = 0
+  return () => VariableName(`__temp${i++}`)
 }
 
 function parseWorkflowParams(

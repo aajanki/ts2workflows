@@ -1,5 +1,12 @@
 # ts2workflows changelog
 
+## Unreleased
+
+Fixes:
+
+- Reduce temp variable name collisions. The purpose is to avoid having to include temp variables in
+  parallel statement's shared variable list. The downside is that this increases memory consumption by creating more distinct temp variables.
+
 ## Version 0.15.0 - 2026-03-18
 
 New features:

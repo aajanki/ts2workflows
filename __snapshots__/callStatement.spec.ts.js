@@ -261,14 +261,14 @@ exports['Function invocation statement creates call steps for blocking calls in 
           "args": {
             "url": "https://visit.dreamland.test/outer.html"
           },
-          "result": "__temp0"
+          "result": "__temp1"
         }
       },
       {
         "assign2": {
           "assign": [
             {
-              "result.outer": "${__temp0}"
+              "result.outer": "${__temp1}"
             }
           ]
         }

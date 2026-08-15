@@ -40,19 +40,20 @@ import { blockingFunctions } from './generated/functionMetadata.js'
 /**
  * Performs various transformations on the AST.
  */
-export function transformAST(
+export const transformAST = R.curry(function (
+  tempGen: () => VariableName,
   statements: WorkflowStatement[],
 ): WorkflowStatement[] {
-  const tempGen = createTempVariableGenerator()
-  const transform = R.pipe(
+  const transformNested = applyNested(transformAST(tempGen))
+  const transformOneLevel = R.pipe(
     R.chain(mapLiteralsAsAssigns(tempGen)),
     R.chain(intrinsicFunctionImplementation),
     R.chain(blockingCallsAsFunctionCalls(tempGen)),
     mergeAssigns,
   )
 
-  return transform(statements.map((s) => applyNested(transformAST, s)))
-}
+  return transformOneLevel(R.map(transformNested, statements))
+})
 
 /**
  * Merge consecutive assign statements into one assign statement
@@ -309,11 +310,6 @@ function expandWhile(
   res.push(statement.withCondition(newCond))
 
   return res
-}
-
-function createTempVariableGenerator(): () => VariableName {
-  let i = 0
-  return () => VariableName(`__temp${i++}`)
 }
 
 function replaceBlockingCalls(

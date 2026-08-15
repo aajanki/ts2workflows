@@ -1,3 +1,4 @@
+import * as R from 'ramda'
 import {
   Expression,
   MemberExpression,
@@ -227,7 +228,7 @@ export type WorkflowStatement =
   | TryStatement
   | WhileStatement
 
-export function applyNested(
+export const applyNested = R.curry(function (
   fn: (x: WorkflowStatement[]) => WorkflowStatement[],
   s: WorkflowStatement,
 ): WorkflowStatement {
@@ -325,4 +326,4 @@ export function applyNested(
     case 'while':
       return new WhileStatement(s.condition, fn(s.body))
   }
-}
+})
