@@ -152,7 +152,7 @@ export function parseStatement(
 function convertVariableDeclarations(
   node: TSESTree.LetOrConstOrVarDeclaration | TSESTree.UsingDeclaration,
   ctx: ParsingContext,
-): WorkflowStatement[] {
+): (AssignmentLikeStatement | IfStatement)[] {
   if (node.kind !== 'const' && node.kind !== 'let') {
     throw new WorkflowSyntaxError(
       'Only const and let variable declarations are supported',
@@ -202,9 +202,9 @@ function convertArrayDestructuring(
   arrayPattern: TSESTree.ArrayPattern,
   initializer: TSESTree.Expression | null,
   ctx: ParsingContext,
-): WorkflowStatement[] {
+): (AssignmentLikeStatement | IfStatement)[] {
   let initExpression
-  const statements: WorkflowStatement[] = []
+  const statements: (AssignmentLikeStatement | IfStatement)[] = []
   if (
     initializer?.type === AST_NODE_TYPES.Identifier ||
     initializer?.type === AST_NODE_TYPES.MemberExpression
@@ -233,7 +233,7 @@ function arrayDestructuringStatements(
   patterns: (TSESTree.DestructuringPattern | null)[],
   initializerExpression: Expression,
   ctx: ParsingContext,
-): WorkflowStatement[] {
+): (AssignStatement | IfStatement)[] {
   if (patterns.filter((p) => p !== null).length === 0) {
     return []
   }
@@ -282,58 +282,60 @@ function arrayElementsDestructuringStatements(
   initializerExpression: Expression,
   take: number,
   ctx: ParsingContext,
-): WorkflowStatement[] {
-  return patterns.flatMap((pat, i) => {
-    if (i >= take) {
-      return [
-        new AssignStatement(
-          extractDefaultAssignmentsFromDestructuringPattern(pat),
-        ),
-      ]
-    }
-
-    const iElement = memberEx(initializerExpression, numberEx(i), true)
-
-    switch (pat?.type) {
-      case AST_NODE_TYPES.MemberExpression:
-      case AST_NODE_TYPES.Identifier:
+): (AssignmentLikeStatement | IfStatement | ForRangeStatement)[] {
+  return patterns.flatMap(
+    (pat, i): (AssignmentLikeStatement | IfStatement | ForRangeStatement)[] => {
+      if (i >= take) {
         return [
-          new AssignStatement([
-            { name: convertAssignmentTarget(pat), value: iElement },
-          ]),
+          new AssignStatement(
+            extractDefaultAssignmentsFromDestructuringPattern(pat),
+          ),
         ]
-
-      case AST_NODE_TYPES.AssignmentPattern: {
-        if (pat.left.type !== AST_NODE_TYPES.Identifier) {
-          throw new WorkflowSyntaxError(
-            'Default value can be used only with an identifier',
-            pat.left.loc,
-          )
-        }
-
-        const name = variableReferenceEx(VariableName(pat.left.name))
-        return [new AssignStatement([{ name, value: iElement }])]
       }
 
-      case AST_NODE_TYPES.ObjectPattern:
-        return objectDestructuringStatements(pat.properties, iElement, ctx)
+      const iElement = memberEx(initializerExpression, numberEx(i), true)
 
-      case AST_NODE_TYPES.ArrayPattern:
-        return arrayDestructuringStatements(pat.elements, iElement, ctx)
+      switch (pat?.type) {
+        case AST_NODE_TYPES.MemberExpression:
+        case AST_NODE_TYPES.Identifier:
+          return [
+            new AssignStatement([
+              { name: convertAssignmentTarget(pat), value: iElement },
+            ]),
+          ]
 
-      case AST_NODE_TYPES.RestElement:
-        return arrayRestDestructuringStatements(
-          patterns,
-          pat,
-          initializerExpression,
-          patterns.length - 1,
-          ctx,
-        )
+        case AST_NODE_TYPES.AssignmentPattern: {
+          if (pat.left.type !== AST_NODE_TYPES.Identifier) {
+            throw new WorkflowSyntaxError(
+              'Default value can be used only with an identifier',
+              pat.left.loc,
+            )
+          }
 
-      default: // pat === null
-        return []
-    }
-  })
+          const name = variableReferenceEx(VariableName(pat.left.name))
+          return [new AssignStatement([{ name, value: iElement }])]
+        }
+
+        case AST_NODE_TYPES.ObjectPattern:
+          return objectDestructuringStatements(pat.properties, iElement, ctx)
+
+        case AST_NODE_TYPES.ArrayPattern:
+          return arrayDestructuringStatements(pat.elements, iElement, ctx)
+
+        case AST_NODE_TYPES.RestElement:
+          return arrayRestDestructuringStatements(
+            patterns,
+            pat,
+            initializerExpression,
+            patterns.length - 1,
+            ctx,
+          )
+
+        default: // pat === null
+          return []
+      }
+    },
+  )
 }
 
 function extractDefaultAssignmentsFromDestructuringPattern(
@@ -435,7 +437,7 @@ function arrayRestDestructuringStatements(
   initializerExpression: Expression,
   startIndex: number,
   ctx: ParsingContext,
-): WorkflowStatement[] {
+): (AssignStatement | ForRangeStatement)[] {
   throwIfInvalidRestElement(patterns)
 
   if (rest.argument.type !== AST_NODE_TYPES.Identifier) {
@@ -478,9 +480,9 @@ function convertObjectDestructuring(
   objectPattern: TSESTree.ObjectPattern,
   initializer: TSESTree.Expression | null,
   ctx: ParsingContext,
-): WorkflowStatement[] {
+): (AssignmentLikeStatement | IfStatement)[] {
   let initExpression: Expression
-  const statements: WorkflowStatement[] = []
+  const statements: (AssignmentLikeStatement | IfStatement)[] = []
   if (
     initializer?.type === AST_NODE_TYPES.Identifier ||
     (initializer?.type === AST_NODE_TYPES.MemberExpression &&
@@ -510,7 +512,7 @@ function objectDestructuringStatements(
   properties: (TSESTree.RestElement | TSESTree.Property)[],
   initializerExpression: Expression,
   ctx: ParsingContext,
-): WorkflowStatement[] {
+): (AssignmentLikeStatement | IfStatement)[] {
   return properties.flatMap((prop) => {
     if (prop.type === AST_NODE_TYPES.RestElement) {
       return objectDestructuringRestStatements(
@@ -575,7 +577,7 @@ function objectAssignmentPatternStatements(
   pat: TSESTree.AssignmentPattern,
   initializerExpression: Expression,
   keyExpression: MemberExpression,
-): WorkflowStatement[] {
+): IfStatement[] {
   if (pat.left.type !== AST_NODE_TYPES.Identifier) {
     throw new WorkflowSyntaxError(
       'Default value can be used only with an identifier',
@@ -610,7 +612,7 @@ function objectDestructuringRestStatements(
   properties: (TSESTree.RestElement | TSESTree.Property)[],
   rest: TSESTree.RestElement,
   initializerExpression: Expression,
-): WorkflowStatement[] {
+): AssignStatement[] {
   throwIfInvalidRestElement(properties)
 
   if (rest.argument.type !== AST_NODE_TYPES.Identifier) {
@@ -644,7 +646,7 @@ function objectDestructuringRestStatements(
 function assignmentExpressionToStatement(
   node: TSESTree.AssignmentExpression,
   ctx: ParsingContext,
-): WorkflowStatement[] {
+): (AssignmentLikeStatement | IfStatement)[] {
   const compoundToBinary = {
     '=': '' as const,
     '+=': '+' as const,
@@ -688,9 +690,9 @@ function assignmentStatements(
   left: TSESTree.Expression,
   right: TSESTree.Expression,
   ctx: ParsingContext,
-): WorkflowStatement[] {
+): (AssignmentLikeStatement | IfStatement)[] {
   let valueExpression: Expression
-  const statements: WorkflowStatement[] = []
+  const statements: AssignmentLikeStatement[] = []
 
   if (left.type === AST_NODE_TYPES.ArrayPattern) {
     return convertArrayDestructuring(left, right, ctx)
