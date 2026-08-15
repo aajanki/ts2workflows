@@ -1250,11 +1250,7 @@ function createForOfStatement(
   node: TSESTree.ForOfStatement,
   ctx: ParsingContext,
 ): ForStatement {
-  const bodyCtx = Object.assign({}, ctx, {
-    continueTarget: undefined,
-    breakTarget: undefined,
-  })
-  const statements = parseStatement(node.body, bodyCtx)
+  const statements = parseStatement(node.body, ctx)
 
   let loopVariableName: VariableName
   if (node.left.type === AST_NODE_TYPES.Identifier) {
