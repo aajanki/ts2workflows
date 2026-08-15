@@ -81,9 +81,6 @@
     "tsx": "4.23.1",
     "typescript": "^5.5.4"
   },
-  "peerDependencies": {
-    "typescript": ">=5.5.4 <7"
-  },
   "dependencies": {
     "@typescript-eslint/typescript-estree": "8.65.0",
     "commander": "15.0.0",
