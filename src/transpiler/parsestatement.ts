@@ -1017,7 +1017,7 @@ function createParallelStatement(
     args[1],
   )
 
-  const ctx2 = Object.assign(structuredClone(ctx), {
+  const ctx2 = R.mergeRight(ctx, {
     parallelNestingLevel: (ctx.parallelNestingLevel ?? 0) + 1,
   })
 

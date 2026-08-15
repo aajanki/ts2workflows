@@ -582,7 +582,7 @@ function doWhileSteps(
 ): WorkflowStep[] {
   const startOfLoopLabel = generatePlaceholderLabel()
   const endOfLoopLabel = generatePlaceholderLabel()
-  const ctx2 = Object.assign({}, ctx, {
+  const ctx2 = R.mergeRight(ctx, {
     continueTarget: startOfLoopLabel,
     breakTarget: endOfLoopLabel,
   })
@@ -619,7 +619,7 @@ function whileSteps(
 ): WorkflowStep[] {
   const startOfLoopLabel = generateLabel('switch')
   const endOfLoopLabel = generatePlaceholderLabel()
-  const ctx2 = Object.assign({}, ctx, {
+  const ctx2 = R.mergeRight(ctx, {
     continueTarget: startOfLoopLabel,
     breakTarget: endOfLoopLabel,
   })
@@ -653,10 +653,7 @@ function forStep(
   statement: ForStatement,
 ): ForStep {
   const label = generateLabel('for')
-  const bodyCtx = Object.assign({}, ctx, {
-    continueTarget: undefined,
-    breakTarget: undefined,
-  })
+  const bodyCtx = R.omit(['continueTarget', 'breakTarget'], ctx)
   const toSteps = statementListToSteps(generateLabel, bodyCtx)
 
   return {
@@ -674,10 +671,7 @@ function forRangeStep(
   statement: ForRangeStatement,
 ): ForStep {
   const label = generateLabel('for')
-  const bodyCtx = Object.assign({}, ctx, {
-    continueTarget: undefined,
-    breakTarget: undefined,
-  })
+  const bodyCtx = R.omit(['continueTarget', 'breakTarget'], ctx)
   const toSteps = statementListToSteps(generateLabel, bodyCtx)
 
   return {
@@ -846,7 +840,7 @@ function switchSteps(
 ): WorkflowStep[] {
   const label = generateLabel('switch')
   const endOfSwitchLabel = generatePlaceholderLabel()
-  const switchCtx = Object.assign({}, ctx, { breakTarget: endOfSwitchLabel })
+  const switchCtx = R.mergeRight(ctx, { breakTarget: endOfSwitchLabel })
   const toSteps = statementListToSteps(generateLabel, switchCtx)
   const steps: WorkflowStep[] = []
   const branches: IfNextBranch[] = []
@@ -906,13 +900,7 @@ function trySteps(
 
     const targets = ctx.finalizerTargets ?? []
     targets.push(startOfFinalizer.label)
-    const ctx2: StepContext & { finalizerTarget?: Label[] } = Object.assign(
-      {},
-      ctx,
-      {
-        finalizerTargets: targets,
-      },
-    )
+    const ctx2: StepContext = R.mergeRight(ctx, { finalizerTargets: targets })
 
     const [conditionVariable, valueVariable] = finalizerVariables(ctx2)
     const initStatement = finalizerInitializer(

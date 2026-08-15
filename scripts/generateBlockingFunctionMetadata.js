@@ -10,6 +10,7 @@
 import * as fs from 'node:fs'
 import path from 'node:path'
 import { parse, AST_NODE_TYPES } from '@typescript-eslint/typescript-estree'
+import { mergeRight } from 'ramda'
 
 const inputFile = 'types/workflowslib.d.ts'
 const outputFile = 'src/transpiler/generated/functionMetadata.ts'
@@ -88,7 +89,7 @@ function extractFunctionDefinitions(node, ctx) {
         const fullNamespace = ctx.namespace
           ? `${ctx.namespace}.${namespace}`
           : namespace
-        const nestedCtx = Object.assign({}, ctx, { namespace: fullNamespace })
+        const nestedCtx = mergeRight(ctx, { namespace: fullNamespace })
         return node.body.body.flatMap((node2) => {
           return extractFunctionDefinitions(node2, nestedCtx)
         })

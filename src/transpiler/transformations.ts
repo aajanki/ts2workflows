@@ -44,15 +44,18 @@ export const transformAST = R.curry(function (
   tempGen: () => VariableName,
   statements: WorkflowStatement[],
 ): WorkflowStatement[] {
-  const transformNested = applyNested(transformAST(tempGen))
-  const transformOneLevel = R.pipe(
+  const trRecursively = R.map(R.partial(applyNested, [transformAST(tempGen)]))
+
+  const trCurrentLevel = R.pipe(
     R.chain(mapLiteralsAsAssigns(tempGen)),
     R.chain(intrinsicFunctionImplementation),
     R.chain(blockingCallsAsFunctionCalls(tempGen)),
     mergeAssigns,
   )
 
-  return transformOneLevel(R.map(transformNested, statements))
+  // First apply transformations recursively on each statement,
+  // then on the current level
+  return R.compose(trCurrentLevel, trRecursively)(statements)
 })
 
 /**
