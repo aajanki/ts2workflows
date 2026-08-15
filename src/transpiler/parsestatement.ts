@@ -644,48 +644,34 @@ function assignmentExpressionToStatement(
   node: TSESTree.AssignmentExpression,
   ctx: ParsingContext,
 ): WorkflowStatement[] {
-  let compoundOperator: BinaryOperator | undefined
-  switch (node.operator) {
-    case '=':
-      compoundOperator = undefined
-      break
-
-    case '+=':
-      compoundOperator = '+'
-      break
-
-    case '-=':
-      compoundOperator = '-'
-      break
-
-    case '*=':
-      compoundOperator = '*'
-      break
-
-    case '/=':
-      compoundOperator = '/'
-      break
-
-    case '%=':
-      compoundOperator = '%'
-      break
-
-    case '&&=':
-      compoundOperator = 'and'
-      break
-
-    case '||=':
-      compoundOperator = 'or'
-      break
-
-    default:
-      throw new WorkflowSyntaxError(
-        `Operator ${node.operator} is not supported in assignment expressions`,
-        node.loc,
-      )
+  const compoundToBinary = {
+    '=': '' as const,
+    '+=': '+' as const,
+    '-=': '-' as const,
+    '*=': '*' as const,
+    '/=': '/' as const,
+    '%=': '%' as const,
+    '&&=': 'and' as const,
+    '||=': 'or' as const,
+    // null means not implemented
+    '**=': null,
+    '<<=': null,
+    '>>=': null,
+    '>>>=': null,
+    '&=': null,
+    '|=': null,
+    '??=': null,
+    '^=': null,
   }
 
-  if (compoundOperator === undefined) {
+  const compoundOperator = compoundToBinary[node.operator]
+
+  if (compoundOperator == undefined) {
+    throw new WorkflowSyntaxError(
+      `Operator ${node.operator} is not supported in assignment expressions`,
+      node.loc,
+    )
+  } else if (compoundOperator === '') {
     return assignmentStatements(node.left, node.right, ctx)
   } else {
     return compoundAssignmentStatements(
