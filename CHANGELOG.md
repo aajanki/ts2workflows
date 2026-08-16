@@ -1,11 +1,16 @@
 # ts2workflows changelog
 
-## Unreleased
+## Version 0.16.0 - 2026-08-16
+
+New features:
+
+- The CLI prints debug information if environment variable `DEBUG=ts2workflows` is set
 
 Fixes:
 
 - Reduce temp variable name collisions. The purpose is to avoid having to include temp variables in
   parallel statement's shared variable list. The downside is that this increases memory consumption by creating more distinct temp variables.
+- Remove a Unix path separator hopefully fixing execution on Windows
 
 ## Version 0.15.0 - 2026-03-18
 
