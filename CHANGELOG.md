@@ -1,5 +1,11 @@
 # ts2workflows changelog
 
+## unreleased
+
+Fixes:
+
+- Accept readonly arguments where mutability is not required in workflowslib
+
 ## Version 0.16.0 - 2026-08-16
 
 New features:

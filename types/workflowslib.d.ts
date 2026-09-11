@@ -49,7 +49,7 @@ export declare function int(x: string | number): number
 export declare function string(x: string | number | boolean): string
 export declare function keys<T extends object>(map: T): (keyof T)[]
 export declare function len(
-  value: unknown[] | Record<string, unknown> | string,
+  value: ReadonlyArray<unknown> | Record<string, unknown> | string,
 ): number
 export declare function get_type(
   value: unknown,
@@ -246,7 +246,7 @@ export declare namespace map {
     keys: K,
   ): K extends keyof T ? T[K] : T[keyof T] | null
   // map.get() with string[] key, the return type is not inferred
-  export function get(map: object, keys: string[]): WorkflowsValue
+  export function get(map: object, keys: ReadonlyArray<string>): WorkflowsValue
   export function merge<T extends object, U extends object>(
     first: T,
     second: U,
@@ -1084,7 +1084,7 @@ export declare function parallel(
 
 export declare function retry_policy(params: RetryPolicy): void
 
-export declare function call_step<T, A extends any[]>(
-  func: (...args: A) => T,
+export declare function call_step<T>(
+  func: (...args: any[]) => T,
   arguments: Record<string, any>,
 ): T
