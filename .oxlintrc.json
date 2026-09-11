@@ -46,5 +46,19 @@
     "__snapshots__",
     "src/transpiler/generated",
     "eslint.config.mjs"
+  ],
+  "overrides": [
+    {
+      "files": [
+        "types/*.ts"
+      ],
+      "rules": {
+        "typescript/no-explicit-any": "off",
+        "typescript/no-empty-object-type": "off",
+        "typescript/explicit-module-boundary-types": "off",
+        "typescript/no-unnecessary-type-parameters": "off",
+        "eslint/no-shadow-restricted-names": "off",
+      }
+    }
   ]
 }

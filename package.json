@@ -17,7 +17,7 @@
   "scripts": {
     "build": "npm run build:functionmetadata && tsc --build",
     "build:functionmetadata": "node scripts/generateBlockingFunctionMetadata.js",
-    "lint": "oxlint src test scripts",
+    "lint": "oxlint .",
     "format": "prettier . --write",
     "test": "mocha",
     "test:coverage": "nyc --reporter=text --reporter=html mocha",
