@@ -40,108 +40,108 @@ export const Label = make<Label>()
 
 // https://cloud.google.com/workflows/docs/reference/syntax/variables#assign-step
 interface AssignStep {
-  tag: 'assign'
+  readonly tag: 'assign'
   label: Label
-  assignments: VariableAssignment[]
-  next?: Label
+  readonly assignments: ReadonlyArray<VariableAssignment>
+  readonly next?: Label
 }
 
 // https://cloud.google.com/workflows/docs/reference/syntax/calls
 interface CallStep {
-  tag: 'call'
+  readonly tag: 'call'
   label: Label
-  call: string
-  args?: WorkflowParameters
-  result?: VariableName
+  readonly call: string
+  readonly args?: WorkflowParameters
+  readonly result?: VariableName
 }
 
 // https://cloud.google.com/workflows/docs/reference/syntax/iteration
 interface ForStep {
-  tag: 'for'
+  readonly tag: 'for'
   label: Label
-  steps: WorkflowStep[]
-  loopVariableName: VariableName
-  listExpression?: Expression
-  indexVariableName?: VariableName
-  rangeStart?: number | Expression
-  rangeEnd?: number | Expression
+  readonly steps: ReadonlyArray<WorkflowStep>
+  readonly loopVariableName: VariableName
+  readonly listExpression?: Expression
+  readonly indexVariableName?: VariableName
+  readonly rangeStart?: number | Expression
+  readonly rangeEnd?: number | Expression
 }
 
 // https://cloud.google.com/workflows/docs/reference/syntax/jumps
 interface NextStep {
-  tag: 'next'
+  readonly tag: 'next'
   label: Label
-  next: Label
+  readonly next: Label
 }
 
 // https://cloud.google.com/workflows/docs/reference/syntax/parallel-steps
 interface ParallelStep {
-  tag: 'parallel'
+  readonly tag: 'parallel'
   label: Label
-  branches: ParallelBranch[]
-  shared?: VariableName[]
-  concurrencyLimit?: number
-  exceptionPolicy?: string
+  readonly branches: ReadonlyArray<ParallelBranch>
+  readonly shared?: ReadonlyArray<VariableName>
+  readonly concurrencyLimit?: number
+  readonly exceptionPolicy?: string
 }
 
 interface ParallelBranch {
   readonly name: Label
-  readonly steps: WorkflowStep[]
+  readonly steps: ReadonlyArray<WorkflowStep>
 }
 
 // https://cloud.google.com/workflows/docs/reference/syntax/parallel-steps#parallel-iteration
 interface ParallelIterationStep {
-  tag: 'parallel-for'
+  readonly tag: 'parallel-for'
   label: Label
-  forStep: ForStep
-  shared?: VariableName[]
-  concurrencyLimit?: number
-  exceptionPolicy?: string
+  readonly forStep: ForStep
+  readonly shared?: ReadonlyArray<VariableName>
+  readonly concurrencyLimit?: number
+  readonly exceptionPolicy?: string
 }
 
 // https://cloud.google.com/workflows/docs/reference/syntax/raising-errors
 interface RaiseStep {
-  tag: 'raise'
+  readonly tag: 'raise'
   label: Label
-  value: Expression
+  readonly value: Expression
 }
 
 // https://cloud.google.com/workflows/docs/reference/syntax/completing
 interface ReturnStep {
-  tag: 'return'
+  readonly tag: 'return'
   label: Label
-  value: Expression | undefined
+  readonly value: Expression | undefined
 }
 
 // https://cloud.google.com/workflows/docs/reference/syntax/conditions
 interface SwitchStep {
-  tag: 'switch'
+  readonly tag: 'switch'
   label: Label
-  branches: SwitchBranch[]
-  next?: Label
+  readonly branches: ReadonlyArray<SwitchBranch>
+  readonly next?: Label
 }
 
 interface SwitchBranch {
   readonly condition: Expression
-  readonly steps?: WorkflowStep[]
+  readonly steps?: ReadonlyArray<WorkflowStep>
   readonly next?: Label
 }
 
 // https://cloud.google.com/workflows/docs/reference/syntax/catching-errors
 interface TryStep {
-  tag: 'try'
+  readonly tag: 'try'
   label: Label
-  trySteps: WorkflowStep[]
-  exceptSteps?: WorkflowStep[]
-  retryPolicy?: string | CustomRetryPolicy
-  errorMap?: VariableName
+  readonly trySteps: ReadonlyArray<WorkflowStep>
+  readonly exceptSteps?: ReadonlyArray<WorkflowStep>
+  readonly retryPolicy?: string | CustomRetryPolicy
+  readonly errorMap?: VariableName
 }
 
 // Internal step that represents a potential jump target.
 // This can be used as a placeholder when the actual target step is not yet known.
 // JumpTargetSteps are removed before transpiling to workflows YAML.
 interface JumpTargetStep {
-  tag: 'jump-target'
+  readonly tag: 'jump-target'
   label: Label
 }
 
@@ -217,7 +217,9 @@ export function renderStep(step: WorkflowStep): Record<string, unknown> {
   }
 }
 
-function renderSteps(steps: WorkflowStep[]): Record<string, unknown>[] {
+function renderSteps(
+  steps: ReadonlyArray<WorkflowStep>,
+): Record<string, unknown>[] {
   return steps.map(renderStep)
 }
 
@@ -1175,7 +1177,7 @@ function collectActualJumpTargets(steps: WorkflowStep[]): Map<Label, Label> {
 }
 
 function stepsToJumpStackElements(
-  steps: WorkflowStep[],
+  steps: ReadonlyArray<WorkflowStep>,
   nestingLevel: number,
 ): JumpStackElement[] {
   const block = steps.map((step, i) => ({
@@ -1219,7 +1221,7 @@ function nextNonJumpTargetNode(
   return undefined
 }
 
-function nestedSteps(step: WorkflowStep): WorkflowStep[][] {
+function nestedSteps(step: WorkflowStep): ReadonlyArray<WorkflowStep>[] {
   switch (step.tag) {
     case 'assign':
     case 'call':
@@ -1246,7 +1248,7 @@ function nestedSteps(step: WorkflowStep): WorkflowStep[][] {
   }
 }
 
-function nestedStepsTry(step: TryStep): WorkflowStep[][] {
+function nestedStepsTry(step: TryStep): ReadonlyArray<WorkflowStep>[] {
   const nested = []
   if (step.trySteps.length > 0) {
     nested.push(step.trySteps)
@@ -1258,7 +1260,9 @@ function nestedStepsTry(step: TryStep): WorkflowStep[][] {
   return nested
 }
 
-function removeJumpTargetSteps(steps: WorkflowStep[]): WorkflowStep[] {
+function removeJumpTargetSteps(
+  steps: ReadonlyArray<WorkflowStep>,
+): WorkflowStep[] {
   return steps
     .filter((x) => x.tag !== 'jump-target')
     .map(removeJumpTargetRecurse)
