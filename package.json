@@ -24,15 +24,7 @@
     "prepare": "husky && npm run build"
   },
   "lint-staged": {
-    "src/**/*.ts": [
-      "prettier --write",
-      "oxlint"
-    ],
-    "test/**/*.ts": [
-      "prettier --write",
-      "oxlint"
-    ],
-    "scripts/**/*.ts": [
+    "*.{ts,js}": [
       "prettier --write",
       "oxlint"
     ],
