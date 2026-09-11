@@ -45,7 +45,6 @@
     "test/fixtures",
     "__snapshots__",
     "src/transpiler/generated",
-    "types",
     "eslint.config.mjs"
   ]
 }
