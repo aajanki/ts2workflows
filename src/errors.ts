@@ -34,7 +34,7 @@ export function syntaxErrorWithText(
 ): WorkflowSyntaxErrorWithText {
   const lineNumber = Math.max(error.location.start.line, 0)
   const lines = sourceCode.split('\n')
-  const errorLine = lines[lineNumber - 1]
+  const errorLine = lines[lineNumber - 1] ?? ''
 
   return new WorkflowSyntaxErrorWithText(
     error.message,

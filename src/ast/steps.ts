@@ -696,14 +696,14 @@ function ifStep(
   const branches = statement.branches.map((branch) => {
     if ('body' in branch) {
       // Use the shorter "next" form on break and continue statements
-      if (branch.body.length === 1 && branch.body[0].tag === 'break') {
+      if (branch.body.length === 1 && branch.body[0]?.tag === 'break') {
         return {
           condition: branch.condition,
           next: breakStep(generateLabel, ctx, branch.body[0]).next,
         }
       } else if (
         branch.body.length === 1 &&
-        branch.body[0].tag === 'continue'
+        branch.body[0]?.tag === 'continue'
       ) {
         return {
           condition: branch.condition,
@@ -738,7 +738,7 @@ function labelledSteps(
   const toSteps = statementListToSteps(generateLabel, ctx)
   const steps = toSteps(statement.statements)
 
-  if (steps.length >= 1) {
+  if (steps[0]) {
     // FIXME: do not first generate a label and then immediately overwrite it here
     steps[0].label = statement.label
   }
@@ -1151,7 +1151,8 @@ function collectActualJumpTargets(steps: WorkflowStep[]): Map<Label, Label> {
 
   while (stack.length > 0) {
     // Do not yet pop in case nextNonJumpTargetNode needs to search the stack
-    const { step, nestingLevel } = stack[stack.length - 1]
+    // oxlint-disable-next-line no-non-null-assertion
+    const { step, nestingLevel } = stack[stack.length - 1]!
 
     if (step.tag === 'jump-target') {
       const currentLabel = step.label

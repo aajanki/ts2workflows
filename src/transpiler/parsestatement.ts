@@ -925,18 +925,20 @@ function createCallStatement(
   argumentsNode: TSESTree.CallExpressionArgument[],
   resultVariable?: VariableName,
 ): FunctionInvocationStatement {
-  if (argumentsNode.length < 1) {
+  let functionName: string
+  const firstArg = argumentsNode[0]
+
+  if (!firstArg) {
     throw new WorkflowSyntaxError(
       'The first argument must be a Function',
       node.loc,
     )
   }
 
-  let functionName: string
   const argNode =
-    argumentsNode[0].type === AST_NODE_TYPES.TSInstantiationExpression
-      ? argumentsNode[0].expression
-      : argumentsNode[0]
+    firstArg.type === AST_NODE_TYPES.TSInstantiationExpression
+      ? firstArg.expression
+      : firstArg
   if (argNode.type === AST_NODE_TYPES.Identifier) {
     functionName = argNode.name
   } else if (argNode.type === AST_NODE_TYPES.MemberExpression) {
@@ -958,15 +960,16 @@ function createCallStatement(
   }
 
   let args: WorkflowParameters = {}
-  if (argumentsNode.length >= 2) {
-    if (argumentsNode[1].type !== AST_NODE_TYPES.ObjectExpression) {
+  const arg1 = argumentsNode[1]
+  if (arg1) {
+    if (arg1.type !== AST_NODE_TYPES.ObjectExpression) {
       throw new WorkflowSyntaxError(
         'The second argument must be a map literal',
-        argumentsNode[1].loc,
+        arg1.loc,
       )
     }
 
-    args = convertObjectExpression(argumentsNode[1]).value
+    args = convertObjectExpression(arg1).value
   }
 
   return new FunctionInvocationStatement(functionName, args, resultVariable)
@@ -980,20 +983,15 @@ function blockingFunctionStatement(
 ): FunctionInvocationStatement {
   const argumentExpressions =
     throwIfSpread(argumentsNode).map(convertExpression)
-  const args: Record<string, Expression> = Object.fromEntries(
-    argumentNames.flatMap((argName, i) => {
-      if (i >= argumentExpressions.length) {
-        return []
-      } else if (
-        argumentsNode[i].type === AST_NODE_TYPES.Identifier &&
-        argumentsNode[i].name === 'undefined'
-      ) {
-        return []
-      } else {
-        return [[argName, argumentExpressions[i]]] as const
-      }
-    }),
-  )
+  const namedExpressions = R.zip(argumentNames, argumentExpressions)
+  const definedNamedExpressions = R.zip(namedExpressions, argumentsNode)
+    .filter(
+      (x) =>
+        !(x[1].type === AST_NODE_TYPES.Identifier && x[1].name === 'undefined'),
+    )
+    .map((x) => x[0])
+    .map(([argName, ex]) => [argName, ex] as const)
+  const args = Object.fromEntries(definedNamedExpressions)
 
   return new FunctionInvocationStatement(functionName, args, resultName)
 }
@@ -1011,10 +1009,15 @@ function createParallelStatement(
     parallelNestingLevel: (ctx.parallelNestingLevel ?? 0) + 1,
   })
 
-  switch (args[0]?.type) {
+  const firstArg = args[0]
+  if (!firstArg) {
+    throw new WorkflowSyntaxError('At least one argument required', loc)
+  }
+
+  switch (firstArg.type) {
     case AST_NODE_TYPES.ArrayExpression:
       return new ParallelStatement(
-        parseParallelBranches(args[0], ctx2),
+        parseParallelBranches(firstArg, ctx2),
         shared,
         concurrencyLimit,
         exceptionPolicy,
@@ -1022,19 +1025,16 @@ function createParallelStatement(
 
     case AST_NODE_TYPES.ArrowFunctionExpression:
       return new ParallelForStatement(
-        parseParallelIteration(args[0], ctx2),
+        parseParallelIteration(firstArg, ctx2),
         shared,
         concurrencyLimit,
         exceptionPolicy,
       )
 
-    case undefined:
-      throw new WorkflowSyntaxError('At least one argument required', loc)
-
     default:
       throw new WorkflowSyntaxError(
         'The first parameter must be an array of functions or an arrow function',
-        args[0].loc,
+        firstArg.loc,
       )
   }
 }
@@ -1056,7 +1056,7 @@ function parseParallelBranches(
           )
         }
 
-        if (arg.params.length > 0) {
+        if (arg.params[0]) {
           throw new WorkflowSyntaxError(
             'Parallel functions must not take arguments',
             arg.params[0].loc,
@@ -1086,7 +1086,7 @@ function parseParallelIteration(
   if (
     node.body.type !== AST_NODE_TYPES.BlockStatement ||
     node.body.body.length !== 1 ||
-    node.body.body[0].type !== AST_NODE_TYPES.ForOfStatement
+    node.body.body[0]?.type !== AST_NODE_TYPES.ForOfStatement
   ) {
     throw new WorkflowSyntaxError(
       'The parallel function body must be a single for...of statement',
@@ -1340,17 +1340,19 @@ function extractRetryPolicy(
       statement.expression.callee.type === AST_NODE_TYPES.Identifier &&
       statement.expression.callee.name === 'retry_policy'
     ) {
-      if (statement.expression.arguments.length < 1) {
+      const arg0 = throwIfSpread(statement.expression.arguments).map(
+        convertExpression,
+      )[0]
+
+      if (!arg0) {
         throw new WorkflowSyntaxError(
           'Required argument missing',
           statement.expression.loc,
         )
       }
 
-      const arg0 = throwIfSpread(statement.expression.arguments).map(
-        convertExpression,
-      )[0]
-      const argsLoc = statement.expression.arguments[0].loc
+      const argsLoc =
+        statement.expression.arguments[0]?.loc || statement.expression.loc
 
       if (isQualifiedName(arg0)) {
         return expressionToString(arg0)
@@ -1377,6 +1379,13 @@ function retryPolicyFromParams(
   } else if (params.backoff.tag !== 'map') {
     throw new WorkflowSyntaxError(
       'Expected "backoff" to be an object literal',
+      argsLoc,
+    )
+  }
+
+  if (!('max_retries' in params)) {
+    throw new WorkflowSyntaxError(
+      'Required parameter "max_retries" missing',
       argsLoc,
     )
   }

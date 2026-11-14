@@ -353,7 +353,7 @@ function optionalChainToMapGetArguments(
     const baseProperties = properties.slice(0, firstOptional - 1)
     base = memberExpressionFromList(baseProperties)
     optionalSliceStart = firstOptional - 1
-  } else if (firstOptional >= 0) {
+  } else if (firstOptional >= 0 && properties[0]) {
     base = convertExpression(properties[0].property)
     optionalSliceStart = 1
   } else {
@@ -379,7 +379,7 @@ function optionalChainToMapGetArguments(
   const args = [base]
   if (optionals.length > 1) {
     args.push(listEx(optionals))
-  } else if (optionals.length === 1) {
+  } else if (optionals[0]) {
     args.push(optionals[0])
   }
 
@@ -387,7 +387,7 @@ function optionalChainToMapGetArguments(
 }
 
 function memberExpressionFromList(properties: ChainedProperty[]): Expression {
-  if (properties.length >= 2) {
+  if (properties[0] && properties[1]) {
     const base = memberEx(
       convertExpression(properties[0].property),
       convertExpression(properties[1].property),
@@ -401,7 +401,7 @@ function memberExpressionFromList(properties: ChainedProperty[]): Expression {
           memberEx(exp, convertExpression(current.property), current.computed),
         base,
       )
-  } else if (properties.length === 1) {
+  } else if (properties[0]) {
     return convertExpression(properties[0].property)
   } else {
     throw new InternalTranspilingError(
@@ -493,14 +493,16 @@ function convertTemplateLiteralToExpression(
     .slice(0, stringTerms.length - 1)
     .flatMap((stringTerm, i) => {
       const combined: Expression[] = [stringTerm]
-      if (i < templateTerms.length) {
+      if (templateTerms[i]) {
         combined.push(templateTerms[i])
       }
 
       return combined
     })
-  if (stringTerms[stringTerms.length - 1].value !== '') {
-    interleavedTerms.push(stringTerms[stringTerms.length - 1])
+
+  const lastString = stringTerms[stringTerms.length - 1]
+  if (lastString?.value) {
+    interleavedTerms.push(lastString)
   }
 
   if (interleavedTerms.length === 0) {
