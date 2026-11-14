@@ -1,4 +1,4 @@
-import { expect } from 'chai'
+import { describe, it, expect } from 'vitest'
 import * as YAML from 'yaml'
 import { Subworkflow } from '../src/ast/workflows.js'
 import { parseExpression } from './testutils.js'

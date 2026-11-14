@@ -1,4 +1,4 @@
-import { expect } from 'chai'
+import { describe, it, expect } from 'vitest'
 import ts from 'typescript'
 import { findCalledFunctionDeclarations } from '../src/transpiler/linker.js'
 

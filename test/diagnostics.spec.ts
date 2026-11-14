@@ -1,4 +1,4 @@
-import { expect } from 'chai'
+import { describe, it, expect } from 'vitest'
 import { prettifySyntaxError } from '../src/diagnostics.js'
 import {
   WorkflowSyntaxError,

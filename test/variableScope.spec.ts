@@ -1,3 +1,4 @@
+import { describe, it } from 'vitest'
 import { transpileAndSnapshotTest } from './testutils.js'
 
 describe('Variable scope', () => {

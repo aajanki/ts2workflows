@@ -6,7 +6,7 @@ import {
   AST_NODE_TYPES,
 } from '@typescript-eslint/typescript-estree'
 import * as YAML from 'yaml'
-import snapshot from 'snap-shot-it'
+import { expect } from 'vitest'
 import { Expression } from '../src/ast/expressions.js'
 import { transpileText } from '../src/transpiler/index.js'
 import { convertExpression } from '../src/transpiler/parseexpressions.js'
@@ -60,6 +60,6 @@ function isJSONObject(val: string): boolean {
  */
 export function transpileAndSnapshotTest(code: string): () => void {
   return () => {
-    snapshot(YAML.parse(transpileText(code)))
+    expect(YAML.parse(transpileText(code))).toMatchSnapshot()
   }
 }

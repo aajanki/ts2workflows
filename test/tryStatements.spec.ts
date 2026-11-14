@@ -1,4 +1,4 @@
-import { expect } from 'chai'
+import { describe, it, expect } from 'vitest'
 import { transpileText } from '../src/transpiler/index.js'
 import { transpileAndSnapshotTest } from './testutils.js'
 import { InternalTranspilingError, WorkflowSyntaxError } from '../src/errors.js'

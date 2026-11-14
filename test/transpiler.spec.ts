@@ -1,4 +1,4 @@
-import { expect } from 'chai'
+import { describe, it, expect } from 'vitest'
 import * as YAML from 'yaml'
 import * as fs from 'node:fs'
 import { transpile, transpileText } from '../src/transpiler/index.js'
