@@ -1,5 +1,3 @@
-/* istanbul ignore file @preserve */
-
 import {
   parse,
   TSESTree,

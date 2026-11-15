@@ -1,5 +1,4 @@
-__snapshots__
 dist
 package-lock.json
 src/transpiler/generated
-.nycrc
+test/__snapshots__
