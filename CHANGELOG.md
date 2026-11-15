@@ -2,6 +2,10 @@
 
 ## unreleased
 
+Breaking changes:
+
+- Minimum supported Node is 22.12.0, drop support for Node 20
+
 Fixes:
 
 - Accept readonly arguments where mutability is not required in workflowslib
